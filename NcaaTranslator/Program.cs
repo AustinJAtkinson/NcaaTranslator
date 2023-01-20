@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Security.Cryptography.X509Certificates;
+using System.Text.Json;
 using System.Timers;
 
 namespace NcaaTranslator
@@ -19,9 +20,9 @@ namespace NcaaTranslator
 
         static void Main()
         {
-            SportsList.Add(new SportConference { ConferenceName = "NCHC", SportUrl = "icehockey-men/d1/", SportName="Hockey" });
-            //SportsList.Add(new SportConference { ConferenceName = "Summit League", SportUrl = "basketball-men/d1/" });
-            //SportsList.Add(new SportConference { ConferenceName = "Summit League", SportUrl = "basketball-women/d1/" });
+            SportsList.Add(new SportConference { ConferenceName = "NCHC", SportUrl = "icehockey-men/d1/", SportName = "Hockey" });
+            SportsList.Add(new SportConference { ConferenceName = "Summit League", SportUrl = "basketball-men/d1/", SportName = "MBB" });
+            SportsList.Add(new SportConference { ConferenceName = "Summit League", SportUrl = "basketball-women/d1/", SportName = "WBB" });
             //SportsList.Add(new SportConference { ConferenceName = "Summit League", SportUrl = "scoreboard/football/fcs/" });
 
             SetTimer();
@@ -91,39 +92,40 @@ namespace NcaaTranslator
 
 
                     NcaaScoreboard ncaaConferenceGames = JsonSerializer.Deserialize<NcaaScoreboard>(json: responseBody);
-                    NcaaScoreboard ncaaTop25Games = JsonSerializer.Deserialize<NcaaScoreboard>(json: responseBody);
+                    NcaaScoreboard ncaaNonConferenceGames = JsonSerializer.Deserialize<NcaaScoreboard>(json: responseBody);
 
 
-                    List<string> nonConferenceGamesToRemove = new List<string>();
-                    List<string> notTop25Rank = new List<string>();
+                    List<string> nonConferenceGames = new List<string>();
+                    var undGameId = "";
 
                     foreach (var gameData in ncaaConferenceGames.games)
                     {
-                        if(gameData.game.home.conferences[0].conferenceName != SportsList[i].ConferenceName ||
+                        if (gameData.game.home.conferences[0].conferenceName != SportsList[i].ConferenceName ||
                             gameData.game.away.conferences[0].conferenceName != SportsList[i].ConferenceName)
                         {
-                            nonConferenceGamesToRemove.Add(gameData.game.gameID);
-
-                            if (gameData.game.home.rank == "" && gameData.game.away.rank == "")
-                            {
-                                notTop25Rank.Add(gameData.game.gameID);
-                            }
+                            nonConferenceGames.Add(gameData.game.gameID);
                         }
                         else
                         {
-                            notTop25Rank.Add(gameData.game.gameID);                         
+                            if (gameData.game.home.names.char6 == "NO DAK" || gameData.game.home.names.char6 == "NO DAK")
+                            {
+                                undGameId = gameData.game.gameID;
+                            }
                         }
+
                     }
 
-                    ncaaConferenceGames.games.RemoveAll(x => nonConferenceGamesToRemove.Contains(x.game.gameID));
+
+                    ncaaConferenceGames.games.RemoveAll(x => nonConferenceGames.Contains(x.game.gameID) || x.game.gameID == undGameId);
                     ncaaConferenceGames.games.Sort((x, y) => int.Parse(x.game.gameID).CompareTo(int.Parse(y.game.gameID)));
                     string conferenceGames = JsonSerializer.Serialize<NcaaScoreboard>(ncaaConferenceGames);
-                    File.WriteAllText(string.Format("{0}-NCHCGames.json", SportsList[i].SportName), conferenceGames);
+                    File.WriteAllText(string.Format("{0}-{1}Games.json", SportsList[i].SportName, SportsList[i].ConferenceName.Replace(" ", "")), conferenceGames);
 
-                    ncaaTop25Games.games.RemoveAll(x => notTop25Rank.Contains(x.game.gameID));
-                    ncaaTop25Games.games.Sort((x, y) => int.Parse(x.game.gameID).CompareTo(int.Parse(y.game.gameID)));
-                    string top25Games = JsonSerializer.Serialize<NcaaScoreboard>(ncaaTop25Games);
-                    File.WriteAllText(string.Format("{0}-Top25NonConferenceGames.json", SportsList[i].SportName), top25Games);
+                    ncaaNonConferenceGames.games.RemoveAll(x => !nonConferenceGames.Contains(x.game.gameID) || x.game.gameID == undGameId);
+                    ncaaNonConferenceGames.games.Sort((x, y) => int.Parse(x.game.gameID).CompareTo(int.Parse(y.game.gameID)));
+                    string top25Games = JsonSerializer.Serialize<NcaaScoreboard>(ncaaNonConferenceGames);
+                    File.WriteAllText(string.Format("{0}-NonConferenceGames.json", SportsList[i].SportName), top25Games);
+
                 }
                 catch (HttpRequestException err)
                 {
