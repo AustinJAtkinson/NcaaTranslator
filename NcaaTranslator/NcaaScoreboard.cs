@@ -68,7 +68,6 @@ namespace NcaaTranslator
         public string videoState { get; set; }
         public string bracketRegion { get; set; }
         public string contestClock { get; set; }
-
         public string displayClock
         {
             get
@@ -81,7 +80,8 @@ namespace NcaaTranslator
                 {
                     return finalMessage;
                 }
-                return currentPeriod +  "   " + contestClock;
+
+                return string.Format("{0}     {1}", currentPeriod, contestClock);
             }
         }
 
