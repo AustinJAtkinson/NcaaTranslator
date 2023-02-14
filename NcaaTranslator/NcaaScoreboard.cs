@@ -81,10 +81,25 @@ namespace NcaaTranslator
                     return finalMessage;
                 }
 
+                return string.Format("{0}     {1}", currentPeriod.Replace("2OT", "SO"), contestClock);
+            }
+        }
+        public string displayClockDefault
+        {
+            get
+            {
+                if (gameState == "pre")
+                {
+                    return ctStateTime;
+                }
+                if (gameState == "final")
+                {
+                    return finalMessage;
+                }
+
                 return string.Format("{0}     {1}", currentPeriod, contestClock);
             }
         }
-
     }
 
     public class Home
@@ -102,6 +117,7 @@ namespace NcaaTranslator
     {
         public string char6 { get; set; }
         public string @short { get; set; }
+        public string customShort { get; set; }
         public string seo { get; set; }
         public string full { get; set; }
     }
