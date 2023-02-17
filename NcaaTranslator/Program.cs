@@ -12,6 +12,8 @@ namespace NcaaTranslator
 
         private static List<SportConference> SportsList = new List<SportConference>();
 
+        private static DateTime StartTime = DateTime.Now;
+
         class SportConference
         {
             public string ConferenceName { get; set; }
@@ -32,7 +34,7 @@ namespace NcaaTranslator
             SetTimer();
 
             Console.WriteLine("\nPress the Enter key to exit the application...\n");
-            Console.WriteLine("The application started at {0:HH:mm:ss.fff}", DateTime.Now);
+            Console.WriteLine("The application started at {0:HH:mm:ss.fff}", StartTime);
             Console.ReadLine();
             aTimer.Stop();
             aTimer.Dispose();
@@ -51,7 +53,10 @@ namespace NcaaTranslator
 
         private static async void OnTimedEventAsync(Object source, ElapsedEventArgs e)
         {
-            Console.WriteLine("The Elapsed event was raised at {0:HH:mm:ss.fff}", e.SignalTime);
+            Console.Clear();
+            Console.WriteLine("\nPress the Enter key to exit the application...\n");
+            Console.WriteLine("The application started at {0:HH:mm:ss.fff} \n", StartTime);
+            Console.WriteLine("The scores were last updated at {0:HH:mm:ss.fff}", e.SignalTime);
 
             var dateYear = DateTime.Now.Year;
             var dateMonth = DateTime.Now.ToString("MM");
@@ -105,8 +110,11 @@ namespace NcaaTranslator
                         var homeShortLookup = NameConverters.Lookup(gameData.game.home.names.char6);
                         var awayShortLookup = NameConverters.Lookup(gameData.game.away.names.char6);
 
-                        gameData.game.home.names.customShort = homeShortLookup != "" ? homeShortLookup : gameData.game.home.names.@short;
-                        gameData.game.away.names.customShort = awayShortLookup != "" ? awayShortLookup : gameData.game.away.names.@short;
+                        gameData.game.home.names.shortOriginal = gameData.game.home.names.@short;
+                        gameData.game.away.names.shortOriginal = gameData.game.away.names.@short;
+
+                        gameData.game.home.names.@short = homeShortLookup != "" ? homeShortLookup : gameData.game.home.names.shortOriginal;
+                        gameData.game.away.names.@short = awayShortLookup != "" ? awayShortLookup : gameData.game.away.names.shortOriginal;
                     });
 
                     foreach (var gameData in ncaaGames.games)
@@ -116,7 +124,6 @@ namespace NcaaTranslator
                             gameData.game.away.conferences[0].conferenceName != SportsList[i].ConferenceName)
                         {
                             nonConferenceGames.Add(gameData);
-                            nonConferenceGames.Remove(gameData);
                         }
                         else
                         {
@@ -125,9 +132,14 @@ namespace NcaaTranslator
                                 undGameId = gameData.game.gameID;
                             }
                         }
-
                     }
+                    Console.WriteLine(String.Format("{0} - {1} Total Games", ncaaGames.games.Count, SportsList[i].SportName));
+
+                    ncaaGames.games.RemoveAll(x => nonConferenceGames.Contains(x) || x.game.gameID == undGameId);
                     ncaaGames.games.Sort((x, y) => int.Parse(x.game.gameID).CompareTo(int.Parse(y.game.gameID)));
+
+                    Console.WriteLine(String.Format("{0} - {1} Conferance Games", ncaaGames.games.Count, SportsList[i].SportName));
+                    Console.WriteLine(String.Format("{0} - {1} NonConferance Games", nonConferenceGames.Count, SportsList[i].SportName));
 
                     string conferenceGames = JsonSerializer.Serialize<NcaaScoreboard>(ncaaGames);
                     File.WriteAllText(string.Format("{0}-{1}Games.json", SportsList[i].SportName, SportsList[i].ConferenceName.Replace(" ", "")), conferenceGames);
@@ -140,7 +152,7 @@ namespace NcaaTranslator
 
                     string top25Games = JsonSerializer.Serialize<NcaaScoreboard>(ncaaGames);
                     File.WriteAllText(string.Format("{0}-NonConferenceGames.json", SportsList[i].SportName), top25Games);
-
+                    client.Dispose();
                 }
                 catch (HttpRequestException err)
                 {

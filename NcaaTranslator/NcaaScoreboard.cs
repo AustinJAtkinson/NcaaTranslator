@@ -117,7 +117,7 @@ namespace NcaaTranslator
     {
         public string char6 { get; set; }
         public string @short { get; set; }
-        public string customShort { get; set; }
+        public string shortOriginal { get; set; }
         public string seo { get; set; }
         public string full { get; set; }
     }
