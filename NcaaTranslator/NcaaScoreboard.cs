@@ -78,7 +78,7 @@ namespace NcaaTranslator
                 }
                 if (gameState == "final")
                 {
-                    return finalMessage;
+                    return finalMessage.Replace("2OT", "SO");
                 }
 
                 return string.Format("{0}     {1}", currentPeriod.Replace("2OT", "SO"), contestClock);

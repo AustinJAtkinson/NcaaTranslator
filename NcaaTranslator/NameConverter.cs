@@ -45,6 +45,8 @@ namespace NcaaTranslator
                     if (!line.StartsWith(@"//"))
                     {
                         var name = new NameConverter(line);
+
+                        NameDict.Add(name.char6, name);
                     }
 
                     line = textReader.ReadLine();

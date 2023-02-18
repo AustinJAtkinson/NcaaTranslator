@@ -98,27 +98,20 @@ namespace NcaaTranslator
                             }
                         }
                     }
+                    finally
+                    {
+                        client.Dispose();
+                    }
 
 
                     NcaaScoreboard ncaaGames = JsonSerializer.Deserialize<NcaaScoreboard>(json: responseBody);
 
                     List<Game> nonConferenceGames = new List<Game>();
-                    var undGameId = "";
-
-                    ncaaGames.games.ForEach(gameData =>
-                    {
-                        var homeShortLookup = NameConverters.Lookup(gameData.game.home.names.char6);
-                        var awayShortLookup = NameConverters.Lookup(gameData.game.away.names.char6);
-
-                        gameData.game.home.names.shortOriginal = gameData.game.home.names.@short;
-                        gameData.game.away.names.shortOriginal = gameData.game.away.names.@short;
-
-                        gameData.game.home.names.@short = homeShortLookup != "" ? homeShortLookup : gameData.game.home.names.shortOriginal;
-                        gameData.game.away.names.@short = awayShortLookup != "" ? awayShortLookup : gameData.game.away.names.shortOriginal;
-                    });
+                    Game undGameId = new Game();
 
                     foreach (var gameData in ncaaGames.games)
                     {
+                        FixNames(gameData);
 
                         if (gameData.game.home.conferences[0].conferenceName != SportsList[i].ConferenceName ||
                             gameData.game.away.conferences[0].conferenceName != SportsList[i].ConferenceName)
@@ -129,13 +122,13 @@ namespace NcaaTranslator
                         {
                             if (gameData.game.home.names.char6 == "NO DAK" || gameData.game.home.names.char6 == "NO DAK")
                             {
-                                undGameId = gameData.game.gameID;
+                                undGameId = gameData;
                             }
                         }
                     }
                     Console.WriteLine(String.Format("{0} - {1} Total Games", ncaaGames.games.Count, SportsList[i].SportName));
 
-                    ncaaGames.games.RemoveAll(x => nonConferenceGames.Contains(x) || x.game.gameID == undGameId);
+                    ncaaGames.games.RemoveAll(x => nonConferenceGames.Contains(x) || x == undGameId);
                     ncaaGames.games.Sort((x, y) => int.Parse(x.game.gameID).CompareTo(int.Parse(y.game.gameID)));
 
                     Console.WriteLine(String.Format("{0} - {1} Conferance Games", ncaaGames.games.Count, SportsList[i].SportName));
@@ -152,7 +145,16 @@ namespace NcaaTranslator
 
                     string top25Games = JsonSerializer.Serialize<NcaaScoreboard>(ncaaGames);
                     File.WriteAllText(string.Format("{0}-NonConferenceGames.json", SportsList[i].SportName), top25Games);
-                    client.Dispose();
+
+                    if (undGameId.game != null)
+                    {
+                        ncaaGames.games.Clear();
+                        ncaaGames.games.Add(undGameId);
+
+                        string undGame = JsonSerializer.Serialize<NcaaScoreboard>(ncaaGames);
+                        File.WriteAllText(string.Format("{0}-UndGame.json", SportsList[i].SportName), undGame);
+                    }
+
                 }
                 catch (HttpRequestException err)
                 {
@@ -160,6 +162,17 @@ namespace NcaaTranslator
                     Console.WriteLine("Message :{0} ", err.Message);
                 }
             }
+        }
+        private static void FixNames(Game gameData)
+        {
+            var homeShortLookup = NameConverters.Lookup(gameData.game.home.names.char6);
+            var awayShortLookup = NameConverters.Lookup(gameData.game.away.names.char6);
+
+            gameData.game.home.names.shortOriginal = gameData.game.home.names.@short;
+            gameData.game.away.names.shortOriginal = gameData.game.away.names.@short;
+
+            gameData.game.home.names.@short = homeShortLookup != "" ? homeShortLookup : gameData.game.home.names.shortOriginal;
+            gameData.game.away.names.@short = awayShortLookup != "" ? awayShortLookup : gameData.game.away.names.shortOriginal;
         }
     }
 }
