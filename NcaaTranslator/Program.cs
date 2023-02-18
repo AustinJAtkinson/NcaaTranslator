@@ -120,7 +120,7 @@ namespace NcaaTranslator
                         }
                         else
                         {
-                            if (gameData.game.home.names.char6 == "NO DAK" || gameData.game.home.names.char6 == "NO DAK")
+                            if (gameData.game.home.names.char6 == "NO DAK" || gameData.game.away.names.char6 == "NO DAK")
                             {
                                 undGameId = gameData;
                             }
