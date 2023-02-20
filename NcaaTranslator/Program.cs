@@ -1,8 +1,6 @@
-﻿using System.Collections.Generic;
-using System;
-using System.Security.Cryptography.X509Certificates;
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Timers;
+using System.Xml.Serialization;
 
 namespace NcaaTranslator
 {
@@ -29,7 +27,7 @@ namespace NcaaTranslator
             SportsList.Add(new SportConference { ConferenceName = "Summit League", SportUrl = "basketball-women/d1/", SportName = "WBB" });
             //SportsList.Add(new SportConference { ConferenceName = "Summit League", SportUrl = "scoreboard/football/fcs/" });
 
-            NameConverters.Load("NcaaNameConverter.txt");
+            NameConverters.Load();
 
             SetTimer();
 
@@ -93,9 +91,7 @@ namespace NcaaTranslator
                             {
                                 responseBody = await client.GetStringAsync(tempUrl);
                             }
-                            catch
-                            {
-                            }
+                            catch { }
                         }
                     }
                     finally
@@ -103,11 +99,8 @@ namespace NcaaTranslator
                         client.Dispose();
                     }
 
-
                     NcaaScoreboard ncaaGames = JsonSerializer.Deserialize<NcaaScoreboard>(json: responseBody);
-
-                    List<Game> nonConferenceGames = new List<Game>();
-                    Game undGameId = new Game();
+                    ncaaGames.games.Sort((x, y) => int.Parse(x.game.gameID).CompareTo(int.Parse(y.game.gameID)));
 
                     foreach (var gameData in ncaaGames.games)
                     {
@@ -116,45 +109,31 @@ namespace NcaaTranslator
                         if (gameData.game.home.conferences[0].conferenceName != SportsList[i].ConferenceName ||
                             gameData.game.away.conferences[0].conferenceName != SportsList[i].ConferenceName)
                         {
-                            nonConferenceGames.Add(gameData);
+                            ncaaGames.nonConferenceGames.Add(gameData);
                         }
                         else
                         {
                             if (gameData.game.home.names.char6 == "NO DAK" || gameData.game.away.names.char6 == "NO DAK")
                             {
-                                undGameId = gameData;
+                                ncaaGames.undGames.Add(gameData);
+                            }
+                            else
+                            {
+                                ncaaGames.conferenceGames.Add(gameData);
                             }
                         }
                     }
+
                     Console.WriteLine(String.Format("{0} - {1} Total Games", ncaaGames.games.Count, SportsList[i].SportName));
+                    Console.WriteLine(String.Format("{0} - {1} Conferance Games", ncaaGames.conferenceGames.Count, SportsList[i].SportName));
+                    Console.WriteLine(String.Format("{0} - {1} NonConferance Games", ncaaGames.nonConferenceGames.Count, SportsList[i].SportName));
 
-                    ncaaGames.games.RemoveAll(x => nonConferenceGames.Contains(x) || x == undGameId);
-                    ncaaGames.games.Sort((x, y) => int.Parse(x.game.gameID).CompareTo(int.Parse(y.game.gameID)));
+                    File.WriteAllText(string.Format("{0}-Games.json", SportsList[i].SportName), JsonSerializer.Serialize<NcaaScoreboard>(ncaaGames, new JsonSerializerOptions() { WriteIndented = true }));
 
-                    Console.WriteLine(String.Format("{0} - {1} Conferance Games", ncaaGames.games.Count, SportsList[i].SportName));
-                    Console.WriteLine(String.Format("{0} - {1} NonConferance Games", nonConferenceGames.Count, SportsList[i].SportName));
-
-                    string conferenceGames = JsonSerializer.Serialize<NcaaScoreboard>(ncaaGames);
-                    File.WriteAllText(string.Format("{0}-{1}Games.json", SportsList[i].SportName, SportsList[i].ConferenceName.Replace(" ", "")), conferenceGames);
-
-
-                    ncaaGames.games.Clear();
-                    ncaaGames.games.AddRange(nonConferenceGames);
-                    ncaaGames.games.Sort((x, y) => int.Parse(x.game.gameID).CompareTo(int.Parse(y.game.gameID)));
-
-
-                    string top25Games = JsonSerializer.Serialize<NcaaScoreboard>(ncaaGames);
-                    File.WriteAllText(string.Format("{0}-NonConferenceGames.json", SportsList[i].SportName), top25Games);
-
-                    if (undGameId.game != null)
-                    {
-                        ncaaGames.games.Clear();
-                        ncaaGames.games.Add(undGameId);
-
-                        string undGame = JsonSerializer.Serialize<NcaaScoreboard>(ncaaGames);
-                        File.WriteAllText(string.Format("{0}-UndGame.json", SportsList[i].SportName), undGame);
-                    }
-
+                    TextWriter writer = new StreamWriter(string.Format("{0}-Games.xml", SportsList[i].SportName));
+                    XmlSerializer x = new XmlSerializer(ncaaGames.GetType());
+                    x.Serialize(writer, ncaaGames);
+                    writer.Close();
                 }
                 catch (HttpRequestException err)
                 {
@@ -165,8 +144,8 @@ namespace NcaaTranslator
         }
         private static void FixNames(Game gameData)
         {
-            var homeShortLookup = NameConverters.Lookup(gameData.game.home.names.char6);
-            var awayShortLookup = NameConverters.Lookup(gameData.game.away.names.char6);
+            var homeShortLookup = NameConverters.Lookup(gameData.game.home.names);
+            var awayShortLookup = NameConverters.Lookup(gameData.game.away.names);
 
             gameData.game.home.names.shortOriginal = gameData.game.home.names.@short;
             gameData.game.away.names.shortOriginal = gameData.game.away.names.@short;

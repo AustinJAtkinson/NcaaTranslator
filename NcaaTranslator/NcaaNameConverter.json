@@ -1,0 +1,317 @@
+[
+    {
+      "char6": "AIRFOR",
+      "short": "Air Force",
+      "customShort": ""
+    },
+    {
+      "char6": "AK ANC",
+      "short": "Alas. Anchorage",
+      "customShort": "Alaska Anchorage"
+    },
+    {
+      "char6": "AK FBK",
+      "short": "Alas. Fairbanks",
+      "customShort": "Alaska"
+    },
+    {
+      "char6": "AM INT",
+      "short": "American Int'l",
+      "customShort": ""
+    },
+    {
+      "char6": "ARMY",
+      "short": "Army West Point",
+      "customShort": "Army"
+    },
+    {
+      "char6": "AZ ST",
+      "short": "Arizona St.",
+      "customShort": "Arizona State"
+    },
+    {
+      "char6": "BC",
+      "short": "Boston College",
+      "customShort": ""
+    },
+    {
+      "char6": "BEMDJI",
+      "short": "Bemidji St.",
+      "customShort": "Bemidji State"
+    },
+    {
+      "char6": "BENTLY",
+      "short": "Bentley",
+      "customShort": ""
+    },
+    {
+      "char6": "BGSU",
+      "short": "Bowling Green",
+      "customShort": ""
+    },
+    {
+      "char6": "BROWN",
+      "short": "Brown",
+      "customShort": ""
+    },
+    {
+      "char6": "BU",
+      "short": "Boston U.",
+      "customShort": "Boston University"
+    },
+    {
+      "char6": "CANISI",
+      "short": "Canisius",
+      "customShort": ""
+    },
+    {
+      "char6": "CLARKS",
+      "short": "Clarkson",
+      "customShort": ""
+    },
+    {
+      "char6": "CO COL",
+      "short": "Colorado Col.",
+      "customShort": "Colorado College"
+    },
+    {
+      "char6": "COLGAT",
+      "short": "Colgate",
+      "customShort": ""
+    },
+    {
+      "char6": "CORN",
+      "short": "Cornell",
+      "customShort": ""
+    },
+    {
+      "char6": "DART",
+      "short": "Dartmouth",
+      "customShort": ""
+    },
+    {
+      "char6": "DENVER",
+      "short": "Denver",
+      "customShort": ""
+    },
+    {
+      "char6": "FERRIS",
+      "short": "Ferris St.",
+      "customShort": "Ferris State"
+    },
+    {
+      "char6": "HARV",
+      "short": "Harvard",
+      "customShort": ""
+    },
+    {
+      "char6": "HOLYCR",
+      "short": "Holy Cross",
+      "customShort": ""
+    },
+    {
+      "char6": "LINWOD",
+      "short": "Lindenwood",
+      "customShort": ""
+    },
+    {
+      "char6": "LIU",
+      "short": "LIU",
+      "customShort": ""
+    },
+    {
+      "char6": "LK SUP",
+      "short": "Lake Superior St.",
+      "customShort": "Lake Superior State"
+    },
+    {
+      "char6": "MAINE",
+      "short": "Maine",
+      "customShort": ""
+    },
+    {
+      "char6": "MERCYH",
+      "short": "Mercyhurst",
+      "customShort": ""
+    },
+    {
+      "char6": "MERMCK",
+      "short": "Merrimack",
+      "customShort": ""
+    },
+    {
+      "char6": "MIA OH",
+      "short": "Miami (OH)",
+      "customShort": "Miami"
+    },
+    {
+      "char6": "MICH",
+      "short": "Michigan",
+      "customShort": ""
+    },
+    {
+      "char6": "MICHST",
+      "short": "Michigan St.",
+      "customShort": "Michigan State"
+    },
+    {
+      "char6": "MINN",
+      "short": "Minnesota",
+      "customShort": ""
+    },
+    {
+      "char6": "MITECH",
+      "short": "Michigan Tech",
+      "customShort": ""
+    },
+    {
+      "char6": "MN DUL",
+      "short": "Minn. Duluth",
+      "customShort": "Minnesota Duluth"
+    },
+    {
+      "char6": "MNSTMA",
+      "short": "Minnesota St.",
+      "customShort": "Minnesota State"
+    },
+    {
+      "char6": "N DAME",
+      "short": "Notre Dame",
+      "customShort": ""
+    },
+    {
+      "char6": "N MICH",
+      "short": "Northern Mich.",
+      "customShort": "Northern Michigan"
+    },
+    {
+      "char6": "NIAGRA",
+      "short": "Niagara",
+      "customShort": ""
+    },
+    {
+      "char6": "NO DAK",
+      "short": "North Dakota",
+      "customShort": ""
+    },
+    {
+      "char6": "NOEAST",
+      "short": "Northeastern",
+      "customShort": ""
+    },
+    {
+      "char6": "OHIOST",
+      "short": "Ohio St.",
+      "customShort": "Ohio State"
+    },
+    {
+      "char6": "OMAHA",
+      "short": "Omaha",
+      "customShort": ""
+    },
+    {
+      "char6": "PENNST",
+      "short": "Penn St.",
+      "customShort": "Penn State"
+    },
+    {
+      "char6": "PRINCE",
+      "short": "Princeton",
+      "customShort": ""
+    },
+    {
+      "char6": "PROV",
+      "short": "Providence",
+      "customShort": ""
+    },
+    {
+      "char6": "QUINN",
+      "short": "Quinnipiac",
+      "customShort": ""
+    },
+    {
+      "char6": "RIT",
+      "short": "RIT",
+      "customShort": ""
+    },
+    {
+      "char6": "ROBMOR",
+      "short": "Robert Morris",
+      "customShort": ""
+    },
+    {
+      "char6": "RPI",
+      "short": "Rensselaer",
+      "customShort": ""
+    },
+    {
+      "char6": "SACHRT",
+      "short": "Sacred Heart",
+      "customShort": ""
+    },
+    {
+      "char6": "SCSU",
+      "short": "St. Cloud St.",
+      "customShort": "St. Cloud State"
+    },
+    {
+      "char6": "ST LAW",
+      "short": "St. Lawrence",
+      "customShort": ""
+    },
+    {
+      "char6": "STONEH",
+      "short": "Stonehill",
+      "customShort": ""
+    },
+    {
+      "char6": "STTHOM",
+      "short": "St. Thomas (MN)",
+      "customShort": "St. Thomas"
+    },
+    {
+      "char6": "UCONN",
+      "short": "UConn",
+      "customShort": ""
+    },
+    {
+      "char6": "UMASS",
+      "short": "Massachusetts",
+      "customShort": ""
+    },
+    {
+      "char6": "UMASSL",
+      "short": "UMass Lowell",
+      "customShort": ""
+    },
+    {
+      "char6": "UNH",
+      "short": "New Hampshire",
+      "customShort": ""
+    },
+    {
+      "char6": "UNION",
+      "short": "Union (NY)",
+      "customShort": "Union"
+    },
+    {
+      "char6": "VERMNT",
+      "short": "Vermont",
+      "customShort": ""
+    },
+    {
+      "char6": "W MICH",
+      "short": "Western Mich.",
+      "customShort": "Western Michigan"
+    },
+    {
+      "char6": "WISC",
+      "short": "Wisconsin",
+      "customShort": ""
+    },
+    {
+      "char6": "YALE",
+      "short": "Yale",
+      "customShort": ""
+    }
+  ]

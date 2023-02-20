@@ -5,7 +5,10 @@ namespace NcaaTranslator
     {
         public string? inputMD5Sum { get; set; }
         public string? updated_at { get; set; }
-        public List<Game> games { get; set; }
+        public List<Game> games { get; set; } = new List<Game>();
+        public List<Game> nonConferenceGames { get; set; } = new List<Game>();
+        public List<Game> conferenceGames { get; set; } = new List<Game>();
+        public List<Game> undGames { get; set; } = new List<Game>();
     }
     public class Away
     {
