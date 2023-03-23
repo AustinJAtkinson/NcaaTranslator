@@ -100,7 +100,15 @@ namespace NcaaTranslator
                     }
 
                     NcaaScoreboard ncaaGames = JsonSerializer.Deserialize<NcaaScoreboard>(json: responseBody);
-                    ncaaGames.games.Sort((x, y) => int.Parse(x.game.gameID).CompareTo(int.Parse(y.game.gameID)));
+                    if(!ncaaGames.games.Any(x=> x.game.gameID == ""))
+                    {
+                        ncaaGames.games.Sort((x, y) => int.Parse(x.game.gameID).CompareTo(int.Parse(y.game.gameID)));
+                    }
+                    else if(!ncaaGames.games.Any(x => x.game.bracketId == ""))
+                    {
+                        ncaaGames.games.Sort((x, y) => int.Parse(x.game.bracketId).CompareTo(int.Parse(y.game.bracketId)));
+                    }
+                        
 
                     foreach (var gameData in ncaaGames.games)
                     {
