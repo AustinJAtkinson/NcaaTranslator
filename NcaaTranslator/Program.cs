@@ -22,10 +22,13 @@ namespace NcaaTranslator
 
         static void Main()
         {
-            SportsList.Add(new SportConference { ConferenceName = "NCHC", SportUrl = "icehockey-men/d1/", SportName = "Hockey" });
-            SportsList.Add(new SportConference { ConferenceName = "Summit League", SportUrl = "basketball-men/d1/", SportName = "MBB" });
-            SportsList.Add(new SportConference { ConferenceName = "Summit League", SportUrl = "basketball-women/d1/", SportName = "WBB" });
-            //SportsList.Add(new SportConference { ConferenceName = "Summit League", SportUrl = "scoreboard/football/fcs/" });
+            var options = new JsonSerializerOptions
+            {
+                ReadCommentHandling = JsonCommentHandling.Skip
+            };
+
+            string jsonString = File.ReadAllText("SportsList.json");
+            SportsList = JsonSerializer.Deserialize<List<SportConference>>(jsonString, options);
 
             NameConverters.Load();
 
@@ -56,47 +59,17 @@ namespace NcaaTranslator
             Console.WriteLine("The application started at {0:HH:mm:ss.fff} \n", StartTime);
             Console.WriteLine("The scores were last updated at {0:HH:mm:ss.fff}", e.SignalTime);
 
-            var dateYear = DateTime.Now.Year;
-            var dateMonth = DateTime.Now.ToString("MM");
-            var dateDay = DateTime.Now.ToString("dd");
-
             for (var i = 0; i < SportsList.Count; i++)
             {
-                string url = "https://data.ncaa.com/casablanca/scoreboard/";
-                string fileName = "scoreboard.json";
-
                 try
                 {
-                    HttpClient client = new HttpClient();
-                    var tempUrl = string.Format(url + SportsList[i].SportUrl + dateYear + "/" + dateMonth + "/" + dateDay + "/" + fileName);
-                    string responseBody = "";
+                    
+                    var responseBody = "";
+                    responseBody = await NcaaResponse(await GetUrl(SportsList[i].SportUrl));
 
-                    try//try to get today first
+                    if(responseBody == "")
                     {
-                        responseBody = await client.GetStringAsync(tempUrl);
-                    }
-                    catch
-                    {
-                        tempUrl = string.Format(url + SportsList[i].SportUrl + dateYear + "/" + dateMonth + "/" + DateTime.Today.AddDays(-1).ToString("dd") + "/" + fileName);
-
-                        try//then try yesterday
-                        {
-                            responseBody = await client.GetStringAsync(tempUrl);
-                        }
-                        catch
-                        {
-                            tempUrl = string.Format(url + SportsList[i].SportUrl + dateYear + "/" + dateMonth + "/" + DateTime.Today.AddDays(+1).ToString("dd") + "/" + fileName);
-
-                            try//last try tomorrow
-                            {
-                                responseBody = await client.GetStringAsync(tempUrl);
-                            }
-                            catch { }
-                        }
-                    }
-                    finally
-                    {
-                        client.Dispose();
+                        continue;
                     }
 
                     NcaaScoreboard ncaaGames = JsonSerializer.Deserialize<NcaaScoreboard>(json: responseBody);
@@ -107,19 +80,14 @@ namespace NcaaTranslator
                     else if(!ncaaGames.games.Any(x => x.game.bracketId == ""))
                     {
                         ncaaGames.games.Sort((x, y) => int.Parse(x.game.bracketId).CompareTo(int.Parse(y.game.bracketId)));
-                    }
-                        
+                    } 
 
                     foreach (var gameData in ncaaGames.games)
                     {
                         FixNames(gameData);
 
-                        if (gameData.game.home.conferences[0].conferenceName != SportsList[i].ConferenceName ||
-                            gameData.game.away.conferences[0].conferenceName != SportsList[i].ConferenceName)
-                        {
-                            ncaaGames.nonConferenceGames.Add(gameData);
-                        }
-                        else
+                        if (gameData.game.home.conferences[0].conferenceName == SportsList[i].ConferenceName ||
+                            gameData.game.away.conferences[0].conferenceName == SportsList[i].ConferenceName)
                         {
                             if (gameData.game.home.names.char6 == "NO DAK" || gameData.game.away.names.char6 == "NO DAK")
                             {
@@ -129,6 +97,10 @@ namespace NcaaTranslator
                             {
                                 ncaaGames.conferenceGames.Add(gameData);
                             }
+                        }
+                        else
+                        {
+                            ncaaGames.nonConferenceGames.Add(gameData);
                         }
                     }
 
@@ -160,6 +132,31 @@ namespace NcaaTranslator
 
             gameData.game.home.names.@short = homeShortLookup != "" ? homeShortLookup : gameData.game.home.names.shortOriginal;
             gameData.game.away.names.@short = awayShortLookup != "" ? awayShortLookup : gameData.game.away.names.shortOriginal;
+        }
+
+        private static async Task<string> GetUrl(string sportUrl)
+        {
+            var response = await NcaaResponse("https://data.ncaa.com/casablanca/schedule/" + sportUrl + "today.json");
+            NcaaToday responseDeserialized = JsonSerializer.Deserialize<NcaaToday>(json: response);
+            return string.Format("https://data.ncaa.com/casablanca/scoreboard/" + sportUrl + responseDeserialized.today + "/" + "scoreboard.json");
+        }
+
+        private static async Task<string> NcaaResponse(string url)
+        {
+            HttpClient client = new HttpClient();
+            string ret = "";
+            try
+            {
+                ret = await client.GetStringAsync(url);
+            }
+            catch
+            {
+            }
+            finally
+            {
+                client.Dispose();
+            }
+            return ret;
         }
     }
 }

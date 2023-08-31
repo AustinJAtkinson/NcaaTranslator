@@ -1,0 +1,22 @@
+[
+  {
+    "SportName": "Hockey",
+    "ConferenceName": "NCHC",
+    "SportUrl": "icehockey-men/d1/"
+  },
+  {
+    "SportName": "MBB",
+    "ConferenceName": "Summit League",
+    "SportUrl": "basketball-men/d1/"
+  },
+  {
+    "SportName": "WBB",
+    "ConferenceName": "Summit League",
+    "SportUrl": "basketball-women/d1/"
+  },
+  {
+    "SportName": "Football",
+    "ConferenceName": "MVFC",
+    "SportUrl": "football/fcs/"
+  } 
+]

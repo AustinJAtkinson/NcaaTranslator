@@ -1,6 +1,13 @@
 ﻿
 namespace NcaaTranslator
 {
+    public class NcaaToday
+    {
+        public string? inputMD5Sum { get; set; }
+        public string? description { get; set; }
+        public string? today { get; set; }
+    }
+
     public class NcaaScoreboard
     {
         public string? inputMD5Sum { get; set; }
