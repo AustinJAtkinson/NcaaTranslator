@@ -1,17 +1,20 @@
-﻿
-namespace NcaaTranslator
+﻿using System;
+using System.Collections.Generic;
+
+
+namespace OutScoreUpdater
 {
     public class NcaaToday
     {
-        public string? inputMD5Sum { get; set; }
-        public string? description { get; set; }
-        public string? today { get; set; }
+        public string inputMD5Sum { get; set; }
+        public string description { get; set; }
+        public string today { get; set; }
     }
 
     public class NcaaScoreboard
     {
-        public string? inputMD5Sum { get; set; }
-        public string? updated_at { get; set; }
+        public string inputMD5Sum { get; set; }
+        public string updated_at { get; set; }
         public List<Game> games { get; set; } = new List<Game>();
         public List<Game> nonConferenceGames { get; set; } = new List<Game>();
         public List<Game> conferenceGames { get; set; } = new List<Game>();
@@ -67,7 +70,7 @@ namespace NcaaTranslator
                 {
                     return startTime;
                 }
-                
+
             }
             set { }
         }
@@ -83,7 +86,7 @@ namespace NcaaTranslator
         {
             get
             {
-                if ( gameState == "pre")
+                if (gameState == "pre")
                 {
                     return ctStateTime;
                 }
@@ -135,5 +138,5 @@ namespace NcaaTranslator
         public string full { get; set; }
     }
 
-    
+
 }
