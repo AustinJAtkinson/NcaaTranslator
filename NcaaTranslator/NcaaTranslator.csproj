@@ -9,7 +9,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<None Update="SportsList.json">
+		<None Update="Settings.json">
 		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
 		<None Update="NcaaNameConverter.json">

@@ -15,6 +15,7 @@ namespace NcaaTranslator
         public List<Game> games { get; set; } = new List<Game>();
         public List<Game> nonConferenceGames { get; set; } = new List<Game>();
         public List<Game> conferenceGames { get; set; } = new List<Game>();
+        public List<Game> displayGames { get; set; } = new List<Game>();
         public List<Game> undGames { get; set; } = new List<Game>();
     }
     public class Away

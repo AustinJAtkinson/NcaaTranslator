@@ -1,2 +1,0 @@
-C:\Users\austina\Downloads\temp\	OUT_Score_
-D:\NcaaTranslator\NcaaTranslator\bin\Debug\net7.0\Football-Games.json

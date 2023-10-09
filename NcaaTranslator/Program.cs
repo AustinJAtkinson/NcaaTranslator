@@ -8,34 +8,12 @@ namespace NcaaTranslator
     {
         private static System.Timers.Timer aTimer;
 
-        private static List<SportConference> SportsList = new List<SportConference>();
-
         private static DateTime StartTime = DateTime.Now;
-
-        class SportConference
-        {
-            public string ConferenceName { get; set; }
-            public string SportUrl { get; set; }
-            public string SportName { get; set; }
-        }
-
 
         static void Main()
         {
-            var options = new JsonSerializerOptions
-            {
-                ReadCommentHandling = JsonCommentHandling.Skip
-            };
-
-            string jsonString = File.ReadAllText("SportsList.json");
-            SportsList = JsonSerializer.Deserialize<List<SportConference>>(jsonString, options);
-
-            NameConverters.Load();
-
             SetTimer();
 
-            Console.WriteLine("\nPress the Enter key to exit the application...\n");
-            Console.WriteLine("The application started at {0:HH:mm:ss.fff}", StartTime);
             Console.ReadLine();
             aTimer.Stop();
             aTimer.Dispose();
@@ -44,28 +22,37 @@ namespace NcaaTranslator
         }
         private static void SetTimer()
         {
-            // Create a timer with a 20 second interval.
-            aTimer = new System.Timers.Timer(20000);
+            aTimer = new System.Timers.Timer(2000);
             // Hook up the Elapsed event for the timer. 
             aTimer.Elapsed += OnTimedEventAsync;
             aTimer.AutoReset = true;
             aTimer.Enabled = true;
         }
 
-        private static async void OnTimedEventAsync(Object source, ElapsedEventArgs e)
+        private static void Load()
         {
+            NameConverters.Load();
+            Settings.Load();
+            aTimer.Interval = Settings.Timer();
             Console.Clear();
             Console.WriteLine("\nPress the Enter key to exit the application...\n");
-            Console.WriteLine("The application started at {0:HH:mm:ss.fff} \n", StartTime);
-            Console.WriteLine("The scores were last updated at {0:HH:mm:ss.fff}", e.SignalTime);
+            Console.WriteLine("The application started at {0:HH:mm:ss.fff}", StartTime);
+        }
 
-            for (var i = 0; i < SportsList.Count; i++)
+        private static async void OnTimedEventAsync(Object source, ElapsedEventArgs e)
+        {
+            Load();
+            Console.WriteLine("The scores were last updated at {0:HH:mm:ss.fff}", e.SignalTime);
+            Console.WriteLine(String.Format("{0}\t{1}\t{2}\t{3}\t{4}", "Sport".PadRight("Sport".Length + (15 - "Sport".Length)), "Total", "Conf", "NonConf", "Display"));
+
+            var sportsList = Settings.GetSports();
+
+            for (var i = 0; i < sportsList.Count; i++)
             {
                 try
                 {
-                    
                     var responseBody = "";
-                    responseBody = await NcaaResponse(await GetUrl(SportsList[i].SportUrl));
+                    responseBody = await NcaaResponse(await GetUrl(sportsList[i].NcaaUrl));
 
                     if(responseBody == "")
                     {
@@ -80,14 +67,16 @@ namespace NcaaTranslator
                     else if(!ncaaGames.games.Any(x => x.game.bracketId == ""))
                     {
                         ncaaGames.games.Sort((x, y) => int.Parse(x.game.bracketId).CompareTo(int.Parse(y.game.bracketId)));
-                    } 
+                    }
+
+                    var displayList = Settings.GetDisplayTeams();
 
                     foreach (var gameData in ncaaGames.games)
                     {
                         FixNames(gameData);
 
-                        if (gameData.game.home.conferences[0].conferenceName == SportsList[i].ConferenceName ||
-                            gameData.game.away.conferences[0].conferenceName == SportsList[i].ConferenceName)
+                        if (gameData.game.home.conferences[0].conferenceName == sportsList[i].ConferenceName ||
+                            gameData.game.away.conferences[0].conferenceName == sportsList[i].ConferenceName)
                         {
                             if (gameData.game.home.names.char6 == "NO DAK" || gameData.game.away.names.char6 == "NO DAK")
                             {
@@ -96,28 +85,29 @@ namespace NcaaTranslator
                             else
                             {
                                 ncaaGames.conferenceGames.Add(gameData);
+                                ncaaGames.displayGames.Add(gameData);
                             }
                         }
                         else
                         {
                             ncaaGames.nonConferenceGames.Add(gameData);
+                            if (displayList.Any(x => x.NcaaTeamName == gameData.game.home.names.char6 || x.NcaaTeamName == gameData.game.away.names.char6
+                                                        || x.NcaaTeamName == gameData.game.home.names.shortOriginal || x.NcaaTeamName == gameData.game.away.names.shortOriginal
+                                                        || x.NcaaTeamName == gameData.game.home.names.@short || x.NcaaTeamName == gameData.game.away.names.@short))
+                                ncaaGames.displayGames.Add(gameData);
                         }
                     }
+                    Console.WriteLine(String.Format("{0}\t{1}\t{2}\t{3}\t{4}", sportsList[i].SportName.PadRight($"{sportsList[i].SportName}:".Length + (15 - $"{sportsList[i].SportName}:".Length)),
+                                                                                ncaaGames.games.Count, ncaaGames.conferenceGames.Count, ncaaGames.nonConferenceGames.Count, ncaaGames.displayGames.Count));
 
-                    Console.WriteLine(String.Format("{0} - {1} Total Games", ncaaGames.games.Count, SportsList[i].SportName));
-                    Console.WriteLine(String.Format("{0} - {1} Conferance Games", ncaaGames.conferenceGames.Count, SportsList[i].SportName));
-                    Console.WriteLine(String.Format("{0} - {1} NonConferance Games", ncaaGames.nonConferenceGames.Count, SportsList[i].SportName));
+                    File.WriteAllText(string.Format("{0}-Games.json", sportsList[i].SportName), JsonSerializer.Serialize<NcaaScoreboard>(ncaaGames, new JsonSerializerOptions() { WriteIndented = true }));
 
-                    File.WriteAllText(string.Format("{0}-Games.json", SportsList[i].SportName), JsonSerializer.Serialize<NcaaScoreboard>(ncaaGames, new JsonSerializerOptions() { WriteIndented = true }));
+                    if (sportsList[i].OosUpdater.Enabled)
+                        updateOos(ncaaGames, sportsList[i].OosUpdater);
 
-                    TextWriter writer = new StreamWriter(string.Format("{0}-Games.xml", SportsList[i].SportName));
-                    XmlSerializer x = new XmlSerializer(ncaaGames.GetType());
-                    x.Serialize(writer, ncaaGames);
-                    writer.Close();
                 }
-                catch (HttpRequestException err)
+                catch (Exception err)
                 {
-                    Console.WriteLine("\nException Caught!");
                     Console.WriteLine("Message :{0} ", err.Message);
                 }
             }
@@ -137,6 +127,8 @@ namespace NcaaTranslator
         private static async Task<string> GetUrl(string sportUrl)
         {
             var response = await NcaaResponse("https://data.ncaa.com/casablanca/schedule/" + sportUrl + "today.json");
+            if (response == "")
+                throw new Exception("Unable to reach "+ "https://data.ncaa.com/casablanca/schedule/" + sportUrl + "today.json");
             NcaaToday responseDeserialized = JsonSerializer.Deserialize<NcaaToday>(json: response);
             return string.Format("https://data.ncaa.com/casablanca/scoreboard/" + sportUrl + responseDeserialized.today + "/" + "scoreboard.json");
         }
@@ -157,6 +149,60 @@ namespace NcaaTranslator
                 client.Dispose();
             }
             return ret;
+        }
+
+        private static void updateOos(NcaaScoreboard ncaaScoreboard, OosUpdater updater)
+        {
+            Console.WriteLine();
+            var numberOfGames = ncaaScoreboard.displayGames.Count;
+            XmlSerializer xmlSerializer = new XmlSerializer(typeof(ClsGFXTemplate));
+            var gameNeeded = 0;
+            for (var i = 1; i <= updater.NumberOfOutScores; i++)
+            {
+                ClsGFXTemplate outScore;
+                using (Stream reader = new FileStream(Path.Combine(updater.OosFilePath, updater.OosFileName + i + ".tmp"), FileMode.Open))
+                {
+                    outScore = (ClsGFXTemplate)xmlSerializer.Deserialize(reader);
+                }
+                for (var j = 1; j <= updater.NumberOfTeamsPer; j++)
+                {
+                    var gameData = ncaaScoreboard.displayGames[gameNeeded];
+                    var homeTeam = gameData.game.home.names.@short;
+                    var awayTeam = gameData.game.away.names.@short;
+                    var homeScore = gameData.game.home.score == "" ? "0" : gameData.game.home.score;
+                    var awayScore = gameData.game.away.score == "" ? "0" : gameData.game.away.score;
+                    var clock = gameData.game.displayClockDefault;
+
+                    Console.WriteLine("{0}\t{1}\tVS\t{2}\t{3}\tCLOCK\t{4}", homeTeam.Replace(".", "").PadRight($"{homeTeam}:".Length + (15 - $"{homeTeam}:".Length)),
+                                                                            homeScore.Replace(".", "").PadRight($"{homeScore}:".Length + (2 - $"{homeScore}:".Length)),
+                                                                            awayTeam.Replace(".", "").PadRight($"{awayTeam}:".Length + (15 - $"{awayTeam}:".Length)),
+                                                                            awayScore.Replace(".", "").PadRight($"{awayScore}:".Length + (2 - $"{awayScore}:".Length)),
+                                                                            clock);
+
+                    outScore.GfxElements.ClsGFXElement.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - V Team", j)).GraphicObjText = awayTeam;
+                    outScore.GfxElements.ClsGFXElement.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - V Score", j)).GraphicObjText = awayScore;
+                    outScore.GfxElements.ClsGFXElement.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - H Team", j)).GraphicObjText = homeTeam;
+                    outScore.GfxElements.ClsGFXElement.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - H Score", j)).GraphicObjText = homeScore;
+
+                    if(gameData.game.gameState == "pre" || gameData.game.gameState == "final")
+                    {
+                        outScore.GfxElements.ClsGFXElement.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - Time", j)).GraphicObjText = "";
+                        outScore.GfxElements.ClsGFXElement.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - Quarter", j)).GraphicObjText = clock;
+                    }
+                    outScore.GfxElements.ClsGFXElement.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - Time", j)).GraphicObjText = gameData.game.contestClock;
+                    outScore.GfxElements.ClsGFXElement.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - Quarter", j)).GraphicObjText = gameData.game.currentPeriod;
+
+                    gameNeeded++;
+                    if (gameNeeded >= numberOfGames)
+                    {
+                        gameNeeded = 0;
+                    }
+                    TextWriter writer = new StreamWriter(Path.Combine(updater.OosFilePath, updater.OosFileName + i + ".tmp"));
+                    xmlSerializer.Serialize(writer, outScore);
+                    writer.Close();
+                }
+            }
+            Console.WriteLine();
         }
     }
 }

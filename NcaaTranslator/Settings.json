@@ -1,0 +1,61 @@
+{
+  "Timer": 20,
+  "Sports": [
+    {
+      "SportName": "Hockey",
+      "ConferenceName": "NCHC",
+      "NcaaUrl": "icehockey-men/d1/",
+      "OosUpdater": {
+        "Enabled": false,
+        "NumberOfOutScores": 8,
+        "NumberOfTeamsPer": 2,
+        "OosFilePath": "",
+        "OosFileName": ""
+      }
+    },
+    {
+      "SportName": "MBB",
+      "ConferenceName": "Summit League",
+      "NcaaUrl": "basketball-men/d1/",
+      "OosUpdater": {
+        "Enabled": false,
+        "NumberOfOutScores": 8,
+        "NumberOfTeamsPer": 2,
+        "OosFilePath": "",
+        "OosFileName": ""
+      }
+    },
+    {
+      "SportName": "WBB",
+      "ConferenceName": "Summit League",
+      "NcaaUrl": "basketball-women/d1/",
+      "OosUpdater": {
+        "Enabled": false,
+        "NumberOfOutScores": 8,
+        "NumberOfTeamsPer": 2,
+        "OosFilePath": "",
+        "OosFileName": ""
+      }
+    },
+    {
+      "SportName": "Football",
+      "ConferenceName": "MVFC",
+      "NcaaUrl": "football/fcs/",
+      "OosUpdater": {
+        "Enabled": true,
+        "NumberOfOutScores": 8,
+        "NumberOfTeamsPer": 2,
+        "OosFilePath": "C:\\Users\\austina\\Downloads\\New folder",
+        "OosFileName": "OUT_Score_"
+      }
+    }
+  ],
+  "DisplayTeams": [
+    {
+      "NcaaTeamName": "UVA"
+    },
+    {
+      "NcaaTeamName": "Holy Cross"
+    }
+  ]
+}

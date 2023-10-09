@@ -13,7 +13,7 @@ namespace NcaaTranslator
         public string @short { get; set; }
         public string customShort { get; set; }
 
-        public NameConverter() { } 
+        public NameConverter() { }
         public NameConverter(Names names) 
         {
             this.char6 = names.char6;
