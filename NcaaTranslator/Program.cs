@@ -184,14 +184,16 @@ namespace NcaaTranslator
                     outScore.GfxElements.ClsGFXElement.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - H Team", j)).GraphicObjText = homeTeam;
                     outScore.GfxElements.ClsGFXElement.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - H Score", j)).GraphicObjText = homeScore;
 
-                    if(gameData.game.gameState == "pre" || gameData.game.gameState == "final")
+                    if (gameData.game.gameState == "pre" || gameData.game.gameState == "final")
                     {
                         outScore.GfxElements.ClsGFXElement.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - Time", j)).GraphicObjText = "";
                         outScore.GfxElements.ClsGFXElement.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - Quarter", j)).GraphicObjText = clock;
                     }
-                    outScore.GfxElements.ClsGFXElement.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - Time", j)).GraphicObjText = gameData.game.contestClock;
-                    outScore.GfxElements.ClsGFXElement.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - Quarter", j)).GraphicObjText = gameData.game.currentPeriod;
-
+                    else
+                    {
+                        outScore.GfxElements.ClsGFXElement.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - Time", j)).GraphicObjText = gameData.game.contestClock;
+                        outScore.GfxElements.ClsGFXElement.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - Quarter", j)).GraphicObjText = gameData.game.currentPeriod;
+                    }
                     gameNeeded++;
                     if (gameNeeded >= numberOfGames)
                     {
