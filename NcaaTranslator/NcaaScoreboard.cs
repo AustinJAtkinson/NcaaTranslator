@@ -59,10 +59,10 @@ namespace NcaaTranslator
             {
                 try
                 {
-                    var etStartTime = string.Format(startDate + " " + startTime.Replace("ET", ""));
-                    var ctStateTime = DateTime.Parse(etStartTime).AddHours(-1);
+                    DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+                    dateTime = dateTime.AddSeconds(int.Parse(startTimeEpoch)).ToLocalTime();
 
-                    return ctStateTime.ToString("h:mm tt");
+                    return dateTime.ToString("h:mm tt");
                 }
                 catch
                 {
