@@ -16,7 +16,9 @@ namespace NcaaTranslator
         public List<Game> nonConferenceGames { get; set; } = new List<Game>();
         public List<Game> conferenceGames { get; set; } = new List<Game>();
         public List<Game> displayGames { get; set; } = new List<Game>();
-        public List<Game> undGames { get; set; } = new List<Game>();
+        public List<Game> homeGames { get; set; } = new List<Game>();
+        public List<Game> top25Games { get; set; } = new List<Game>();
+        public List<ConferenceGames> filteredGames { get; set; } = new List<ConferenceGames>();
     }
     public class Away
     {
@@ -32,7 +34,13 @@ namespace NcaaTranslator
     public class Conference
     {
         public string conferenceName { get; set; }
+        public string customConferenceName { get; set; }
         public string conferenceSeo { get; set; }
+    }
+
+    public class ConferenceGames : Conference
+    {
+        public List<GameData> games { get; set; }
     }
 
     public class Game
@@ -59,6 +67,9 @@ namespace NcaaTranslator
             {
                 try
                 {
+                    if (startTime == "TBA")
+                        return startTime;
+
                     DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
                     dateTime = dateTime.AddSeconds(int.Parse(startTimeEpoch)).ToLocalTime();
 

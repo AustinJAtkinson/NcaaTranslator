@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Net.Http.Headers;
+using System.Text.Json;
 
 namespace NcaaTranslator
 {
@@ -19,6 +20,7 @@ namespace NcaaTranslator
     public class Setting
     {
         public int Timer { get; set; }
+        public string HomeTeam { get; set; }
         public List<Sport> Sports { get; set; }
         public List<DisplayTeam> DisplayTeams { get; set; }
     }
@@ -28,7 +30,7 @@ namespace NcaaTranslator
         public string SportName { get; set; }
         public string ConferenceName { get; set; }
         public string NcaaUrl { get; set; }
-        public OosUpdater OosUpdater { get; set; }
+        public OosUpdater OosUpdater { get; set; } = new OosUpdater();
     }
 
     public class Settings
@@ -57,10 +59,8 @@ namespace NcaaTranslator
             return SettingsList.DisplayTeams;
         }
 
-        public static int Timer()
-        {
-            return SettingsList.Timer * 1000;
-        }
+        public static int Timer{ get {return SettingsList.Timer * 1000; }}
+        public static string homeTeam {get { return SettingsList.HomeTeam; }}
 
     }
 

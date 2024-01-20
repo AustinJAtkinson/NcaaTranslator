@@ -9,49 +9,77 @@ namespace NcaaTranslator
 {
     internal class NameConverter
     {
-        public string char6 { get; set; }
-        public string @short { get; set; }
-        public string customShort { get; set; }
-
-        public NameConverter() { }
-        public NameConverter(Names names) 
+        public List<Team> teams { get; set; } = new List<Team>();
+        public List<Conferences> conferences { get; set; } = new List<Conferences>();
+    }
+    internal class Team : Names
+    {
+        public Team() { }
+        public Team(Names names)
         {
             this.char6 = names.char6;
-            this.@short = names.@short;
-            this.customShort = "";
+            this.shortOriginal = names.@short;
+            this.@short = "";
+        }
+    }
+    internal class Conferences : Conference
+    {
+        public Conferences() { }
+        public Conferences(Conference names)
+        {
+            this.conferenceName = names.conferenceName;
+            this.conferenceSeo = names.conferenceSeo;
+            this.customConferenceName = "";
         }
     }
 
     public class NameConverters
     {
-        internal static Dictionary<String, NameConverter> NameDict { get; set; } = new Dictionary<String, NameConverter>();
-        internal static List<NameConverter> NameList { get; set; }
+        internal static Dictionary<String, Team> TeamDict { get; set; } = new Dictionary<String, Team>();
+        internal static Dictionary<String, Conferences> ConfDict { get; set; } = new Dictionary<String, Conferences>();
+        internal static NameConverter NameList { get; set; }
         internal static string FilePath = "NcaaNameConverter.json";
 
         public static void Load()
         {
             string jsonString = File.ReadAllText(FilePath);
-            NameList = JsonSerializer.Deserialize<List<NameConverter>>(jsonString);
-            NameDict = NameList.ToDictionary(x => x.char6, x => x);
+            NameList = JsonSerializer.Deserialize<NameConverter>(jsonString);
+            TeamDict = NameList.teams.ToDictionary(x => x.char6, x => x);
+            ConfDict = NameList.conferences.ToDictionary(x => x.conferenceName, x => x);
         }
         public static void Reload()
         {
-            NameList.OrderBy(x => x.char6);
+            NameList.teams.OrderBy(x => x.char6);
+            NameList.conferences.OrderBy(x => x.conferenceName);
+            var test = JsonSerializer.Serialize<NameConverter>(NameList, new JsonSerializerOptions() { WriteIndented = true });
             File.WriteAllText(FilePath, JsonSerializer.Serialize(NameList, new JsonSerializerOptions() { WriteIndented = true }));
             Load();
         }
 
-        public static string Lookup(Names lookupNames)
+        public static string LookupTeam(Names lookupNames)
         {
-            var name = new NameConverter();
+            var name = new Team();
 
-            return NameDict.TryGetValue(lookupNames.char6, out name) ? name.customShort : AddNewTeam(lookupNames);
+            return TeamDict.TryGetValue(lookupNames.char6, out name) ? name.@short : AddNewTeam(lookupNames);
         }
-
         public static string AddNewTeam(Names names)
         {
-            var newTeam = new NameConverter(names);
-            NameList.Add(newTeam);
+            var newTeam = new Team(names);
+            NameList.teams.Add(newTeam);
+            Reload();
+            return "";
+        }
+
+        public static string LookupConf(Conference lookupNames)
+        {
+            var name = new Conferences();
+
+            return ConfDict.TryGetValue(lookupNames.conferenceName, out name) ? name.customConferenceName : AddNewConf(lookupNames);
+        }
+        public static string AddNewConf(Conference names)
+        {
+            var newConf = new Conferences(names);
+            NameList.conferences.Add(newConf);
             Reload();
             return "";
         }
