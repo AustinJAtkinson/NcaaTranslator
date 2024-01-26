@@ -4,21 +4,25 @@
   "Sports": [
     {
       "SportName": "Hockey",
+      "SportNameShort": "HKY",
       "ConferenceName": "NCHC",
       "NcaaUrl": "icehockey-men/d1/"
     },
     {
       "SportName": "MBB",
+      "SportNameShort": "MBB",
       "ConferenceName": "Summit League",
       "NcaaUrl": "basketball-men/d1/"
     },
     {
       "SportName": "WBB",
+      "SportNameShort": "WBB",
       "ConferenceName": "Summit League",
       "NcaaUrl": "basketball-women/d1/"
     },
     {
       "SportName": "Football",
+      "SportNameShort": "FBL",
       "ConferenceName": "MVFC",
       "NcaaUrl": "football/fcs/",
       "OosUpdater": {

@@ -45,12 +45,12 @@ namespace NcaaTranslator
 
             var sportsList = Settings.GetSports();
 
-            for (var i = 0; i < sportsList.Count; i++)
+            foreach (var sport in sportsList)
             {
                 try
                 {
                     var responseBody = "";
-                    responseBody = await NcaaResponse(await GetUrl(sportsList[i].NcaaUrl));
+                    responseBody = await NcaaResponse(await GetUrl(sport.NcaaUrl));
 
                     if (responseBody == "")
                         continue;
@@ -62,7 +62,7 @@ namespace NcaaTranslator
                     ncaaGames.filteredGames.Add(new ConferenceGames
                     {
                         conferenceName = "nonConf",
-                        customConferenceName = "HKY",
+                        customConferenceName = sport.SportNameShort,
                         conferenceSeo = "nonConf",
                         games = new List<GameData>()
                     });
@@ -70,8 +70,8 @@ namespace NcaaTranslator
                     foreach (var gameData in ncaaGames.games)
                     {
                         FixNames(gameData);
-                        if (gameData.game.home.conferences[0].conferenceName == sportsList[i].ConferenceName ||
-                            gameData.game.away.conferences[0].conferenceName == sportsList[i].ConferenceName)
+                        if (gameData.game.home.conferences[0].conferenceName == sport.ConferenceName ||
+                            gameData.game.away.conferences[0].conferenceName == sport.ConferenceName)
                         {
                             if (gameData.game.home.names.char6 == Settings.homeTeam || gameData.game.away.names.char6 == Settings.homeTeam)
                             {
@@ -81,49 +81,50 @@ namespace NcaaTranslator
                             {
                                 ncaaGames.conferenceGames.Add(gameData);
 
-                                if (sportsList[i].OosUpdater.Enabled)
+                                if (sport.OosUpdater.Enabled)
                                     ncaaGames.displayGames.Add(gameData);
                             }
                         }
                         else
                         {
                             ncaaGames.nonConferenceGames.Add(gameData);
-                            if (sportsList[i].OosUpdater.Enabled)
+                            if (sport.OosUpdater.Enabled)
                             {
                                 if (displayList.Any(x => x.NcaaTeamName == gameData.game.home.names.char6 || x.NcaaTeamName == gameData.game.away.names.char6
                                                             || x.NcaaTeamName == gameData.game.home.names.shortOriginal || x.NcaaTeamName == gameData.game.away.names.shortOriginal
                                                             || x.NcaaTeamName == gameData.game.home.names.@short || x.NcaaTeamName == gameData.game.away.names.@short))
                                     ncaaGames.displayGames.Add(gameData);
                             }
-                        }
-                        if (gameData.game.home.conferences[0].conferenceName == gameData.game.away.conferences[0].conferenceName)
-                        {
-                            if (!ncaaGames.filteredGames.Any(x => x.conferenceName == gameData.game.home.conferences[0].conferenceName))
-                            {
-                                ncaaGames.filteredGames.Add(new ConferenceGames
-                                {
-                                    conferenceName = gameData.game.home.conferences[0].conferenceName,
-                                    customConferenceName = gameData.game.home.conferences[0].customConferenceName,
-                                    conferenceSeo = gameData.game.home.conferences[0].conferenceSeo,
-                                    games = new List<GameData>()
-                                });
-                            }
-                            ncaaGames.filteredGames.FirstOrDefault(x => x.conferenceName == gameData.game.home.conferences[0].conferenceName).games.Add(gameData.game);
-                        }
-                        else
-                            ncaaGames.filteredGames.FirstOrDefault(x => x.conferenceName == "nonConf").games.Add(gameData.game);
 
+                            if (gameData.game.home.conferences[0].conferenceName == gameData.game.away.conferences[0].conferenceName || gameData.game.home.conferences[0].conferenceName == "DI Independent")
+                            {
+                                if (!ncaaGames.filteredGames.Any(x => x.conferenceName == gameData.game.home.conferences[0].conferenceName))
+                                {
+                                    ncaaGames.filteredGames.Add(new ConferenceGames
+                                    {
+                                        conferenceName = gameData.game.home.conferences[0].conferenceName,
+                                        customConferenceName = gameData.game.home.conferences[0].customConferenceName,
+                                        conferenceSeo = gameData.game.home.conferences[0].conferenceSeo,
+                                        games = new List<GameData>()
+                                    });
+                                }
+                                ncaaGames.filteredGames.FirstOrDefault(x => x.conferenceName == gameData.game.home.conferences[0].conferenceName).games.Add(gameData.game);
+                            }
+                            else
+                                ncaaGames.filteredGames.FirstOrDefault(x => x.conferenceName == "nonConf").games.Add(gameData.game);
+                        }
                         if (gameData.game.home.conferences.Any(x => x.conferenceName == "Top 25") || gameData.game.away.conferences.Any(x => x.conferenceName == "Top 25"))
                             ncaaGames.top25Games.Add(gameData);
                     }
+                        
 
-                    Console.WriteLine(String.Format("{0}\t{1}\t{2}\t{3}\t{4}", sportsList[i].SportName.PadRight($"{sportsList[i].SportName}:".Length + (15 - $"{sportsList[i].SportName}:".Length)),
+                    Console.WriteLine(String.Format("{0}\t{1}\t{2}\t{3}\t{4}", sport.SportName.PadRight($"{sport.SportName}:".Length + (15 - $"{sport.SportName}:".Length)),
                                                                                 ncaaGames.games.Count, ncaaGames.conferenceGames.Count, ncaaGames.nonConferenceGames.Count, ncaaGames.displayGames.Count));
 
-                    File.WriteAllText(string.Format("{0}-Games.json", sportsList[i].SportName), JsonSerializer.Serialize<NcaaScoreboard>(ncaaGames, new JsonSerializerOptions() { WriteIndented = true }));
+                    File.WriteAllText(string.Format("{0}-Games.json", sport.SportName), JsonSerializer.Serialize<NcaaScoreboard>(ncaaGames, new JsonSerializerOptions() { WriteIndented = true }));
 
-                    if (sportsList[i].OosUpdater.Enabled)
-                        UpdateOos(ncaaGames, sportsList[i].OosUpdater);
+                    if (sport.OosUpdater.Enabled)
+                        UpdateOos(ncaaGames, sport.OosUpdater);
 
                 }
                 catch (Exception err)

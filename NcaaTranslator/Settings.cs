@@ -28,6 +28,7 @@ namespace NcaaTranslator
     public class Sport
     {
         public string SportName { get; set; }
+        public string SportNameShort { get; set; }
         public string ConferenceName { get; set; }
         public string NcaaUrl { get; set; }
         public OosUpdater OosUpdater { get; set; } = new OosUpdater();
