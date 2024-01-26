@@ -96,7 +96,7 @@ namespace NcaaTranslator
                                     ncaaGames.displayGames.Add(gameData);
                             }
 
-                            if (gameData.game.home.conferences[0].conferenceName == gameData.game.away.conferences[0].conferenceName || gameData.game.home.conferences[0].conferenceName == "DI Independent")
+                            if (gameData.game.home.conferences[0].conferenceName == gameData.game.away.conferences[0].conferenceName && gameData.game.home.conferences[0].conferenceName != "DI Independent")
                             {
                                 if (!ncaaGames.filteredGames.Any(x => x.conferenceName == gameData.game.home.conferences[0].conferenceName))
                                 {
