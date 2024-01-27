@@ -14,6 +14,7 @@ namespace NcaaTranslator
         public string? updated_at { get; set; }
         public List<Game> games { get; set; } = new List<Game>();
         public List<Game> nonConferenceGames { get; set; } = new List<Game>();
+        public List<Game> nonConferenceSorted { get; set; } = new List<Game>();
         public List<Game> conferenceGames { get; set; } = new List<Game>();
         public List<Game> displayGames { get; set; } = new List<Game>();
         public List<Game> homeGames { get; set; } = new List<Game>();
@@ -40,7 +41,7 @@ namespace NcaaTranslator
 
     public class ConferenceGames : Conference
     {
-        public List<GameData> games { get; set; }
+        public List<Game> games { get; set; }
     }
 
     public class Game
@@ -52,6 +53,7 @@ namespace NcaaTranslator
     {
         public string gameID { get; set; }
         public Away away { get; set; }
+        public string conferenceDisplayName { get; set; } = "";
         public string finalMessage { get; set; }
         public string bracketRound { get; set; }
         public string title { get; set; }

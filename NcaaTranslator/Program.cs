@@ -64,12 +64,14 @@ namespace NcaaTranslator
                         conferenceName = "nonConf",
                         customConferenceName = sport.SportNameShort,
                         conferenceSeo = "nonConf",
-                        games = new List<GameData>()
+                        games = new List<Game>()
                     });
 
                     foreach (var gameData in ncaaGames.games)
                     {
                         FixNames(gameData);
+                        gameData.game.conferenceDisplayName = gameData.game.home.conferences[0].customConferenceName == "" ? gameData.game.home.conferences[0].conferenceName : gameData.game.home.conferences[0].customConferenceName;
+
                         if (gameData.game.home.conferences[0].conferenceName == sport.ConferenceName ||
                             gameData.game.away.conferences[0].conferenceName == sport.ConferenceName)
                         {
@@ -105,21 +107,41 @@ namespace NcaaTranslator
                                         conferenceName = gameData.game.home.conferences[0].conferenceName,
                                         customConferenceName = gameData.game.home.conferences[0].customConferenceName,
                                         conferenceSeo = gameData.game.home.conferences[0].conferenceSeo,
-                                        games = new List<GameData>()
+                                        games = new List<Game>()
                                     });
                                 }
-                                ncaaGames.filteredGames.FirstOrDefault(x => x.conferenceName == gameData.game.home.conferences[0].conferenceName).games.Add(gameData.game);
+                                ncaaGames.filteredGames.FirstOrDefault(x => x.conferenceName == gameData.game.home.conferences[0].conferenceName).games.Add(gameData);
                             }
                             else
-                                ncaaGames.filteredGames.FirstOrDefault(x => x.conferenceName == "nonConf").games.Add(gameData.game);
+                            {
+                                gameData.game.conferenceDisplayName = sport.SportNameShort;
+                                ncaaGames.filteredGames.FirstOrDefault(x => x.conferenceName == "nonConf").games.Add(gameData);
+                            }
                         }
                         if (gameData.game.home.conferences.Any(x => x.conferenceName == "Top 25") || gameData.game.away.conferences.Any(x => x.conferenceName == "Top 25"))
                             ncaaGames.top25Games.Add(gameData);
                     }
-                        
+
+                    foreach (var conf in ncaaGames.filteredGames)
+                    {
+                        ncaaGames.nonConferenceSorted.AddRange(conf.games);
+                    }
 
                     Console.WriteLine(String.Format("{0}\t{1}\t{2}\t{3}\t{4}", sport.SportName.PadRight($"{sport.SportName}:".Length + (15 - $"{sport.SportName}:".Length)),
                                                                                 ncaaGames.games.Count, ncaaGames.conferenceGames.Count, ncaaGames.nonConferenceGames.Count, ncaaGames.displayGames.Count));
+
+                    if (!sport.ListsNeeded.games)
+                        ncaaGames.games.Clear();
+                    if (!sport.ListsNeeded.nonConferenceGames)
+                        ncaaGames.nonConferenceGames.Clear();
+                    if (!sport.ListsNeeded.nonConferenceSorted)
+                        ncaaGames.nonConferenceSorted.Clear();
+                    if (!sport.ListsNeeded.conferenceGames)
+                        ncaaGames.conferenceGames.Clear();
+                    if (!sport.ListsNeeded.top25Games)
+                        ncaaGames.top25Games.Clear();
+                    if (!sport.ListsNeeded.filteredGames)
+                        ncaaGames.filteredGames.Clear();
 
                     File.WriteAllText(string.Format("{0}-Games.json", sport.SportName), JsonSerializer.Serialize<NcaaScoreboard>(ncaaGames, new JsonSerializerOptions() { WriteIndented = true }));
 

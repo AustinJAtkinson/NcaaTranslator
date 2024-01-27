@@ -1,4 +1,5 @@
 ﻿using System.Net.Http.Headers;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 
 namespace NcaaTranslator
@@ -17,6 +18,16 @@ namespace NcaaTranslator
         public int NumberOfTeamsPer { get; set; }
     }
 
+    public class ListsNeeded
+    {
+        public bool games { get; set; } = true;
+        public bool nonConferenceGames { get; set; } = true;
+        public bool nonConferenceSorted { get; set; } = true;
+        public bool conferenceGames { get; set; } = true;
+        public bool top25Games { get; set; } = true;
+        public bool filteredGames { get; set; } = true;
+    }
+
     public class Setting
     {
         public int Timer { get; set; }
@@ -32,6 +43,7 @@ namespace NcaaTranslator
         public string ConferenceName { get; set; }
         public string NcaaUrl { get; set; }
         public OosUpdater OosUpdater { get; set; } = new OosUpdater();
+        public ListsNeeded ListsNeeded { get; set; } = new ListsNeeded();
     }
 
     public class Settings

@@ -6,25 +6,57 @@
       "SportName": "Hockey",
       "SportNameShort": "HKY",
       "ConferenceName": "NCHC",
-      "NcaaUrl": "icehockey-men/d1/"
+      "NcaaUrl": "icehockey-men/d1/",
+      "ListsNeeded": {
+        "games": false,
+        "nonConferenceGames": true,
+        "nonConferenceSorted": true,
+        "conferenceGames": true,
+        "top25Games": false,
+        "filteredGames": false
+      }
     },
     {
       "SportName": "MBB",
       "SportNameShort": "MBB",
       "ConferenceName": "Summit League",
-      "NcaaUrl": "basketball-men/d1/"
+      "NcaaUrl": "basketball-men/d1/",
+      "ListsNeeded": {
+        "games": false,
+        "nonConferenceGames": false,
+        "nonConferenceSorted": true,
+        "conferenceGames": false,
+        "top25Games": false,
+        "filteredGames": false
+      }
     },
     {
       "SportName": "WBB",
       "SportNameShort": "WBB",
       "ConferenceName": "Summit League",
-      "NcaaUrl": "basketball-women/d1/"
+      "NcaaUrl": "basketball-women/d1/",
+      "ListsNeeded": {
+        "games": false,
+        "nonConferenceGames": false,
+        "nonConferenceSorted": true,
+        "conferenceGames": false,
+        "top25Games": false,
+        "filteredGames": false
+      }
     },
     {
       "SportName": "Football",
       "SportNameShort": "FBL",
       "ConferenceName": "MVFC",
       "NcaaUrl": "football/fcs/",
+      "ListsNeeded": {
+        "games": false,
+        "nonConferenceGames": false,
+        "nonConferenceSorted": true,
+        "conferenceGames": false,
+        "top25Games": false,
+        "filteredGames": false
+      },
       "OosUpdater": {
         "Enabled": false,
         "NumberOfOutScores": 8,
