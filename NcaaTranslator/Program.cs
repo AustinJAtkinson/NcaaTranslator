@@ -2,6 +2,9 @@
 using System.Text.Json;
 using System.Timers;
 using System.Xml.Serialization;
+using System.Xml;
+using Newtonsoft.Json;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace NcaaTranslator
 {
@@ -154,6 +157,23 @@ namespace NcaaTranslator
                     Console.WriteLine("Message :{0} ", err.Message);
                 }
             }
+            try
+            {
+                if (Settings.XmlToJson.Enabled)
+                {
+                    Console.WriteLine("\nConverting XML to Json");
+                    foreach (var filePath in Settings.XmlToJson.FilePaths)
+                    {
+                        XmlDocument doc = new XmlDocument();
+                        doc.Load(filePath.Path);
+
+                        var jsonText = JsonConvert.SerializeXmlNode(doc);
+                        File.WriteAllText(string.Format("{0}.json", filePath.Path), jsonText);
+                        Console.WriteLine(string.Format("File {0} was converted to json in {1}", filePath.Path, string.Format("{0}.json", filePath.Path)));
+                    }
+                }
+            }
+            catch { }
         }
         private static void FixNames(Game gameData)
         {

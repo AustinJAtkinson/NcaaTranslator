@@ -73,5 +73,13 @@
     {
       "NcaaTeamName": "Holy Cross"
     }
-  ]
+  ],
+  "XmlToJson": {
+    "Enabled": true,
+    "FilePaths":[
+      {
+        "Path": "D:\\1.xml"
+      }
+    ]
+  }
 }

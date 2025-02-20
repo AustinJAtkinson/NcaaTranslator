@@ -18,6 +18,17 @@ namespace NcaaTranslator
         public int NumberOfTeamsPer { get; set; }
     }
 
+    public class XmlToJson
+    {
+        public bool Enabled { get; set; }
+        public List<FilePath> FilePaths { get; set; }
+    }
+
+    public class FilePath
+    {
+        public string Path { get; set;}
+    }
+
     public class ListsNeeded
     {
         public bool games { get; set; } = true;
@@ -34,6 +45,8 @@ namespace NcaaTranslator
         public string HomeTeam { get; set; }
         public List<Sport> Sports { get; set; }
         public List<DisplayTeam> DisplayTeams { get; set; }
+
+        public XmlToJson XmlToJson{ get; set; }
     }
 
     public class Sport
@@ -74,6 +87,7 @@ namespace NcaaTranslator
 
         public static int Timer{ get {return SettingsList.Timer * 1000; }}
         public static string homeTeam {get { return SettingsList.HomeTeam; }}
+        public static XmlToJson XmlToJson {get { return SettingsList.XmlToJson;}}
 
     }
 
