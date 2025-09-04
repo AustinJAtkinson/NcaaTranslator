@@ -1,0 +1,242 @@
+﻿<Window x:Class="NcaaTranslator.Wpf.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:NcaaTranslator.Wpf"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        mc:Ignorable="d"
+        Title="NCAA Translator" Height="600" Width="1000"
+        Style="{StaticResource MaterialDesignWindow}">
+    <Grid>
+        <TabControl x:Name="MainTabControl" SelectionChanged="MainTabControl_SelectionChanged">
+            <TabItem Header="Main">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10">
+                        <Button x:Name="StartButton" Content="Start" Click="StartButton_Click" Width="80" Margin="0,0,10,0" Style="{StaticResource MaterialDesignRaisedButton}"/>
+                        <Button x:Name="StopButton" Content="Stop" Click="StopButton_Click" Width="80" Margin="0,0,10,0" IsEnabled="False" Style="{StaticResource MaterialDesignRaisedButton}"/>
+                        <TextBlock x:Name="StatusText" Text="Status: Stopped" VerticalAlignment="Center" Margin="20,0,0,0" Style="{StaticResource MaterialDesignBody1TextBlock}"/>
+                        <TextBlock x:Name="LastUpdateText" Text="Last Update: Never" VerticalAlignment="Center" Margin="20,0,0,0" Style="{StaticResource MaterialDesignBody1TextBlock}"/>
+                    </StackPanel>
+
+                    <TextBox x:Name="OutputTextBox" Grid.Row="1" Margin="10" IsReadOnly="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                             FontFamily="Consolas" FontSize="12" TextWrapping="NoWrap" Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+
+                    <TextBlock x:Name="InfoText" Grid.Row="2" Margin="10" Text="Press Start to begin monitoring NCAA scores..." Style="{StaticResource MaterialDesignBody2TextBlock}" Foreground="{DynamicResource MaterialDesignBody}"/>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Settings">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TabControl Grid.Row="0" Margin="10">
+                        <!-- General Tab -->
+                        <TabItem Header="General">
+                            <ScrollViewer Margin="10">
+                                <StackPanel x:Name="GeneralSettingsPanel">
+                                    <!-- General settings will be dynamically added here -->
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- Sports Tab -->
+                        <TabItem Header="Sports">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Sports Search -->
+                                <Grid Grid.Row="0" Margin="10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Search Sports:" VerticalAlignment="Center" Margin="0,0,10,0" Style="{StaticResource MaterialDesignBody1TextBlock}"/>
+                                    <TextBox Grid.Column="1" x:Name="SportsSearchTextBox" Margin="0,0,10,0" TextChanged="SportsSearchTextBox_TextChanged" Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+                                </Grid>
+
+                                <!-- Sports DataGrid -->
+                                <DataGrid x:Name="SportsDataGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="True"
+                                          CanUserDeleteRows="False" SelectionMode="Single" IsReadOnly="False" Style="{StaticResource MaterialDesignDataGrid}">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Sport Name" Binding="{Binding SportName}" Width="Auto"/>
+                                        <DataGridTextColumn Header="Short Name" Binding="{Binding SportNameShort}" Width="Auto"/>
+                                        <DataGridCheckBoxColumn Header="Enabled" Binding="{Binding Enabled}" Width="Auto"/>
+                                        <DataGridComboBoxColumn x:Name="ConferenceColumn" Header="Conference" SelectedItemBinding="{Binding ConferenceName}" Width="Auto"/>
+                                        <DataGridTextColumn Header="NCAA URL" Binding="{Binding NcaaUrl}" Width="Auto"/>
+                                        <DataGridCheckBoxColumn Header="Games" Binding="{Binding ListsNeeded.games}" Width="Auto"/>
+                                        <DataGridCheckBoxColumn Header="Non-Conf Games" Binding="{Binding ListsNeeded.nonConferenceGames}" Width="Auto"/>
+                                        <DataGridCheckBoxColumn Header="Non-Conf Sorted" Binding="{Binding ListsNeeded.nonConferenceSorted}" Width="Auto"/>
+                                        <DataGridCheckBoxColumn Header="Conf Games" Binding="{Binding ListsNeeded.conferenceGames}" Width="Auto"/>
+                                        <DataGridCheckBoxColumn Header="Top 25" Binding="{Binding ListsNeeded.top25Games}" Width="Auto"/>
+                                        <DataGridCheckBoxColumn Header="Filtered" Binding="{Binding ListsNeeded.filteredGames}" Width="Auto"/>
+                                        <DataGridCheckBoxColumn Header="OOS Enabled" Binding="{Binding OosUpdater.Enabled}" Width="Auto"/>
+                                        <DataGridTextColumn Header="OOS Path" Binding="{Binding OosUpdater.OosFilePath}" Width="Auto"/>
+                                        <DataGridTextColumn Header="OOS File" Binding="{Binding OosUpdater.OosFileName}" Width="Auto"/>
+                                        <DataGridTextColumn Header="OOS Scores" Binding="{Binding OosUpdater.NumberOfOutScores}" Width="Auto"/>
+                                        <DataGridTextColumn Header="OOS Teams" Binding="{Binding OosUpdater.NumberOfTeamsPer}" Width="Auto"/>
+                                        <DataGridTemplateColumn Header="" Width="Auto">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <Button Click="RemoveSportButton_Click" Tag="{Binding}" Width="20" Height="20" Padding="0">
+                                                        <materialDesign:PackIcon Kind="Delete" />
+                                                    </Button>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+
+                                <!-- Sports Status -->
+                                <TextBlock Grid.Row="2" Margin="0,10,0,0" Text="Double-click cells to edit values. Changes are saved automatically." Style="{StaticResource MaterialDesignBody2TextBlock}" Foreground="{DynamicResource MaterialDesignBody}"/>
+                            </Grid>
+                        </TabItem>
+
+                        <!-- Display Teams Tab -->
+                        <TabItem Header="Display Teams">
+                            <Grid Margin="10">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Add Team Section -->
+                                <Grid Grid.Row="0" Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Add Team:" VerticalAlignment="Center" Margin="0,0,10,0" Style="{StaticResource MaterialDesignBody1TextBlock}"/>
+                                    <ComboBox x:Name="AddTeamComboBox" Grid.Column="1" Margin="0,0,10,0" Style="{StaticResource MaterialDesignComboBox}"/>
+                                    <Button x:Name="AddTeamButton" Grid.Column="2" Content="Add" Click="AddTeamButton_Click" Width="60" Style="{StaticResource MaterialDesignRaisedButton}"/>
+                                </Grid>
+
+                                <!-- Display Teams DataGrid -->
+                                <DataGrid x:Name="DisplayTeamsDataGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False"
+                                          CanUserDeleteRows="False" IsReadOnly="True" Style="{StaticResource MaterialDesignDataGrid}">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Team Name" Binding="{Binding NcaaTeamName}" Width="*"/>
+                                        <DataGridTemplateColumn Header="" Width="80">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <Button Click="RemoveTeamButton_Click" Tag="{Binding}" Style="{StaticResource MaterialDesignIconButton}">
+                                                        <materialDesign:PackIcon Kind="Delete" />
+                                                    </Button>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Grid>
+                        </TabItem>
+
+                        <!-- XML to JSON Tab -->
+                        <TabItem Header="XML to JSON">
+                            <ScrollViewer Margin="10">
+                                <StackPanel x:Name="XmlToJsonPanel">
+                                    <!-- XML to JSON settings will be dynamically added here -->
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+                    </TabControl>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Name Converters">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Main Content Area -->
+                    <TabControl Grid.Row="0" Margin="10">
+                        <!-- Teams Tab -->
+                        <TabItem Header="Teams">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Teams Search -->
+                                <Grid Grid.Row="0" Margin="10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Search Teams:" VerticalAlignment="Center" Margin="0,0,10,0" Style="{StaticResource MaterialDesignBody1TextBlock}"/>
+                                    <TextBox Grid.Column="1" x:Name="TeamsSearchTextBox" Margin="0,0,10,0" TextChanged="TeamsSearchTextBox_TextChanged" Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+                                </Grid>
+
+                                <!-- Teams DataGrid -->
+                                <DataGrid x:Name="TeamsDataGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False"
+                                          CanUserDeleteRows="False" SelectionMode="Single" IsReadOnly="False"
+                                          Style="{StaticResource MaterialDesignDataGrid}">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Char6 Code" Binding="{Binding char6}" Width="120" IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="Display Name" Binding="{Binding short}" Width="200" IsReadOnly="False"/>
+                                        <DataGridTextColumn Header="Original Name" Binding="{Binding shortOriginal}" Width="200" IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="SEO Name" Binding="{Binding seo}" Width="150" IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="Full Name" Binding="{Binding full}" Width="200" IsReadOnly="True"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+
+                                <!-- Teams Status -->
+                                <TextBlock Grid.Row="2" Margin="0,10,0,0" Text="Double-click cells to edit display names. Changes are saved automatically." Style="{StaticResource MaterialDesignBody2TextBlock}" Foreground="{DynamicResource MaterialDesignBody}"/>
+                            </Grid>
+                        </TabItem>
+
+                        <!-- Conferences Tab -->
+                        <TabItem Header="Conferences">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Conferences Search -->
+                                <Grid Grid.Row="0" Margin="10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Search Conferences:" VerticalAlignment="Center" Margin="0,0,10,0" Style="{StaticResource MaterialDesignBody1TextBlock}"/>
+                                    <TextBox Grid.Column="1" x:Name="ConferencesSearchTextBox" Margin="0,0,10,0" TextChanged="ConferencesSearchTextBox_TextChanged" Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+                                </Grid>
+
+                                <!-- Conferences DataGrid -->
+                                <DataGrid x:Name="ConferencesDataGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False"
+                                          CanUserDeleteRows="False" SelectionMode="Single" IsReadOnly="False"
+                                          Style="{StaticResource MaterialDesignDataGrid}">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Conference Name" Binding="{Binding conferenceName}" Width="200" IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="Custom Name" Binding="{Binding customConferenceName}" Width="250" IsReadOnly="False"/>
+                                        <DataGridTextColumn Header="SEO Name" Binding="{Binding conferenceSeo}" Width="150" IsReadOnly="True"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+
+                                <!-- Conferences Status -->
+                                <TextBlock Grid.Row="2" Margin="0,10,0,0" Text="Double-click cells to edit custom names. Changes are saved automatically." Style="{StaticResource MaterialDesignBody2TextBlock}" Foreground="{DynamicResource MaterialDesignBody}"/>
+                            </Grid>
+                        </TabItem>
+                    </TabControl>
+                </Grid>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>

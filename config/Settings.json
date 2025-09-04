@@ -5,6 +5,7 @@
     {
       "SportName": "Hockey",
       "SportNameShort": "HKY",
+      "Enabled": true,
       "ConferenceName": "NCHC",
       "NcaaUrl": "icehockey-men/d1/",
       "ListsNeeded": {
@@ -19,6 +20,7 @@
     {
       "SportName": "MBB",
       "SportNameShort": "MBB",
+      "Enabled": false,
       "ConferenceName": "Summit League",
       "NcaaUrl": "basketball-men/d1/",
       "ListsNeeded": {
@@ -33,6 +35,7 @@
     {
       "SportName": "WBB",
       "SportNameShort": "WBB",
+      "Enabled": true,
       "ConferenceName": "Summit League",
       "NcaaUrl": "basketball-women/d1/",
       "ListsNeeded": {
@@ -47,6 +50,7 @@
     {
       "SportName": "Football",
       "SportNameShort": "FBL",
+      "Enabled": true,
       "ConferenceName": "MVFC",
       "NcaaUrl": "football/fcs/",
       "ListsNeeded": {
@@ -75,7 +79,7 @@
     }
   ],
   "XmlToJson": {
-    "Enabled": true,
+    "Enabled": false,
     "FilePaths":[
       {
         "Path": "D:\\1.xml"

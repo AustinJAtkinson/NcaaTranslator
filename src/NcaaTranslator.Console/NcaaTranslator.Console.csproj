@@ -13,10 +13,14 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Update="Settings.json">
+	  <ProjectReference Include="..\NcaaTranslator.Library\NcaaTranslator.Library.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Update="config\Settings.json">
 		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
-		<None Update="NcaaNameConverter.json">
+		<None Update="config\NcaaNameConverter.json">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
 	</ItemGroup>

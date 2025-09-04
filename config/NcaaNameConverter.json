@@ -1133,6 +1133,496 @@
       "shortOriginal": "Augustana (SD)",
       "seo": null,
       "full": null
+    },
+    {
+      "char6": "S CAR",
+      "short": "",
+      "shortOriginal": "South Carolina",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "UNLV",
+      "short": "",
+      "shortOriginal": "UNLV",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "NC CEN",
+      "short": "",
+      "shortOriginal": "N.C. Central",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "LAFAYE",
+      "short": "",
+      "shortOriginal": "Lafayette",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "MCKEND",
+      "short": "",
+      "shortOriginal": "McKendree",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "TOWSON",
+      "short": "",
+      "shortOriginal": "Towson",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "LA MON",
+      "short": "",
+      "shortOriginal": "ULM",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "DEL ST",
+      "short": "",
+      "shortOriginal": "Delaware St.",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "DUKE",
+      "short": "",
+      "shortOriginal": "Duke",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "MIZZOU",
+      "short": "",
+      "shortOriginal": "Missouri",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "OKLAST",
+      "short": "",
+      "shortOriginal": "Oklahoma St.",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "UT MAR",
+      "short": "",
+      "shortOriginal": "UT Martin",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "W GA",
+      "short": "",
+      "shortOriginal": "West Ga.",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "HOUCHR",
+      "short": "",
+      "shortOriginal": "Houston Christian",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "UPP IA",
+      "short": "",
+      "shortOriginal": "Upper Iowa",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "HOU",
+      "short": "",
+      "shortOriginal": "Houston",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "ALCORN",
+      "short": "",
+      "shortOriginal": "Alcorn",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "UAB",
+      "short": "",
+      "shortOriginal": "UAB",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "CAMPBL",
+      "short": "",
+      "shortOriginal": "Campbell",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "NEWHAV",
+      "short": "",
+      "shortOriginal": "New Haven",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "FIU",
+      "short": "",
+      "shortOriginal": "FIU",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "KANSAS",
+      "short": "",
+      "shortOriginal": "Kansas",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "ILL",
+      "short": "",
+      "shortOriginal": "Illinois",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "KENT",
+      "short": "",
+      "shortOriginal": "Kent St.",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "NAVY",
+      "short": "",
+      "shortOriginal": "Navy",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "PITT",
+      "short": "",
+      "shortOriginal": "Pittsburgh",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "CUMBER",
+      "short": "",
+      "shortOriginal": "Cumberland (TN)",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "WVU",
+      "short": "",
+      "shortOriginal": "West Virginia",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "WM\u0026MRY",
+      "short": "",
+      "shortOriginal": "William \u0026 Mary",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "VA LYN",
+      "short": "",
+      "shortOriginal": "Virginia-Lynchburg",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "CHANDR",
+      "short": "",
+      "shortOriginal": "Chadron St.",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "LOUIS",
+      "short": "",
+      "shortOriginal": "Louisville",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "NIU",
+      "short": "",
+      "shortOriginal": "NIU",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "IOWAST",
+      "short": "",
+      "shortOriginal": "Iowa St.",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "OREGN",
+      "short": "",
+      "shortOriginal": "Oregon",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "MONTST",
+      "short": "",
+      "shortOriginal": "Montana St.",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "LIBRTY",
+      "short": "",
+      "shortOriginal": "Liberty",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "FL A\u0026M",
+      "short": "",
+      "shortOriginal": "Florida A\u0026M",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "ARK",
+      "short": "",
+      "shortOriginal": "Arkansas",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "MEM",
+      "short": "",
+      "shortOriginal": "Memphis",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "OKLA",
+      "short": "",
+      "shortOriginal": "Oklahoma",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "ALLEN",
+      "short": "",
+      "shortOriginal": "Allen",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "STETSN",
+      "short": "",
+      "shortOriginal": "Stetson",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "WEBINT",
+      "short": "",
+      "shortOriginal": "Webber Int\u0027l",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "JMU",
+      "short": "",
+      "shortOriginal": "James Madison",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "W CAR",
+      "short": "",
+      "shortOriginal": "Western Caro.",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "TROY",
+      "short": "",
+      "shortOriginal": "Troy",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "TOMMOR",
+      "short": "",
+      "shortOriginal": "Thomas More",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "MIDTEN",
+      "short": "",
+      "shortOriginal": "Middle Tenn.",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "MCNEES",
+      "short": "",
+      "shortOriginal": "McNeese",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "S ALA",
+      "short": "",
+      "shortOriginal": "South Alabama",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "MORGAN",
+      "short": "",
+      "shortOriginal": "Morgan St.",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "VANDY",
+      "short": "",
+      "shortOriginal": "Vanderbilt",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "KAN ST",
+      "short": "",
+      "shortOriginal": "Kansas St.",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "W KY",
+      "short": "",
+      "shortOriginal": "Western Ky.",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "FLA",
+      "short": "",
+      "shortOriginal": "Florida",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "ARK ST",
+      "short": "",
+      "shortOriginal": "Arkansas St.",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "LATECH",
+      "short": "",
+      "shortOriginal": "Louisiana Tech",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "TXTECH",
+      "short": "",
+      "shortOriginal": "Texas Tech",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "LANGST",
+      "short": "",
+      "shortOriginal": "Langston",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "UTRGV",
+      "short": "",
+      "shortOriginal": "UTRGV",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "SULROS",
+      "short": "",
+      "shortOriginal": "Sul Ross St.",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "TULSA",
+      "short": "",
+      "shortOriginal": "Tulsa",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "NO TEX",
+      "short": "",
+      "shortOriginal": "North Texas",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "S UTAH",
+      "short": "",
+      "shortOriginal": "Southern Utah",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "NM ST",
+      "short": "",
+      "shortOriginal": "New Mexico St.",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "SMU",
+      "short": "",
+      "shortOriginal": "SMU",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "BYU",
+      "short": "",
+      "shortOriginal": "BYU",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "WASHST",
+      "short": "",
+      "shortOriginal": "Washington St.",
+      "seo": null,
+      "full": null
+    },
+    {
+      "char6": "UTTECH",
+      "short": "",
+      "shortOriginal": "Utah Tech",
+      "seo": null,
+      "full": null
     }
   ],
   "conferences": [
@@ -1175,6 +1665,156 @@
       "conferenceName": "Hockey East",
       "customConferenceName": "",
       "conferenceSeo": "hockey-east"
+    },
+    {
+      "conferenceName": "SEC",
+      "customConferenceName": "",
+      "conferenceSeo": "sec"
+    },
+    {
+      "conferenceName": "Big East",
+      "customConferenceName": "",
+      "conferenceSeo": "big-east"
+    },
+    {
+      "conferenceName": "Southland",
+      "customConferenceName": "",
+      "conferenceSeo": "southland"
+    },
+    {
+      "conferenceName": "Mountain West",
+      "customConferenceName": "",
+      "conferenceSeo": "mountain-west"
+    },
+    {
+      "conferenceName": "Big Sky",
+      "customConferenceName": "",
+      "conferenceSeo": "big-sky"
+    },
+    {
+      "conferenceName": "ASUN",
+      "customConferenceName": "",
+      "conferenceSeo": "asun"
+    },
+    {
+      "conferenceName": "SWAC",
+      "customConferenceName": "",
+      "conferenceSeo": "swac"
+    },
+    {
+      "conferenceName": "MEAC",
+      "customConferenceName": "",
+      "conferenceSeo": "meac"
+    },
+    {
+      "conferenceName": "MAC",
+      "customConferenceName": "",
+      "conferenceSeo": "mac"
+    },
+    {
+      "conferenceName": "Patriot",
+      "customConferenceName": "",
+      "conferenceSeo": "patriot"
+    },
+    {
+      "conferenceName": "MVFC",
+      "customConferenceName": "",
+      "conferenceSeo": "mvfc"
+    },
+    {
+      "conferenceName": "NEC",
+      "customConferenceName": "",
+      "conferenceSeo": "nec"
+    },
+    {
+      "conferenceName": "GLVC",
+      "customConferenceName": "",
+      "conferenceSeo": "glvc"
+    },
+    {
+      "conferenceName": "OVC",
+      "customConferenceName": "",
+      "conferenceSeo": "ovc"
+    },
+    {
+      "conferenceName": "Pioneer",
+      "customConferenceName": "",
+      "conferenceSeo": "pioneer"
+    },
+    {
+      "conferenceName": "CAA",
+      "customConferenceName": "",
+      "conferenceSeo": "caa"
+    },
+    {
+      "conferenceName": "Sun Belt",
+      "customConferenceName": "",
+      "conferenceSeo": "sun-belt"
+    },
+    {
+      "conferenceName": "CUSA",
+      "customConferenceName": "",
+      "conferenceSeo": "cusa"
+    },
+    {
+      "conferenceName": "ACC",
+      "customConferenceName": "",
+      "conferenceSeo": "acc"
+    },
+    {
+      "conferenceName": "Big 12",
+      "customConferenceName": "",
+      "conferenceSeo": "big-12"
+    },
+    {
+      "conferenceName": "SoCon",
+      "customConferenceName": "",
+      "conferenceSeo": "socon"
+    },
+    {
+      "conferenceName": "IND",
+      "customConferenceName": "",
+      "conferenceSeo": "independent"
+    },
+    {
+      "conferenceName": "American",
+      "customConferenceName": "",
+      "conferenceSeo": "american"
+    },
+    {
+      "conferenceName": "FCS Independent",
+      "customConferenceName": "",
+      "conferenceSeo": "fcs-independent"
+    },
+    {
+      "conferenceName": "FBS Independent",
+      "customConferenceName": "",
+      "conferenceSeo": "fbs-independent"
+    },
+    {
+      "conferenceName": "RMAC",
+      "customConferenceName": "",
+      "conferenceSeo": "rmac"
+    },
+    {
+      "conferenceName": "SIAC",
+      "customConferenceName": "",
+      "conferenceSeo": "siac"
+    },
+    {
+      "conferenceName": "G-MAC",
+      "customConferenceName": "",
+      "conferenceSeo": "g-mac"
+    },
+    {
+      "conferenceName": "Lone Star",
+      "customConferenceName": "",
+      "conferenceSeo": "lone-star"
+    },
+    {
+      "conferenceName": "Summit League",
+      "customConferenceName": "",
+      "conferenceSeo": "summit-league"
     }
   ]
 }
