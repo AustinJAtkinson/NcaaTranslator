@@ -1,68 +1,54 @@
 
+using System.Text.Json.Serialization;
+
 namespace NcaaTranslator.Library
 {
-    public class NcaaToday
-    {
-        public string? inputMD5Sum { get; set; }
-        public string? description { get; set; }
-        public string? today { get; set; }
-    }
-
     public class NcaaScoreboard
     {
-        public string? inputMD5Sum { get; set; }
-        public string? updated_at { get; set; }
-        public List<Game> games { get; set; } = new List<Game>();
-        public List<Game> nonConferenceGames { get; set; } = new List<Game>();
-        public List<Game> nonConferenceSorted { get; set; } = new List<Game>();
-        public List<Game> conferenceGames { get; set; } = new List<Game>();
-        public List<Game> displayGames { get; set; } = new List<Game>();
-        public List<Game> homeGames { get; set; } = new List<Game>();
-        public List<Game> top25Games { get; set; } = new List<Game>();
+        public Data? data { get; set; }
+    }
+
+    public class Data
+    {
+        public List<Contest> contests { get; set; } = new List<Contest>();
+        public List<Contest> nonConferenceGames { get; set; } = new List<Contest>();
+        public List<Contest> nonConferenceSorted { get; set; } = new List<Contest>();
+        public List<Contest> conferenceGames { get; set; } = new List<Contest>();
+        public List<Contest> displayGames { get; set; } = new List<Contest>();
+        public List<Contest> homeGames { get; set; } = new List<Contest>();
+        public List<Contest> top25Games { get; set; } = new List<Contest>();
         public List<ConferenceGames> filteredGames { get; set; } = new List<ConferenceGames>();
     }
-    public class Away
-    {
-        public string? score { get; set; }
-        public Names? names { get; set; }
-        public bool winner { get; set; }
-        public string? seed { get; set; }
-        public string? description { get; set; }
-        public string? rank { get; set; }
-        public List<Conference>? conferences { get; set; }
-    }
 
-    public class Conference
+    public class Contest
     {
-        public string? conferenceName { get; set; }
-        public string? customConferenceName { get; set; }
-        public string? conferenceSeo { get; set; }
-    }
-
-    public class ConferenceGames : Conference
-    {
-        public List<Game> games { get; set; } = new List<Game>();
-    }
-
-    public class Game
-    {
-        public GameData? game { get; set; }
-    }
-
-    public class GameData
-    {
-        public string? gameID { get; set; }
-        public Away? away { get; set; }
-        public string conferenceDisplayName { get; set; } = "";
-        public string? finalMessage { get; set; }
-        public string? bracketRound { get; set; }
-        public string? title { get; set; }
-        public string? contestName { get; set; }
+        [JsonPropertyName("__typename")]
+        public string? Typename { get; set; }
+        public string? championshipId { get; set; }
+        public string? bracketId { get; set; }
+        public long contestId { get; set; }
         public string? url { get; set; }
-        public string? network { get; set; }
-        public Home? home { get; set; }
-        public bool liveVideoEnabled { get; set; }
+        public string? gameState { get; set; }
+        public string? statusCodeDisplay { get; set; }
+        public string? currentPeriod { get; set; }
+        public string? contestClock { get; set; }
+        public string? finalMessage { get; set; }
+        public long startTimeEpoch { get; set; }
         public string? startTime { get; set; }
+        public string? startDate { get; set; }
+        public bool hasStartTime { get; set; }
+        public string? broadcasterId { get; set; }
+        public string? broadcasterName { get; set; }
+        public string? roundNumber { get; set; }
+        public string? roundDescription { get; set; }
+        public string? sportUrl { get; set; }
+        public int stage { get; set; }
+        public bool tba { get; set; }
+        public bool isChampionship { get; set; }
+        public string? championshipGame { get; set; }
+        public List<ContestTeam> teams { get; set; } = new List<ContestTeam>();
+        public List<LiveVideo> liveVideos { get; set; } = new List<LiveVideo>();
+
         public string ctStateTime
         {
             get
@@ -73,7 +59,7 @@ namespace NcaaTranslator.Library
                         return startTime!;
 
                     DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
-                    dateTime = dateTime.AddSeconds(int.Parse(startTimeEpoch!)).ToLocalTime();
+                    dateTime = dateTime.AddSeconds(startTimeEpoch).ToLocalTime();
 
                     return dateTime.ToString("h:mm tt");
                 }
@@ -81,73 +67,90 @@ namespace NcaaTranslator.Library
                 {
                     return startTime!;
                 }
-
             }
-            set { }
         }
-        public string? startTimeEpoch { get; set; }
-        public string? bracketId { get; set; }
-        public string? gameState { get; set; }
-        public string? startDate { get; set; }
-        public string? currentPeriod { get; set; }
-        public string? videoState { get; set; }
-        public string? bracketRegion { get; set; }
-        public string? contestClock { get; set; }
+
         public string displayClock
         {
             get
             {
-                if ( gameState == "pre")
+                if (gameState == "P")
                 {
                     return ctStateTime;
                 }
-                if (gameState == "final")
+                if (gameState == "F")
                 {
                     return finalMessage!.Replace("2OT", "SO");
                 }
 
                 return string.Format("{0}     {1}", currentPeriod!.Replace("2OT", "SO"), contestClock!);
             }
-            set { }
         }
+
         public string displayClockDefault
         {
             get
             {
-                if (gameState == "pre")
+                if (gameState == "P")
                 {
                     return ctStateTime;
                 }
-                if (gameState == "final")
+                if (gameState == "F")
                 {
                     return finalMessage!;
                 }
 
                 return string.Format("{0}     {1}", currentPeriod!, contestClock!);
             }
-            set { }
         }
+
     }
 
-    public class Home
+    public class ContestTeam
     {
-        public string? score { get; set; }
-        public Names? names { get; set; }
-        public bool winner { get; set; }
+        [JsonPropertyName("__typename")]
+        public string? Typename { get; set; }
+        public bool isHome { get; set; }
+        public string? seoname { get; set; }
+        public string? nameShort { get; set; }
+        public string? name6Char { get; set; }
+        public string? name8Char { get; set; }
+        public string? name10Char { get; set; }
         public string? seed { get; set; }
-        public string? description { get; set; }
-        public string? rank { get; set; }
-        public List<Conference>? conferences { get; set; }
+        public int? teamRank { get; set; }
+        public int? score { get; set; }
+        public bool isWinner { get; set; }
+        public string? conferenceSeo { get; set; }
     }
 
+    public class LiveVideo
+    {
+        // Add properties as needed
+    }
     public class Names
     {
-        public string? char6 { get; set; }
-        public string? @short { get; set; }
-        public string? shortOriginal { get; set; }
-        public string? seo { get; set; }
-        public string? full { get; set; }
+        // New properties for updated team name layout
+        [JsonPropertyName("seoname")]
+        public string? seoname { get; set; }
+
+        [JsonPropertyName("nameShort")]
+        public string? nameShort { get; set; }
+
+        [JsonPropertyName("name6Char")]
+        public string? name6Char { get; set; }
+
+        [JsonPropertyName("customName")]
+        public string? customName { get; set; }
     }
 
-    
+    public class Conference
+    {
+        public string? customConferenceName { get; set; }
+        public string? conferenceSeo { get; set; }
+    }
+
+    public class ConferenceGames : Conference
+    {
+        public List<Contest> games { get; set; } = new List<Contest>();
+    }
 }

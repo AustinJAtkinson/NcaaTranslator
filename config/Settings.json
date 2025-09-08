@@ -4,12 +4,12 @@
   "Sports": [
     {
       "SportName": "Hockey",
-      "SportNameShort": "HKY",
-      "Enabled": true,
+      "Enabled": false,
       "ConferenceName": "NCHC",
-      "NcaaUrl": "icehockey-men/d1/",
+      "SportCode": "MIH",
+      "Division": 1,
+      "Week": null,
       "ListsNeeded": {
-        "games": false,
         "nonConferenceGames": true,
         "nonConferenceSorted": true,
         "conferenceGames": true,
@@ -18,13 +18,13 @@
       }
     },
     {
-      "SportName": "MBB",
-      "SportNameShort": "MBB",
+      "SportName": "Mens Basketball",
       "Enabled": false,
       "ConferenceName": "Summit League",
-      "NcaaUrl": "basketball-men/d1/",
+      "SportCode": "MBB",
+      "Division": 1,
+      "Week": null,
       "ListsNeeded": {
-        "games": false,
         "nonConferenceGames": false,
         "nonConferenceSorted": true,
         "conferenceGames": false,
@@ -33,13 +33,28 @@
       }
     },
     {
-      "SportName": "WBB",
-      "SportNameShort": "WBB",
+      "SportName": "Womens Basketball",
+      "Enabled": false,
+      "ConferenceName": "Summit League",
+      "SportCode": "WBB",
+      "Division": 1,
+      "Week": null,
+      "ListsNeeded": { 
+        "nonConferenceGames": false,
+        "nonConferenceSorted": true,
+        "conferenceGames": false,
+        "top25Games": false,
+        "filteredGames": false
+      }
+    },
+    {
+      "SportName": "Volleyball",
       "Enabled": true,
       "ConferenceName": "Summit League",
-      "NcaaUrl": "basketball-women/d1/",
+      "SportCode": "WVB",
+      "Division": 1,
+      "Week": null,
       "ListsNeeded": {
-        "games": false,
         "nonConferenceGames": false,
         "nonConferenceSorted": true,
         "conferenceGames": false,
@@ -48,13 +63,13 @@
       }
     },
     {
-      "SportName": "Football",
-      "SportNameShort": "FBL",
+      "SportName": "Football FCS",
       "Enabled": true,
       "ConferenceName": "MVFC",
-      "NcaaUrl": "football/fcs/",
+      "SportCode": "MFB",
+      "Division": 12,
+      "Week": 2,
       "ListsNeeded": {
-        "games": false,
         "nonConferenceGames": false,
         "nonConferenceSorted": true,
         "conferenceGames": false,
@@ -67,6 +82,21 @@
         "NumberOfTeamsPer": 2,
         "OosFilePath": "C:\\Users\\austina\\Downloads\\New folder",
         "OosFileName": "OUT_Score_"
+      }
+    },
+    {
+      "SportName": "Football FBS",
+      "Enabled": false,
+      "ConferenceName": "MVFC",
+      "SportCode": "MFB",
+      "Division": 11,
+      "Week": 2,
+      "ListsNeeded": {
+        "nonConferenceGames": false,
+        "nonConferenceSorted": true,
+        "conferenceGames": false,
+        "top25Games": false,
+        "filteredGames": false
       }
     }
   ],

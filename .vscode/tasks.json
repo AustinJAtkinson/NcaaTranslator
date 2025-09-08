@@ -36,6 +36,31 @@
                 "${workspaceFolder}/NcaaTranslator.sln"
             ],
             "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "clean",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "clean",
+                "${workspaceFolder}/NcaaTranslator.sln"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "clean-build",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/NcaaTranslator.sln",
+                "/target:Clean;Build"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
         }
     ]
 }

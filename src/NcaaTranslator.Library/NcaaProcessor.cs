@@ -8,27 +8,45 @@ namespace NcaaTranslator.Library
 {
     public class NcaaProcessor
     {
-        public static void FixNames(Game gameData)
+        public static void FixNames(Contest gameData)
         {
-            var homeShortLookup = NameConverters.LookupTeam(gameData.game!.home!.names!);
-            var awayShortLookup = NameConverters.LookupTeam(gameData.game!.away!.names!);
+            var home = gameData.teams.FirstOrDefault(t => t.isHome);
+            var away = gameData.teams.FirstOrDefault(t => !t.isHome);
 
-            gameData.game!.home!.names!.shortOriginal = gameData.game!.home!.names!.@short;
-            gameData.game!.away!.names!.shortOriginal = gameData.game!.away!.names!.@short;
+            if (home != null)
+            {
+                var homeShortLookup = NameConverters.LookupTeam(new Names { name6Char = home.name6Char, nameShort = home.nameShort, seoname = home.seoname });
+                home.nameShort = homeShortLookup != "" ? homeShortLookup : home.nameShort;
+            }
 
-            gameData.game!.home!.names!.@short = homeShortLookup != "" ? homeShortLookup : gameData.game!.home!.names!.shortOriginal;
-            gameData.game!.home!.conferences![0].customConferenceName = NameConverters.LookupConf(gameData.game!.home!.conferences![0]);
-            gameData.game!.away!.names!.@short = awayShortLookup != "" ? awayShortLookup : gameData.game!.away!.names!.shortOriginal;
-            gameData.game!.away!.conferences![0].customConferenceName = NameConverters.LookupConf(gameData.game!.away!.conferences![0]);
+            if (away != null)
+            {
+                var awayShortLookup = NameConverters.LookupTeam(new Names { name6Char = away.name6Char, nameShort = away.nameShort, seoname = away.seoname });
+                away.nameShort = awayShortLookup != "" ? awayShortLookup : away.nameShort;
+            }
         }
 
-        public static async Task<string> GetUrl(string sportUrl)
+        public static string GetUrl(Sport sport)
         {
-            var response = await NcaaResponse("https://data.ncaa.com/casablanca/schedule/" + sportUrl + "today.json");
-            if (response == "")
-                throw new Exception("Unable to reach " + "https://data.ncaa.com/casablanca/schedule/" + sportUrl + "today.json");
-            NcaaToday responseDeserialized = JsonSerializer.Deserialize<NcaaToday>(json: response)!;
-            return string.Format("https://data.ncaa.com/casablanca/scoreboard/" + sportUrl + responseDeserialized.today + "/" + "scoreboard.json");
+            int seasonYear = DateTime.Now.Year;
+            int? week = GetCurrentWeek(sport.SportCode!);
+            string? contestDate = week.HasValue ? null : DateTime.Now.ToString("yyyy-MM-dd");
+            var variables = new
+            {
+                sportCode = sport.SportCode,
+                division = sport.Division,
+                seasonYear = seasonYear,
+                week = week,
+                contestDate = contestDate
+            };
+            string variablesJson = JsonSerializer.Serialize(variables);
+            return $"https://sdataprod.ncaa.com/?meta=GetContests_web&extensions={{\"persistedQuery\":{{\"version\":1,\"sha256Hash\":\"7287cda610a9326931931080cb3a604828febe6fe3c9016a7e4a36db99efdb7c\"}}}}&variables={variablesJson}";
+        }
+
+        private static int? GetCurrentWeek(string sportCode)
+        {
+            var sport = Settings.GetSports()?.FirstOrDefault(s => s.SportCode == sportCode);
+            return sport?.Week; // Returns null if not found or Week is null
         }
 
         public static async Task<string> NcaaResponse(string url)
@@ -52,7 +70,7 @@ namespace NcaaTranslator.Library
         public static void UpdateOos(NcaaScoreboard ncaaScoreboard, OosUpdater updater)
         {
             Console.WriteLine();
-            var numberOfGames = ncaaScoreboard.displayGames.Count;
+            var numberOfGames = ncaaScoreboard.data!.displayGames.Count;
             XmlSerializer xmlSerializer = new XmlSerializer(typeof(ClsGFXTemplate));
             var gameNeeded = 0;
             for (var i = 1; i <= updater.NumberOfOutScores; i++)
@@ -64,33 +82,35 @@ namespace NcaaTranslator.Library
                 }
                 for (var j = 1; j <= updater.NumberOfTeamsPer; j++)
                 {
-                    var gameData = ncaaScoreboard.displayGames[gameNeeded];
-                    var homeTeam = gameData.game!.home!.names!.@short!;
-                    var awayTeam = gameData.game!.away!.names!.@short!;
-                    var homeScore = gameData.game!.home!.score!;
-                    var awayScore = gameData.game!.away!.score!;
-                    var clock = gameData.game!.displayClockDefault;
+                    var gameData = ncaaScoreboard.data!.displayGames[gameNeeded];
+                    var home = gameData.teams.FirstOrDefault(t => t.isHome);
+                    var away = gameData.teams.FirstOrDefault(t => !t.isHome);
+                    var homeTeam = home?.nameShort ?? "";
+                    var awayTeam = away?.nameShort ?? "";
+                    var homeScore = home?.score?.ToString() ?? "";
+                    var awayScore = away?.score?.ToString() ?? "";
+                    var clock = gameData.displayClockDefault;
 
                     Console.WriteLine("{0}\t{1}\tVS\t{2}\t{3}\tCLOCK\t{4}", homeTeam.Replace(".", "").PadRight($"{homeTeam}:".Length + (15 - $"{homeTeam}:".Length)),
-                                                                            homeScore.Replace(".", "").PadRight($"{homeScore}:".Length + (2 - $"{homeScore}:".Length)),
-                                                                            awayTeam.Replace(".", "").PadRight($"{awayTeam}:".Length + (15 - $"{awayTeam}:".Length)),
-                                                                            awayScore.Replace(".", "").PadRight($"{awayScore}:".Length + (2 - $"{awayScore}:".Length)),
-                                                                            clock);
+                                                                             homeScore.Replace(".", "").PadRight($"{homeScore}:".Length + (2 - $"{homeScore}:".Length)),
+                                                                             awayTeam.Replace(".", "").PadRight($"{awayTeam}:".Length + (15 - $"{awayTeam}:".Length)),
+                                                                             awayScore.Replace(".", "").PadRight($"{awayScore}:".Length + (2 - $"{awayScore}:".Length)),
+                                                                             clock);
 
                     outScore.GfxElements!.ClsGFXElement!.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - V Team", j))!.GraphicObjText = awayTeam;
                     outScore.GfxElements!.ClsGFXElement!.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - V Score", j))!.GraphicObjText = awayScore;
                     outScore.GfxElements!.ClsGFXElement!.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - H Team", j))!.GraphicObjText = homeTeam;
                     outScore.GfxElements!.ClsGFXElement!.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - H Score", j))!.GraphicObjText = homeScore;
 
-                    if (gameData.game!.gameState == "pre" || gameData.game!.gameState == "final")
+                    if (gameData.gameState == "P" || gameData.gameState == "F")
                     {
                         outScore.GfxElements!.ClsGFXElement!.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - Time", j))!.GraphicObjText = "";
                         outScore.GfxElements!.ClsGFXElement!.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - Quarter", j))!.GraphicObjText = clock;
                     }
                     else
                     {
-                        outScore.GfxElements!.ClsGFXElement!.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - Time", j))!.GraphicObjText = gameData.game!.contestClock;
-                        outScore.GfxElements!.ClsGFXElement!.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - Quarter", j))!.GraphicObjText = gameData.game!.currentPeriod;
+                        outScore.GfxElements!.ClsGFXElement!.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - Time", j))!.GraphicObjText = gameData.contestClock;
+                        outScore.GfxElements!.ClsGFXElement!.FirstOrDefault(x => x.GraphicObjName == string.Format("G{0} - Quarter", j))!.GraphicObjText = gameData.currentPeriod;
                     }
                     gameNeeded++;
                     if (gameNeeded >= numberOfGames)
@@ -111,98 +131,100 @@ namespace NcaaTranslator.Library
                 return new NcaaScoreboard();
 
             var responseBody = "";
-            responseBody = await NcaaResponse(await GetUrl(sport.NcaaUrl!));
+            responseBody = await NcaaResponse(GetUrl(sport));
 
             if (responseBody == "")
                 return new NcaaScoreboard();
 
             NcaaScoreboard ncaaGames = JsonSerializer.Deserialize<NcaaScoreboard>(json: responseBody)!;
-            ncaaGames.games.Sort((x, y) => int.Parse(x.game!.startTimeEpoch!).CompareTo(int.Parse(y.game!.startTimeEpoch!)));
+            ncaaGames.data!.contests.Sort((x, y) => x.startTimeEpoch.CompareTo(y.startTimeEpoch));
 
             var displayList = Settings.GetDisplayTeams();
-            ncaaGames.filteredGames.Add(new ConferenceGames
+            ncaaGames.data!.filteredGames.Add(new ConferenceGames
             {
-                conferenceName = "nonConf",
-                customConferenceName = sport.SportNameShort,
+                customConferenceName = "nonConf",
                 conferenceSeo = "nonConf",
-                games = new List<Game>()
+                games = new List<Contest>()
             });
 
-            foreach (var gameData in ncaaGames.games)
+            foreach (var gameData in ncaaGames.data!.contests)
             {
                 FixNames(gameData);
-                gameData.game!.conferenceDisplayName = gameData.game!.home!.conferences![0].customConferenceName! == "" ? gameData.game!.home!.conferences![0].conferenceName! : gameData.game!.home!.conferences![0].customConferenceName!;
+                var home = gameData.teams.FirstOrDefault(t => t.isHome);
 
-                if (gameData.game!.home!.conferences![0].conferenceName == sport.ConferenceName ||
-                    gameData.game!.away!.conferences![0].conferenceName == sport.ConferenceName)
+                var homeTeamObj = gameData.teams.FirstOrDefault(t => t.isHome);
+                var awayTeamObj = gameData.teams.FirstOrDefault(t => !t.isHome);
+                if (homeTeamObj?.conferenceSeo == sport.ConferenceName ||
+                    awayTeamObj?.conferenceSeo == sport.ConferenceName)
                 {
-                    if (gameData.game!.home!.names!.char6 == Settings.homeTeam || gameData.game!.away!.names!.char6 == Settings.homeTeam)
+                    if (homeTeamObj?.name6Char == Settings.homeTeam || awayTeamObj?.name6Char == Settings.homeTeam)
                     {
-                        ncaaGames.homeGames.Add(gameData);
+                        ncaaGames.data!.homeGames.Add(gameData);
                     }
                     else
                     {
-                        ncaaGames.conferenceGames.Add(gameData);
+                        ncaaGames.data!.conferenceGames.Add(gameData);
 
                         if (sport.OosUpdater.Enabled)
-                            ncaaGames.displayGames.Add(gameData);
+                            ncaaGames.data!.displayGames.Add(gameData);
                     }
                 }
                 else
                 {
-                    ncaaGames.nonConferenceGames.Add(gameData);
+                    ncaaGames.data!.nonConferenceGames.Add(gameData);
                     if (sport.OosUpdater.Enabled)
                     {
-                        if (displayList!.Any(x => x.NcaaTeamName == gameData.game!.home!.names!.char6 || x.NcaaTeamName == gameData.game!.away!.names!.char6
-                                                            || x.NcaaTeamName == gameData.game!.home!.names!.shortOriginal || x.NcaaTeamName == gameData.game!.away!.names!.shortOriginal
-                                                            || x.NcaaTeamName == gameData.game!.home!.names!.@short || x.NcaaTeamName == gameData.game!.away!.names!.@short))
-                            ncaaGames.displayGames.Add(gameData);
+                        var homeTeamDisp = gameData.teams.FirstOrDefault(t => t.isHome);
+                        var awayTeamDisp = gameData.teams.FirstOrDefault(t => !t.isHome);
+                        if (displayList!.Any(x => x.NcaaTeamName == homeTeamDisp?.name6Char || x.NcaaTeamName == awayTeamDisp?.name6Char
+                                                        || x.NcaaTeamName == homeTeamDisp?.nameShort || x.NcaaTeamName == awayTeamDisp?.nameShort))
+                            ncaaGames.data!.displayGames.Add(gameData);
                     }
 
-                    if (gameData.game!.home!.conferences![0].conferenceName == gameData.game!.away!.conferences![0].conferenceName && gameData.game!.home!.conferences![0].conferenceName != "DI Independent")
+                    var homeConf = gameData.teams.FirstOrDefault(t => t.isHome)?.conferenceSeo;
+                    var awayConf = gameData.teams.FirstOrDefault(t => !t.isHome)?.conferenceSeo;
+                    if (homeConf == awayConf && homeConf != "DI Independent")
                     {
-                        if (!ncaaGames.filteredGames.Any(x => x.conferenceName == gameData.game!.home!.conferences![0].conferenceName))
+                        if (!ncaaGames.data!.filteredGames.Any(x => x.customConferenceName == homeConf))
                         {
-                            ncaaGames.filteredGames.Add(new ConferenceGames
+                            ncaaGames.data!.filteredGames.Add(new ConferenceGames
                             {
-                                conferenceName = gameData.game!.home!.conferences![0].conferenceName,
-                                customConferenceName = gameData.game!.home!.conferences![0].customConferenceName,
-                                conferenceSeo = gameData.game!.home!.conferences![0].conferenceSeo,
-                                games = new List<Game>()
+                                customConferenceName = homeConf,
+                                conferenceSeo = homeConf,
+                                games = new List<Contest>()
                             });
                         }
-                        ncaaGames.filteredGames.FirstOrDefault(x => x.conferenceName == gameData.game!.home!.conferences![0].conferenceName)!.games.Add(gameData);
+                        ncaaGames.data!.filteredGames.FirstOrDefault(x => x.customConferenceName == homeConf)!.games.Add(gameData);
                     }
                     else
                     {
-                        gameData.game!.conferenceDisplayName = sport.SportNameShort!;
-                        ncaaGames.filteredGames.FirstOrDefault(x => x.conferenceName == "nonConf")!.games.Add(gameData);
+                        ncaaGames.data!.filteredGames.FirstOrDefault(x => x.customConferenceName == "nonConf")!.games.Add(gameData);
                     }
                 }
-                if (gameData.game!.home!.conferences!.Any(x => x.conferenceName == "Top 25") || gameData.game!.away!.conferences!.Any(x => x.conferenceName == "Top 25"))
-                    ncaaGames.top25Games.Add(gameData);
+                var homeTop25 = gameData.teams.FirstOrDefault(t => t.isHome)?.conferenceSeo == "Top 25";
+                var awayTop25 = gameData.teams.FirstOrDefault(t => !t.isHome)?.conferenceSeo == "Top 25";
+                if (homeTop25 || awayTop25)
+                    ncaaGames.data!.top25Games.Add(gameData);
             }
 
-            foreach (var conf in ncaaGames.filteredGames)
+            foreach (var conf in ncaaGames.data!.filteredGames)
             {
-                ncaaGames.nonConferenceSorted.AddRange(conf.games);
+                ncaaGames.data!.nonConferenceSorted.AddRange(conf.games);
             }
 
             Console.WriteLine(String.Format("{0}\t{1}\t{2}\t{3}\t{4}", sport.SportName!.PadRight($"{sport.SportName}:".Length + (15 - $"{sport.SportName}:".Length)),
-                                                                 ncaaGames.games.Count, ncaaGames.conferenceGames.Count, ncaaGames.nonConferenceGames.Count, ncaaGames.displayGames.Count));
+                                                                  ncaaGames.data!.contests.Count, ncaaGames.data!.conferenceGames.Count, ncaaGames.data!.nonConferenceGames.Count, ncaaGames.data!.displayGames.Count));
 
-            if (!sport.ListsNeeded.games)
-                ncaaGames.games.Clear();
             if (!sport.ListsNeeded.nonConferenceGames)
-                ncaaGames.nonConferenceGames.Clear();
+                ncaaGames.data!.nonConferenceGames.Clear();
             if (!sport.ListsNeeded.nonConferenceSorted)
-                ncaaGames.nonConferenceSorted.Clear();
+                ncaaGames.data!.nonConferenceSorted.Clear();
             if (!sport.ListsNeeded.conferenceGames)
-                ncaaGames.conferenceGames.Clear();
+                ncaaGames.data!.conferenceGames.Clear();
             if (!sport.ListsNeeded.top25Games)
-                ncaaGames.top25Games.Clear();
+                ncaaGames.data!.top25Games.Clear();
             if (!sport.ListsNeeded.filteredGames)
-                ncaaGames.filteredGames.Clear();
+                ncaaGames.data!.filteredGames.Clear();
 
             File.WriteAllText(string.Format("{0}-Games.json", sport.SportName!), JsonSerializer.Serialize<NcaaScoreboard>(ncaaGames, new JsonSerializerOptions() { WriteIndented = true }));
 

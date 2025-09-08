@@ -1,0 +1,14 @@
+{
+  "omnisharp.enableRoslynAnalyzers": true,
+  "omnisharp.enableEditorConfigSupport": true,
+  "csharp.suppressDotnetRestoreNotification": true,
+  "dotnet.defaultSolution": "NcaaTranslator.sln",
+  "files.exclude": {
+    "**/bin": true,
+    "**/obj": true,
+    "**/.vs": true
+  },
+  "csharp.semanticHighlighting.enabled": true,
+  "omnisharp.useModernNet": true,
+  "dotnet.completion.showCompletionItemsFromUnimportedNamespaces": true
+}

@@ -13,23 +13,46 @@ using NcaaTranslator.Library;
 using System.Text.Json;
 using System.Linq;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 
 namespace NcaaTranslator.Wpf;
 
 /// <summary>
 /// Interaction logic for MainWindow.xaml
 /// </summary>
-public partial class MainWindow : Window
+public partial class MainWindow : Window, INotifyPropertyChanged
 {
     private System.Timers.Timer? aTimer;
     private DateTime StartTime = DateTime.Now;
     private List<Team> _originalTeams = new List<Team>();
     private List<Conferences> _originalConferences = new List<Conferences>();
     private List<Sport> _originalSports = new List<Sport>();
+    private List<object> _originalAddTeamOptions = new List<object>();
+    private Dictionary<string, NcaaScoreboard> _sportScoreboards = new Dictionary<string, NcaaScoreboard>();
+    private ObservableCollection<SportGamesViewModel> _sportTabs = new ObservableCollection<SportGamesViewModel>();
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public ObservableCollection<SportGamesViewModel> SportTabs
+    {
+        get => _sportTabs;
+        set
+        {
+            _sportTabs = value;
+            OnPropertyChanged(nameof(SportTabs));
+        }
+    }
+
+    protected virtual void OnPropertyChanged(string propertyName)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
 
     public MainWindow()
     {
         InitializeComponent();
+        DataContext = this;
         InitializeTimer();
         LoadInitialData();
     }
@@ -48,13 +71,10 @@ public partial class MainWindow : Window
             NameConverters.Load();
             Settings.Load();
             aTimer!.Interval = Settings.Timer;
-            AppendOutput($"\nPress the Start button to begin monitoring NCAA scores...\n");
-            AppendOutput($"The application started at {StartTime:HH:mm:ss.fff}");
-            AppendOutput(String.Format("{0}\t{1}\t{2}\t{3}\t{4}", "Sport".PadRight("Sport".Length + (15 - "Sport".Length)), "Total", "Conf", "NonConf", "Display"));
         }
         catch (Exception ex)
         {
-            AppendOutput($"Error loading data: {ex.Message}");
+            // Error loading data - silently handle
         }
     }
 
@@ -68,7 +88,6 @@ public partial class MainWindow : Window
         StartButton.IsEnabled = false;
         StopButton.IsEnabled = true;
         StatusText.Text = "Status: Running";
-        AppendOutput("Timer started...");
     }
 
     private void StopButton_Click(object sender, RoutedEventArgs e)
@@ -77,7 +96,6 @@ public partial class MainWindow : Window
         StartButton.IsEnabled = true;
         StopButton.IsEnabled = false;
         StatusText.Text = "Status: Stopped";
-        AppendOutput("Timer stopped...");
     }
 
     private async void ConvertNcaaScoreboard(Object? source, ElapsedEventArgs e)
@@ -90,7 +108,6 @@ public partial class MainWindow : Window
         Dispatcher.Invoke(() =>
         {
             LastUpdateText.Text = $"Last Update: {signalTime:HH:mm:ss.fff}";
-            AppendOutput($"The scores were last updated at {signalTime:HH:mm:ss.fff}");
         });
 
         var sportsList = Settings.GetSports()!;
@@ -102,41 +119,84 @@ public partial class MainWindow : Window
                 var result = await NcaaProcessor.ConvertNcaaScoreboard(sport);
                 Dispatcher.Invoke(() =>
                 {
-                    AppendOutput(String.Format("{0}\t{1}\t{2}\t{3}\t{4}",
-                        sport.SportName!.PadRight($"{sport.SportName}:".Length + (15 - $"{sport.SportName}:".Length)),
-                        result.games.Count, result.conferenceGames.Count, result.nonConferenceGames.Count, result.displayGames.Count));
+                    _sportScoreboards[sport.SportName!] = result;
+                    UpdateSportsTabs();
+                    // Sport processing completed
                 });
             }
             catch (Exception err)
             {
-                Dispatcher.Invoke(() =>
-                {
-                    AppendOutput($"Message :{err.Message} ");
-                });
+                // Error processing sport - silently handle
             }
         }
 
-        try
+        if (Settings.XmlToJson!.Enabled)
         {
-            NcaaProcessor.ConvertXmlToJson(Settings.XmlToJson!);
-            Dispatcher.Invoke(() =>
+            try
             {
-                AppendOutput("XML to JSON conversion completed.");
-            });
-        }
-        catch (Exception ex)
-        {
-            Dispatcher.Invoke(() =>
+                NcaaProcessor.ConvertXmlToJson(Settings.XmlToJson!);
+                // XML to JSON conversion completed
+            }
+            catch (Exception ex)
             {
-                AppendOutput($"XML conversion error: {ex.Message}");
-            });
+                // XML conversion error - silently handle
+            }
         }
     }
 
-    private void AppendOutput(string text)
+
+    private void UpdateSportsTabs()
     {
-        OutputTextBox.AppendText(text + "\n");
-        OutputTextBox.ScrollToEnd();
+        Dispatcher.Invoke(() =>
+        {
+            var newSportTabs = new ObservableCollection<SportGamesViewModel>();
+            var enabledSports = Settings.GetSports()?.Where(s => s.Enabled) ?? new List<Sport>();
+
+            foreach (var sport in enabledSports)
+            {
+                if (_sportScoreboards.TryGetValue(sport.SportName!, out var scoreboard) && scoreboard.data != null)
+                {
+                    // Show all games for debugging first
+                    var allGames = scoreboard.data.contests.ToList();
+
+                    // Filter for games in contest (live games) - include games that are in progress ("I")
+                    var gamesInContest = allGames
+                        .Where(c => c.gameState == "I") // "I" = in progress/live
+                        .ToList();
+
+                    newSportTabs.Add(new SportGamesViewModel
+                    {
+                        SportName = sport.SportName!,
+                        Games = gamesInContest
+                    });
+                }
+            }
+
+            SportTabs = newSportTabs;
+        });
+    }
+
+    public class SportGamesViewModel : INotifyPropertyChanged
+    {
+        private bool _isExpanded = true;
+
+        public string SportName { get; set; } = "";
+        public List<Contest> Games { get; set; } = new List<Contest>();
+
+        public bool IsExpanded
+        {
+            get => _isExpanded;
+            set
+            {
+                if (_isExpanded != value)
+                {
+                    _isExpanded = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsExpanded)));
+                }
+            }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 
     private void TimerTextBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -155,6 +215,50 @@ public partial class MainWindow : Window
         AutoSaveSettings();
     }
 
+    private void TimerComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ComboBox comboBox && comboBox.SelectedItem != null)
+        {
+            if (int.TryParse(comboBox.SelectedItem.ToString(), out int timerValue))
+            {
+                Settings.SettingsList!.Timer = timerValue;
+                aTimer!.Interval = timerValue * 1000;
+                AutoSaveSettings();
+            }
+        }
+    }
+
+    private void TimerComboBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (sender is ComboBox comboBox)
+        {
+            if (int.TryParse(comboBox.Text, out int timerValue))
+            {
+                Settings.SettingsList!.Timer = timerValue;
+                aTimer!.Interval = timerValue * 1000;
+                AutoSaveSettings();
+            }
+        }
+    }
+
+    private void HomeTeamComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ComboBox comboBox && comboBox.SelectedValue != null)
+        {
+            Settings.SettingsList!.HomeTeam = comboBox.SelectedValue.ToString();
+            AutoSaveSettings();
+        }
+    }
+
+    private void HomeTeamComboBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (sender is ComboBox comboBox)
+        {
+            Settings.SettingsList!.HomeTeam = comboBox.Text;
+            AutoSaveSettings();
+        }
+    }
+
     private void SportsSearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         FilterSports(SportsSearchTextBox.Text);
@@ -170,7 +274,6 @@ public partial class MainWindow : Window
         {
             var filteredSports = _originalSports.Where(s =>
                 (s.SportName?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (s.SportNameShort?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 (s.ConferenceName?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false)
             ).ToList();
             SportsDataGrid.ItemsSource = filteredSports;
@@ -193,19 +296,10 @@ public partial class MainWindow : Window
                 string newName = textBox.Text.Trim();
                 if (string.IsNullOrEmpty(newName))
                 {
-                    AppendOutput("Sport name cannot be empty.");
                     e.Cancel = true;
                     return;
                 }
                 sport.SportName = newName;
-            }
-        }
-        else if (e.Column.Header.ToString() == "Short Name")
-        {
-            var textBox = e.EditingElement as TextBox;
-            if (textBox != null)
-            {
-                sport.SportNameShort = textBox.Text.Trim();
             }
         }
         else if (e.Column.Header.ToString() == "Conference")
@@ -216,19 +310,28 @@ public partial class MainWindow : Window
                 sport.ConferenceName = textBox.Text.Trim();
             }
         }
-        else if (e.Column.Header.ToString() == "NCAA URL")
+        else if (e.Column.Header.ToString() == "Sport Code")
         {
             var textBox = e.EditingElement as TextBox;
             if (textBox != null)
             {
-                string url = textBox.Text.Trim();
-                if (!string.IsNullOrEmpty(url) && !url.EndsWith("/"))
-                {
-                    url += "/";
-                }
-                sport.NcaaUrl = url;
-                // Update the TextBox to show the corrected value
-                textBox.Text = url;
+                sport.SportCode = textBox.Text.Trim();
+            }
+        }
+        else if (e.Column.Header.ToString() == "Division")
+        {
+            var textBox = e.EditingElement as TextBox;
+            if (textBox != null && int.TryParse(textBox.Text, out int division))
+            {
+                sport.Division = division;
+            }
+        }
+        else if (e.Column.Header.ToString() == "Week")
+        {
+            var textBox = e.EditingElement as TextBox;
+            if (textBox != null && int.TryParse(textBox.Text, out int week))
+            {
+                sport.Week = week;
             }
         }
         else if (e.Column.Header.ToString() == "OOS Path")
@@ -277,8 +380,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            // Log error instead of showing MessageBox
-            AppendOutput($"Error saving settings: {ex.Message}");
+            // Error saving settings - silently handle
         }
     }
 
@@ -322,14 +424,13 @@ public partial class MainWindow : Window
             {
                 // Find the sport in the settings list by matching properties since the Tag object might not be the same reference
                 var sportInList = Settings.SettingsList!.Sports!.FirstOrDefault(s =>
-                    s.SportName == sportToRemove.SportName &&
-                    s.SportNameShort == sportToRemove.SportNameShort);
+                    s.SportName == sportToRemove.SportName);
 
                 if (sportInList != null)
                 {
                     Settings.SettingsList.Sports.Remove(sportInList);
                     // Update the original sports list for search functionality
-                    _originalSports.RemoveAll(s => s.SportName == sportToRemove.SportName && s.SportNameShort == sportToRemove.SportNameShort);
+                    _originalSports.RemoveAll(s => s.SportName == sportToRemove.SportName);
                     // Refresh the DataGrid
                     SportsDataGrid.Items.Refresh();
                     AutoSaveSettings();
@@ -345,20 +446,46 @@ public partial class MainWindow : Window
         // General settings
         GeneralSettingsPanel.Children.Clear();
 
-        // Timer setting
+        // Timer setting with cool preset options
         var timerPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
         timerPanel.Children.Add(new TextBlock { Text = "Timer (seconds): ", Width = 120, VerticalAlignment = VerticalAlignment.Center });
-        var timerTextBox = new TextBox { Text = (Settings.SettingsList!.Timer).ToString(), Width = 100, Name = "TimerTextBox" };
-        timerTextBox.TextChanged += TimerTextBox_TextChanged;
-        timerPanel.Children.Add(timerTextBox);
+        var timerComboBox = new ComboBox { Text = (Settings.SettingsList!.Timer).ToString(), Width = 100, IsEditable = true, Name = "TimerComboBox" };
+        timerComboBox.ItemsSource = new List<int> { 5, 10, 15, 20, 30, 60, 120, 300 };
+        timerComboBox.SelectionChanged += TimerComboBox_SelectionChanged;
+        timerComboBox.LostFocus += TimerComboBox_LostFocus;
+        timerPanel.Children.Add(timerComboBox);
         GeneralSettingsPanel.Children.Add(timerPanel);
 
-        // Home team setting
+        // Home team setting as dropdown
         var homeTeamPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
         homeTeamPanel.Children.Add(new TextBlock { Text = "Home Team: ", Width = 120, VerticalAlignment = VerticalAlignment.Center });
-        var homeTeamTextBox = new TextBox { Text = Settings.homeTeam, Width = 200, Name = "HomeTeamTextBox" };
-        homeTeamTextBox.TextChanged += HomeTeamTextBox_TextChanged;
-        homeTeamPanel.Children.Add(homeTeamTextBox);
+        var homeTeamComboBox = new ComboBox { Text = Settings.homeTeam, Width = 200, IsEditable = true, Name = "HomeTeamComboBox" };
+
+        // Populate with team options from NameConverters
+        if (NameConverters.NameList == null)
+        {
+            NameConverters.Load();
+        }
+        var teams = NameConverters.GetTeams();
+        var teamOptions = teams.Where(t => !string.IsNullOrEmpty(t.name6Char)).Select(t => new
+        {
+            Display = t.customName ?? t.nameShort ?? t.name6Char,
+            Value = t.name6Char
+        }).OrderBy(t => t.Display).ToList();
+        homeTeamComboBox.ItemsSource = teamOptions;
+        homeTeamComboBox.DisplayMemberPath = "Display";
+        homeTeamComboBox.SelectedValuePath = "Value";
+
+        // Set current selection if it exists
+        var currentTeam = teamOptions.FirstOrDefault(t => t.Value == Settings.homeTeam);
+        if (currentTeam != null)
+        {
+            homeTeamComboBox.SelectedItem = currentTeam;
+        }
+
+        homeTeamComboBox.SelectionChanged += HomeTeamComboBox_SelectionChanged;
+        homeTeamComboBox.LostFocus += HomeTeamComboBox_LostFocus;
+        homeTeamPanel.Children.Add(homeTeamComboBox);
         GeneralSettingsPanel.Children.Add(homeTeamPanel);
 
         // Sports
@@ -372,7 +499,7 @@ public partial class MainWindow : Window
             NameConverters.Load();
         }
         var conferences = NameConverters.GetConferences();
-        var conferenceNames = conferences.Select(c => c.conferenceName).ToList();
+        var conferenceNames = conferences.Select(c => c.customConferenceName).ToList();
         ConferenceColumn.ItemsSource = conferenceNames;
 
         // Set up event handlers for DataGrid validation
@@ -386,15 +513,17 @@ public partial class MainWindow : Window
         {
             NameConverters.Load();
         }
-        var teams = NameConverters.GetTeams();
-        var teamOptions = teams.Where(t => !string.IsNullOrEmpty(t.char6)).Select(t => new
+        var addTeams = NameConverters.GetTeams();
+        var addTeamOptions = addTeams.Where(t => !string.IsNullOrEmpty(t.name6Char)).Select(t => new
         {
-            Display = string.IsNullOrEmpty(t.@short) ? (string.IsNullOrEmpty(t.shortOriginal) ? t.char6 : t.shortOriginal) : t.@short,
-            Value = t.char6
-        }).ToList();
-        AddTeamComboBox.ItemsSource = teamOptions;
+            Display = t.customName ?? t.nameShort ?? t.name6Char,
+            Value = t.nameShort ?? t.name6Char
+        }).OrderBy(t => t.Display).ToList();
+        _originalAddTeamOptions = addTeamOptions.Cast<object>().ToList();
+        AddTeamComboBox.ItemsSource = addTeamOptions;
         AddTeamComboBox.DisplayMemberPath = "Display";
         AddTeamComboBox.SelectedValuePath = "Value";
+        AddTeamComboBox.AddHandler(System.Windows.Controls.Primitives.TextBoxBase.TextChangedEvent, new System.Windows.Controls.TextChangedEventHandler(AddTeamComboBox_TextChanged));
 
         // XML to JSON
         XmlToJsonPanel.Children.Clear();
@@ -461,11 +590,10 @@ public partial class MainWindow : Window
         else
         {
             var filteredTeams = _originalTeams.Where(t =>
-                (t.char6?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (t.@short?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (t.shortOriginal?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (t.seo?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (t.full?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false)
+                (t.name6Char?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (t.customName?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (t.seoname?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (t.nameShort?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false)
             ).ToList();
             TeamsDataGrid.ItemsSource = filteredTeams;
         }
@@ -510,8 +638,7 @@ public partial class MainWindow : Window
                     }
                     catch (Exception ex)
                     {
-                        // Log error instead of showing MessageBox during UI initialization
-                        AppendOutput($"Error loading settings: {ex.Message}");
+                        // Error loading settings - silently handle
                     }
                 }
             }
@@ -548,11 +675,34 @@ public partial class MainWindow : Window
         else
         {
             var filteredConferences = _originalConferences.Where(c =>
-                (c.conferenceName?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 (c.customConferenceName?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 (c.conferenceSeo?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false)
             ).ToList();
             ConferencesDataGrid.ItemsSource = filteredConferences;
+        }
+    }
+
+    private void AddTeamComboBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        FilterAddTeamOptions(AddTeamComboBox.Text);
+    }
+
+    private void FilterAddTeamOptions(string searchText)
+    {
+        if (string.IsNullOrWhiteSpace(searchText))
+        {
+            AddTeamComboBox.ItemsSource = _originalAddTeamOptions;
+        }
+        else
+        {
+            var filteredOptions = _originalAddTeamOptions.Where(o =>
+            {
+                var display = o.GetType().GetProperty("Display")?.GetValue(o, null) as string;
+                var value = o.GetType().GetProperty("Value")?.GetValue(o, null) as string;
+                return (display?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                       (value?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false);
+            }).ToList();
+            AddTeamComboBox.ItemsSource = filteredOptions;
         }
     }
 
@@ -580,7 +730,18 @@ public partial class MainWindow : Window
                     return;
                 }
 
-                team.@short = newDisplayName;
+                team.customName = newDisplayName;
+
+                // Auto-save the changes
+                AutoSaveConverters();
+            }
+        }
+        else if (e.Column.Header.ToString() == "Custom Name")
+        {
+            var textBox = e.EditingElement as TextBox;
+            if (textBox != null)
+            {
+                team.customName = textBox.Text.Trim();
 
                 // Auto-save the changes
                 AutoSaveConverters();

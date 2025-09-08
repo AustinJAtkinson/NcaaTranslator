@@ -31,7 +31,6 @@ namespace NcaaTranslator.Library
 
     public class ListsNeeded
     {
-        public bool games { get; set; } = true;
         public bool nonConferenceGames { get; set; } = true;
         public bool nonConferenceSorted { get; set; } = true;
         public bool conferenceGames { get; set; } = true;
@@ -52,10 +51,11 @@ namespace NcaaTranslator.Library
     public class Sport
     {
         public string? SportName { get; set; }
-        public string? SportNameShort { get; set; }
         public bool Enabled { get; set; } = true;
         public string? ConferenceName { get; set; }
-        public string? NcaaUrl { get; set; }
+        public string? SportCode { get; set; }
+        public int Division { get; set; }
+        public int? Week { get; set; }
         public OosUpdater OosUpdater { get; set; } = new OosUpdater();
         public ListsNeeded ListsNeeded { get; set; } = new ListsNeeded();
     }
