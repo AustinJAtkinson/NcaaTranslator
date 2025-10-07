@@ -30,7 +30,7 @@ namespace NcaaTranslator.Library
         {
             int seasonYear = DateTime.Now.Year;
             int? week = GetCurrentWeek(sport.SportCode!);
-            string? contestDate = week.HasValue ? null : DateTime.Now.ToString("yyyy-MM-dd");
+            string? contestDate = week.HasValue ? null : DateTime.Now.ToString("MM/dd/yyyy");
             var variables = new
             {
                 sportCode = sport.SportCode,
@@ -154,8 +154,8 @@ namespace NcaaTranslator.Library
 
                 var homeTeamObj = gameData.teams.FirstOrDefault(t => t.isHome);
                 var awayTeamObj = gameData.teams.FirstOrDefault(t => !t.isHome);
-                if (homeTeamObj?.conferenceSeo == sport.ConferenceName ||
-                    awayTeamObj?.conferenceSeo == sport.ConferenceName)
+                if (string.Equals(homeTeamObj?.conferenceSeo, sport.ConferenceName, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(awayTeamObj?.conferenceSeo, sport.ConferenceName, StringComparison.OrdinalIgnoreCase))
                 {
                     if (homeTeamObj?.name6Char == Settings.homeTeam || awayTeamObj?.name6Char == Settings.homeTeam)
                     {
