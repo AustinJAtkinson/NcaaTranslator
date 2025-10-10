@@ -4,6 +4,7 @@
   "Sports": [
     {
       "SportName": "Hockey",
+      "SportShortName": "HKY",
       "Enabled": false,
       "ConferenceName": "NCHC",
       "SportCode": "MIH",
@@ -19,6 +20,7 @@
     },
     {
       "SportName": "Mens Basketball",
+      "SportShortName": "MBB",
       "Enabled": false,
       "ConferenceName": "Summit League",
       "SportCode": "MBB",
@@ -34,6 +36,7 @@
     },
     {
       "SportName": "Womens Basketball",
+      "SportShortName": "WBB",
       "Enabled": false,
       "ConferenceName": "Summit League",
       "SportCode": "WBB",
@@ -49,6 +52,7 @@
     },
     {
       "SportName": "Volleyball",
+      "SportShortName": "WVB",
       "Enabled": true,
       "ConferenceName": "Summit League",
       "SportCode": "WVB",
@@ -64,6 +68,7 @@
     },
     {
       "SportName": "Football FCS",
+      "SportShortName": "FCS",
       "Enabled": true,
       "ConferenceName": "MVFC",
       "SportCode": "MFB",
@@ -86,6 +91,7 @@
     },
     {
       "SportName": "Football FBS",
+      "SportShortName": "FBS",
       "Enabled": false,
       "ConferenceName": "MVFC",
       "SportCode": "MFB",

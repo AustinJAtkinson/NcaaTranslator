@@ -148,6 +148,16 @@ namespace NcaaTranslator.Library
 
                 var homeTeamObj = gameData.teams.FirstOrDefault(t => t.isHome);
                 var awayTeamObj = gameData.teams.FirstOrDefault(t => !t.isHome);
+
+                if (string.Equals(homeTeamObj?.customConferenceName, awayTeamObj?.customConferenceName, StringComparison.OrdinalIgnoreCase))
+                {
+                    gameData.conferenceDisplayName = homeTeamObj?.customConferenceName;
+                }
+                else
+                {
+                    gameData.conferenceDisplayName = sport.SportShortName;
+                }
+
                 if (string.Equals(homeTeamObj?.customConferenceName, sport.ConferenceName, StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(awayTeamObj?.customConferenceName, sport.ConferenceName, StringComparison.OrdinalIgnoreCase))
                 {
@@ -179,23 +189,20 @@ namespace NcaaTranslator.Library
                     var awayConf = gameData.teams.FirstOrDefault(t => !t.isHome)?.conferenceSeo;
 
                 }
-                var homeTop25 = gameData.teams.FirstOrDefault(t => t.isHome)?.conferenceSeo == "Top 25";
-                var awayTop25 = gameData.teams.FirstOrDefault(t => !t.isHome)?.conferenceSeo == "Top 25";
+                var homeRank = gameData.teams.FirstOrDefault(t => t.isHome)?.teamRank;
+                var awayRank = gameData.teams.FirstOrDefault(t => !t.isHome)?.teamRank;
+                bool homeTop25 = homeRank.HasValue && homeRank >= 1 && homeRank <= 25;
+                bool awayTop25 = awayRank.HasValue && awayRank >= 1 && awayRank <= 25;
                 if (sport.ListsNeeded.top25Games && (homeTop25 || awayTop25))
                     ncaaGames.data!.top25Games.Add(gameData);
             }
 
-            // Sort nonConferenceGames: same conference first, then different; within same, by conference name, then start time; within different, by home conference name, then start time
+            // Sort nonConferenceGames: games with home.customConferenceName == SportShortName first, then alpha sort by conferenceDisplayName, then by startTimeEpoch
             ncaaGames.data!.nonConferenceGames = ncaaGames.data!.nonConferenceGames
-                .OrderByDescending(g => string.Equals(g.teams.FirstOrDefault(t => t.isHome)?.customConferenceName,
-                                                      g.teams.FirstOrDefault(t => !t.isHome)?.customConferenceName,
-                                                      StringComparison.OrdinalIgnoreCase))
-                .ThenBy(g => g.teams.FirstOrDefault(t => t.isHome)?.customConferenceName)
+                .OrderBy(g => string.Equals(g.conferenceDisplayName, sport.SportShortName, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                .ThenBy(g => g.conferenceDisplayName)
                 .ThenBy(g => g.startTimeEpoch)
                 .ToList();
-
-            Console.WriteLine(String.Format("{0}\t{1}\t{2}\t{3}\t{4}", sport.SportName!.PadRight($"{sport.SportName}:".Length + (15 - $"{sport.SportName}:".Length)),
-                                                                  ncaaGames.data!.contests.Count, ncaaGames.data!.conferenceGames.Count, ncaaGames.data!.nonConferenceGames.Count, ncaaGames.data!.displayGames.Count));
 
             ncaaGames.data!.contests!.Clear();
             ncaaGames.data.contests = null;
@@ -216,7 +223,6 @@ namespace NcaaTranslator.Library
             if (!xmlToJson.Enabled)
                 return;
 
-            Console.WriteLine("\nConverting XML to Json");
             foreach (var filePath in xmlToJson.FilePaths!)
             {
                 XmlDocument doc = new XmlDocument();
@@ -224,7 +230,6 @@ namespace NcaaTranslator.Library
 
                 var jsonText = JsonConvert.SerializeXmlNode(doc);
                 File.WriteAllText(string.Format("{0}.json", filePath.Path!), jsonText);
-                Console.WriteLine(string.Format("File {0} was converted to json in {1}", filePath.Path!, string.Format("{0}.json", filePath.Path!)));
             }
         }
     }

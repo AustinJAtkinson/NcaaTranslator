@@ -35,6 +35,7 @@ namespace NcaaTranslator.Library
         public bool hasStartTime { get; set; }
         public bool tba { get; set; }
         public List<ContestTeam> teams { get; set; } = new List<ContestTeam>();
+        public string? conferenceDisplayName { get; set; }
         public string ctStateTime
         {
             get
@@ -47,7 +48,7 @@ namespace NcaaTranslator.Library
                     DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
                     dateTime = dateTime.AddSeconds(startTimeEpoch).ToLocalTime();
 
-                    return dateTime.ToString("h:mm tt");
+                    return dateTime.ToString("HH:mm");
                 }
                 catch
                 {

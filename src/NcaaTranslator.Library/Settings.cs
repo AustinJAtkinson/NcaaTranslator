@@ -139,7 +139,8 @@ namespace NcaaTranslator.Library
         private bool _enabled = true;
         private GameDisplayMode _gameDisplayMode = GameDisplayMode.Live;
 
-        public string? SportName { get; set; }
+        public required string SportName { get; set; } = "";
+        public required string SportShortName { get; set; } = "";
 
         public bool Enabled
         {

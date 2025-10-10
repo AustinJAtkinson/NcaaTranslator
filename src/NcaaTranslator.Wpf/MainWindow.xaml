@@ -140,27 +140,28 @@
                                 <DataGrid x:Name="SportsDataGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False"
                                           CanUserDeleteRows="False" SelectionMode="Single" IsReadOnly="False" CanUserReorderColumns="False" Style="{DynamicResource ModernDataGridStyle}">
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Sport Name" Binding="{Binding SportName}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
-                                         <DataGridCheckBoxColumn Header="Enabled" Binding="{Binding Enabled, UpdateSourceTrigger=PropertyChanged}" Width="Auto" ElementStyle="{DynamicResource CenteredModernCheckBoxStyle}" EditingElementStyle="{DynamicResource CenteredModernCheckBoxStyle}"/>
-                                         <DataGridComboBoxColumn x:Name="ConferenceColumn" Header="Conference" SelectedItemBinding="{Binding ConferenceName}" Width="Auto" MinWidth="150" ElementStyle="{DynamicResource ModernComboBoxStyle}" EditingElementStyle="{DynamicResource ModernComboBoxStyle}"/>
-                                         <DataGridComboBoxColumn Header="Display Mode" SelectedItemBinding="{Binding GameDisplayMode}" Width="Auto" ElementStyle="{DynamicResource ModernComboBoxStyle}" EditingElementStyle="{DynamicResource ModernComboBoxStyle}">
-                                                <DataGridComboBoxColumn.ItemsSource>
-                                                    <x:Array Type="{x:Type lib:GameDisplayMode}">
-                                                        <lib:GameDisplayMode>Live</lib:GameDisplayMode>
-                                                        <lib:GameDisplayMode>All</lib:GameDisplayMode>
-                                                        <lib:GameDisplayMode>Display</lib:GameDisplayMode>
-                                                    </x:Array>
-                                                </DataGridComboBoxColumn.ItemsSource>
-                                            </DataGridComboBoxColumn>
-                                            <DataGridTextColumn Header="Sport Code" Binding="{Binding SportCode}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
-                                            <DataGridTextColumn Header="Division" Binding="{Binding Division}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
-                                            <DataGridTextColumn Header="Week" Binding="{Binding Week}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
-                                            <DataGridCheckBoxColumn Header="Top 25" Binding="{Binding ListsNeeded.top25Games, UpdateSourceTrigger=PropertyChanged}" Width="Auto" ElementStyle="{DynamicResource CenteredModernCheckBoxStyle}" EditingElementStyle="{DynamicResource CenteredModernCheckBoxStyle}"/>
-                                            <DataGridCheckBoxColumn Header="OOS Enabled" Binding="{Binding OosUpdater.Enabled, UpdateSourceTrigger=PropertyChanged}" Width="Auto" ElementStyle="{DynamicResource CenteredModernCheckBoxStyle}" EditingElementStyle="{DynamicResource CenteredModernCheckBoxStyle}"/>
-                                            <DataGridTextColumn Header="OOS Path" Binding="{Binding OosUpdater.OosFilePath}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
-                                            <DataGridTextColumn Header="OOS File" Binding="{Binding OosUpdater.OosFileName}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
-                                            <DataGridTextColumn Header="OOS Scores" Binding="{Binding OosUpdater.NumberOfOutScores}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
-                                            <DataGridTextColumn Header="OOS Teams" Binding="{Binding OosUpdater.NumberOfTeamsPer}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
+                                        <DataGridTextColumn Header="Name" Binding="{Binding SportName}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
+                                        <DataGridTextColumn Header="Short" Binding="{Binding SportShortName}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
+                                        <DataGridTextColumn Header="Code" Binding="{Binding SportCode}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
+                                        <DataGridCheckBoxColumn Header="Enabled" Binding="{Binding Enabled, UpdateSourceTrigger=PropertyChanged}" Width="Auto" ElementStyle="{DynamicResource CenteredModernCheckBoxStyle}" EditingElementStyle="{DynamicResource CenteredModernCheckBoxStyle}"/>
+                                        <DataGridComboBoxColumn x:Name="ConferenceColumn" Header="Conference" SelectedItemBinding="{Binding ConferenceName}" Width="Auto" MinWidth="150" ElementStyle="{DynamicResource ModernComboBoxStyle}" EditingElementStyle="{DynamicResource ModernComboBoxStyle}"/>
+                                        <DataGridComboBoxColumn Header="Display Mode" SelectedItemBinding="{Binding GameDisplayMode}" Width="Auto" ElementStyle="{DynamicResource ModernComboBoxStyle}" EditingElementStyle="{DynamicResource ModernComboBoxStyle}">
+                                            <DataGridComboBoxColumn.ItemsSource>
+                                                <x:Array Type="{x:Type lib:GameDisplayMode}">
+                                                    <lib:GameDisplayMode>Live</lib:GameDisplayMode>
+                                                    <lib:GameDisplayMode>All</lib:GameDisplayMode>
+                                                    <lib:GameDisplayMode>Display</lib:GameDisplayMode>
+                                                </x:Array>
+                                            </DataGridComboBoxColumn.ItemsSource>
+                                        </DataGridComboBoxColumn>
+                                        <DataGridTextColumn Header="Division" Binding="{Binding Division}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
+                                        <DataGridTextColumn Header="Week" Binding="{Binding Week}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
+                                        <DataGridCheckBoxColumn Header="Top 25" Binding="{Binding ListsNeeded.top25Games, UpdateSourceTrigger=PropertyChanged}" Width="Auto" ElementStyle="{DynamicResource CenteredModernCheckBoxStyle}" EditingElementStyle="{DynamicResource CenteredModernCheckBoxStyle}"/>
+                                        <DataGridCheckBoxColumn Header="OOS Enabled" Binding="{Binding OosUpdater.Enabled, UpdateSourceTrigger=PropertyChanged}" Width="Auto" ElementStyle="{DynamicResource CenteredModernCheckBoxStyle}" EditingElementStyle="{DynamicResource CenteredModernCheckBoxStyle}"/>
+                                        <DataGridTextColumn Header="OOS Path" Binding="{Binding OosUpdater.OosFilePath}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
+                                        <DataGridTextColumn Header="OOS File" Binding="{Binding OosUpdater.OosFileName}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
+                                        <DataGridTextColumn Header="OOS Scores" Binding="{Binding OosUpdater.NumberOfOutScores}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
+                                        <DataGridTextColumn Header="OOS Teams" Binding="{Binding OosUpdater.NumberOfTeamsPer}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
                                         <DataGridTemplateColumn Header="" Width="Auto">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>

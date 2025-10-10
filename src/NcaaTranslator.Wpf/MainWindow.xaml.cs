@@ -209,7 +209,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         public int ConfGamesCount { get; set; }
         public int NonConfGamesCount { get; set; }
         public int HomeGamesCount { get; set; }
-        public Sport Sport { get; set; } = new Sport();
+        public Sport Sport { get; set; } = new Sport { SportName = "", SportShortName = "" };
 
         public bool IsExpanded
         {
@@ -317,6 +317,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             var filteredSports = _originalSports.Where(s =>
                 (s.SportName?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (s.SportShortName?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 (s.ConferenceName?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false)
             ).ToList();
             SportsDataGrid.ItemsSource = filteredSports;
@@ -343,6 +344,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     return;
                 }
                 sport.SportName = newName;
+            }
+        }
+        else if (e.Column.Header.ToString() == "Sport Short Name")
+        {
+            var textBox = e.EditingElement as TextBox;
+            if (textBox != null)
+            {
+                sport.SportShortName = textBox.Text.Trim();
             }
         }
         else if (e.Column.Header.ToString() == "Conference")
@@ -459,6 +468,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var newSport = new Sport
         {
             SportName = "New Sport",
+            SportShortName = "NS",
             Enabled = true,
             Division = 1,
             Week = 1
