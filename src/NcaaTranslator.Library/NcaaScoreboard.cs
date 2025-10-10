@@ -95,6 +95,7 @@ namespace NcaaTranslator.Library
         public string? seoname { get; set; }
         public string? nameShort { get; set; }
         public string? name6Char { get; set; }
+        public string? customName { get; set; }
         public string? seed { get; set; }
         public int? teamRank { get; set; }
         public int? score { get; set; }
@@ -105,17 +106,12 @@ namespace NcaaTranslator.Library
 
     public class Names
     {
-        // New properties for updated team name layout
-        [JsonPropertyName("seoname")]
         public string? seoname { get; set; }
 
-        [JsonPropertyName("nameShort")]
         public string? nameShort { get; set; }
 
-        [JsonPropertyName("name6Char")]
         public string? name6Char { get; set; }
 
-        [JsonPropertyName("customName")]
         public string? customName { get; set; }
     }
 

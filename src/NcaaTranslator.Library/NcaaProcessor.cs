@@ -15,16 +15,14 @@ namespace NcaaTranslator.Library
 
             if (home != null)
             {
-                var homeShortLookup = NameConverters.LookupTeam(new Names { name6Char = home.name6Char, nameShort = home.nameShort, seoname = home.seoname });
-                home.nameShort = homeShortLookup != "" ? homeShortLookup : home.nameShort;
-                home.customConferenceName = NameConverters.GetConferences().FirstOrDefault(c => c.conferenceSeo == home.conferenceSeo)?.customConferenceName;
+                home.customName = NameConverters.LookupTeam(new Names { name6Char = home.name6Char, nameShort = home.nameShort, seoname = home.seoname });;
+                home.customConferenceName = NameConverters.LookupConf(new Conference { conferenceSeo = home.conferenceSeo });
             }
 
             if (away != null)
             {
-                var awayShortLookup = NameConverters.LookupTeam(new Names { name6Char = away.name6Char, nameShort = away.nameShort, seoname = away.seoname });
-                away.nameShort = awayShortLookup != "" ? awayShortLookup : away.nameShort;
-                away.customConferenceName = NameConverters.GetConferences().FirstOrDefault(c => c.conferenceSeo == away.conferenceSeo)?.customConferenceName;
+                away.customName = NameConverters.LookupTeam(new Names { name6Char = away.name6Char, nameShort = away.nameShort, seoname = away.seoname });
+                away.customConferenceName = NameConverters.LookupConf(new Conference { conferenceSeo = away.conferenceSeo });
             }
         }
 

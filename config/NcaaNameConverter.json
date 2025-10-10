@@ -993,10 +993,6 @@
   ],
   "conferences": [
     {
-      "customConferenceName": "",
-      "conferenceSeo": ""
-    },
-    {
       "customConferenceName": "DI Independent",
       "conferenceSeo": "di-independent"
     },
@@ -1151,10 +1147,6 @@
     {
       "customConferenceName": "United Athletic",
       "conferenceSeo": "united-athletic"
-    },
-    {
-      "customConferenceName": "Michigan Intercol. Ath. Assn.",
-      "conferenceSeo": "michigan-intercol.-ath.-assn."
     },
     {
       "customConferenceName": "Conference Carolinas",

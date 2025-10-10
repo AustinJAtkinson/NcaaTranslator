@@ -17,7 +17,6 @@ namespace NcaaTranslator.Library
         public Team() { }
         public Team(Names names)
         {
-            // Copy new properties
             this.seoname = names.seoname;
             this.nameShort = names.nameShort;
             this.name6Char = names.name6Char;
@@ -57,7 +56,7 @@ namespace NcaaTranslator.Library
             NameList = JsonSerializer.Deserialize<NameConverter>(jsonString)!;
             // Use name6Char as the key
             TeamDict = NameList!.teams.ToDictionary(x => x.name6Char!, x => x);
-            ConfDict = NameList!.conferences.ToDictionary(x => x.customConferenceName!, x => x);
+            ConfDict = NameList!.conferences.ToDictionary(x => x.conferenceSeo!, x => x);
         }
         public static void Reload()
         {
@@ -70,8 +69,7 @@ namespace NcaaTranslator.Library
 
         public static string LookupTeam(Names lookupNames)
         {
-            if (lookupNames.name6Char == null) return AddNewTeam(lookupNames);
-
+            if (lookupNames.name6Char == null) return "";
             var name = new Team();
             if (TeamDict.TryGetValue(lookupNames.name6Char, out name))
             {
@@ -91,13 +89,14 @@ namespace NcaaTranslator.Library
 
         public static string LookupConf(Conference lookupNames)
         {
-            if (lookupNames.customConferenceName == null) return AddNewConf(lookupNames);
+            if (lookupNames.conferenceSeo == null) return "";
             var name = new Conferences();
 
-            return ConfDict.TryGetValue(lookupNames.customConferenceName!, out name) ? name.customConferenceName! : AddNewConf(lookupNames);
+            return ConfDict.TryGetValue(lookupNames.conferenceSeo!, out name) ? name.customConferenceName! : AddNewConf(lookupNames);
         }
         public static string AddNewConf(Conference names)
         {
+            names.customConferenceName ??= names.conferenceSeo;
             var newConf = new Conferences(names);
             NameList!.conferences.Add(newConf);
             Reload();
