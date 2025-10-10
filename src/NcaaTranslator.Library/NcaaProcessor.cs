@@ -140,12 +140,6 @@ namespace NcaaTranslator.Library
             ncaaGames.data!.contests.Sort((x, y) => x.startTimeEpoch.CompareTo(y.startTimeEpoch));
 
             var displayList = Settings.GetDisplayTeams();
-            ncaaGames.data!.filteredGames.Add(new ConferenceGames
-            {
-                customConferenceName = "nonConf",
-                conferenceSeo = "nonConf",
-                games = new List<Contest>()
-            });
 
             foreach (var gameData in ncaaGames.data!.contests)
             {
@@ -154,8 +148,8 @@ namespace NcaaTranslator.Library
 
                 var homeTeamObj = gameData.teams.FirstOrDefault(t => t.isHome);
                 var awayTeamObj = gameData.teams.FirstOrDefault(t => !t.isHome);
-                if (string.Equals(homeTeamObj?.conferenceSeo, sport.ConferenceName, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(awayTeamObj?.conferenceSeo, sport.ConferenceName, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(homeTeamObj?.customConferenceName, sport.ConferenceName, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(awayTeamObj?.customConferenceName, sport.ConferenceName, StringComparison.OrdinalIgnoreCase))
                 {
                     if (homeTeamObj?.name6Char == Settings.homeTeam || awayTeamObj?.name6Char == Settings.homeTeam)
                     {
@@ -183,48 +177,22 @@ namespace NcaaTranslator.Library
 
                     var homeConf = gameData.teams.FirstOrDefault(t => t.isHome)?.conferenceSeo;
                     var awayConf = gameData.teams.FirstOrDefault(t => !t.isHome)?.conferenceSeo;
-                    if (homeConf == awayConf && homeConf != "DI Independent")
-                    {
-                        if (!ncaaGames.data!.filteredGames.Any(x => x.customConferenceName == homeConf))
-                        {
-                            ncaaGames.data!.filteredGames.Add(new ConferenceGames
-                            {
-                                customConferenceName = homeConf,
-                                conferenceSeo = homeConf,
-                                games = new List<Contest>()
-                            });
-                        }
-                        ncaaGames.data!.filteredGames.FirstOrDefault(x => x.customConferenceName == homeConf)!.games.Add(gameData);
-                    }
-                    else
-                    {
-                        ncaaGames.data!.filteredGames.FirstOrDefault(x => x.customConferenceName == "nonConf")!.games.Add(gameData);
-                    }
+
                 }
                 var homeTop25 = gameData.teams.FirstOrDefault(t => t.isHome)?.conferenceSeo == "Top 25";
                 var awayTop25 = gameData.teams.FirstOrDefault(t => !t.isHome)?.conferenceSeo == "Top 25";
-                if (homeTop25 || awayTop25)
+                if (sport.ListsNeeded.top25Games && (homeTop25 || awayTop25))
                     ncaaGames.data!.top25Games.Add(gameData);
-            }
-
-            foreach (var conf in ncaaGames.data!.filteredGames)
-            {
-                ncaaGames.data!.nonConferenceSorted.AddRange(conf.games);
             }
 
             Console.WriteLine(String.Format("{0}\t{1}\t{2}\t{3}\t{4}", sport.SportName!.PadRight($"{sport.SportName}:".Length + (15 - $"{sport.SportName}:".Length)),
                                                                   ncaaGames.data!.contests.Count, ncaaGames.data!.conferenceGames.Count, ncaaGames.data!.nonConferenceGames.Count, ncaaGames.data!.displayGames.Count));
 
-            if (!sport.ListsNeeded.nonConferenceGames)
-                ncaaGames.data!.nonConferenceGames.Clear();
-            if (!sport.ListsNeeded.nonConferenceSorted)
-                ncaaGames.data!.nonConferenceSorted.Clear();
-            if (!sport.ListsNeeded.conferenceGames)
-                ncaaGames.data!.conferenceGames.Clear();
-            if (!sport.ListsNeeded.top25Games)
-                ncaaGames.data!.top25Games.Clear();
-            if (!sport.ListsNeeded.filteredGames)
-                ncaaGames.data!.filteredGames.Clear();
+            ncaaGames.data!.contests!.Clear();
+            ncaaGames.data.contests = null;
+
+            if (ncaaGames.data!.displayGames!.Count == 0) ncaaGames.data.displayGames = null;
+            if (ncaaGames.data!.top25Games!.Count == 0) ncaaGames.data.top25Games = null;
 
             File.WriteAllText(string.Format("{0}-Games.json", sport.SportName!), JsonSerializer.Serialize<NcaaScoreboard>(ncaaGames));
 

@@ -157,7 +157,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 if (_sportScoreboards.TryGetValue(sport.SportName!, out var scoreboard) && scoreboard.data != null)
                 {
                     // Show all games for debugging first
-                    var allGames = scoreboard.data.contests.ToList();
+                    var allGames = scoreboard.data.conferenceGames.ToList();
+                    allGames.AddRange(scoreboard.data.nonConferenceGames);
+                    allGames.AddRange(scoreboard.data.homeGames);
 
                     // Filter for games in contest (live games) - include games that are in progress ("I")
                     var gamesInContest = allGames
@@ -411,6 +413,29 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private void AddSportButton_Click(object sender, RoutedEventArgs e)
+    {
+        var newSport = new Sport
+        {
+            SportName = "New Sport",
+            Enabled = true,
+            Division = 1,
+            Week = 1
+        };
+
+        Settings.SettingsList!.Sports!.Add(newSport);
+        _originalSports.Add(newSport);
+
+        // Subscribe to PropertyChanged events
+        newSport.PropertyChanged += Sport_PropertyChanged;
+        newSport.OosUpdater.PropertyChanged += OosUpdater_PropertyChanged;
+        newSport.ListsNeeded.PropertyChanged += ListsNeeded_PropertyChanged;
+
+        // Refresh the DataGrid
+        SportsDataGrid.Items.Refresh();
+        AutoSaveSettings();
+    }
+
     private void RemoveTeamButton_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button button && button.Tag is DisplayTeam teamToRemove)
@@ -434,14 +459,22 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 var sportInList = Settings.SettingsList!.Sports!.FirstOrDefault(s =>
                     s.SportName == sportToRemove.SportName);
 
-                if (sportInList != null)
+                try
                 {
-                    Settings.SettingsList.Sports.Remove(sportInList);
-                    // Update the original sports list for search functionality
-                    _originalSports.RemoveAll(s => s.SportName == sportToRemove.SportName);
-                    // Refresh the DataGrid
-                    SportsDataGrid.Items.Refresh();
-                    AutoSaveSettings();
+                    if (sportInList != null)
+                    {
+                        Settings.SettingsList.Sports.Remove(sportInList);
+                        // Update the original sports list for search functionality
+                        _originalSports.RemoveAll(s => s.SportName == sportToRemove.SportName);
+                        // Refresh the DataGrid
+                        SportsDataGrid.Items.Refresh();
+                        AutoSaveSettings();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Error finding sport - silently handle
+                    return;
                 }
             }
         }
