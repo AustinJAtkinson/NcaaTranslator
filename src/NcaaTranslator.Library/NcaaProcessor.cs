@@ -185,6 +185,15 @@ namespace NcaaTranslator.Library
                     ncaaGames.data!.top25Games.Add(gameData);
             }
 
+            // Sort nonConferenceGames: same conference first, then different; within same, by conference name, then start time; within different, by home conference name, then start time
+            ncaaGames.data!.nonConferenceGames = ncaaGames.data!.nonConferenceGames
+                .OrderByDescending(g => string.Equals(g.teams.FirstOrDefault(t => t.isHome)?.customConferenceName,
+                                                      g.teams.FirstOrDefault(t => !t.isHome)?.customConferenceName,
+                                                      StringComparison.OrdinalIgnoreCase))
+                .ThenBy(g => g.teams.FirstOrDefault(t => t.isHome)?.customConferenceName)
+                .ThenBy(g => g.startTimeEpoch)
+                .ToList();
+
             Console.WriteLine(String.Format("{0}\t{1}\t{2}\t{3}\t{4}", sport.SportName!.PadRight($"{sport.SportName}:".Length + (15 - $"{sport.SportName}:".Length)),
                                                                   ncaaGames.data!.contests.Count, ncaaGames.data!.conferenceGames.Count, ncaaGames.data!.nonConferenceGames.Count, ncaaGames.data!.displayGames.Count));
 
