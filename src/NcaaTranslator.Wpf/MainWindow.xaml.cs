@@ -551,8 +551,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         // Timer setting with cool preset options
         var timerPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
-        timerPanel.Children.Add(new TextBlock { Text = "Timer (seconds): ", Width = 120, VerticalAlignment = VerticalAlignment.Center });
+        var timerLabel = new TextBlock { Text = "Timer (seconds): ", Width = 120, VerticalAlignment = VerticalAlignment.Center };
+        timerLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
+        timerPanel.Children.Add(timerLabel);
         var timerComboBox = new ComboBox { Text = (Settings.SettingsList!.Timer).ToString(), Width = 100, IsEditable = true, Name = "TimerComboBox" };
+        timerComboBox.Style = (Style)FindResource("ModernComboBoxStyle");
         timerComboBox.ItemsSource = new List<int> { 5, 10, 15, 20, 30, 60, 120, 300 };
         timerComboBox.SelectionChanged += TimerComboBox_SelectionChanged;
         timerComboBox.LostFocus += TimerComboBox_LostFocus;
@@ -561,8 +564,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         // Home team setting as dropdown
         var homeTeamPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
-        homeTeamPanel.Children.Add(new TextBlock { Text = "Home Team: ", Width = 120, VerticalAlignment = VerticalAlignment.Center });
+        var homeTeamLabel = new TextBlock { Text = "Home Team: ", Width = 120, VerticalAlignment = VerticalAlignment.Center };
+        homeTeamLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
+        homeTeamPanel.Children.Add(homeTeamLabel);
         var homeTeamComboBox = new ComboBox { Text = Settings.homeTeam, Width = 200, IsEditable = true, Name = "HomeTeamComboBox" };
+        homeTeamComboBox.Style = (Style)FindResource("ModernComboBoxStyle");
 
         // Populate with team options from NameConverters
         if (NameConverters.NameList == null)
@@ -590,6 +596,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         homeTeamComboBox.LostFocus += HomeTeamComboBox_LostFocus;
         homeTeamPanel.Children.Add(homeTeamComboBox);
         GeneralSettingsPanel.Children.Add(homeTeamPanel);
+
+        // Theme setting
+        var themePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
+        var themeLabel = new TextBlock { Text = "Theme: ", Width = 120, VerticalAlignment = VerticalAlignment.Center };
+        themeLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
+        themePanel.Children.Add(themeLabel);
+        var themeComboBox = new ComboBox { Width = 100, Name = "ThemeComboBox" };
+        themeComboBox.Style = (Style)FindResource("ModernComboBoxStyle");
+        themeComboBox.ItemsSource = new List<string> { "Light", "Dark" };
+        themeComboBox.SelectedItem = "Light";
+        themeComboBox.SelectionChanged += ThemeComboBox_SelectionChanged;
+        themePanel.Children.Add(themeComboBox);
+        GeneralSettingsPanel.Children.Add(themePanel);
 
         // Sports
         var sports = Settings.GetSports();
@@ -643,21 +662,28 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         // XML to JSON
         XmlToJsonPanel.Children.Clear();
         var xmlLabel = new TextBlock { Text = "XML to JSON:", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 10) };
+        xmlLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
         XmlToJsonPanel.Children.Add(xmlLabel);
 
         var enabledCheckBox = new CheckBox { IsChecked = Settings.XmlToJson!.Enabled, Content = "Enabled", Margin = new Thickness(0, 0, 0, 10) };
+        enabledCheckBox.Style = (Style)FindResource("ModernCheckBoxStyle");
+        enabledCheckBox.SetResourceReference(CheckBox.ForegroundProperty, "TextPrimaryBrush");
         enabledCheckBox.Checked += (s, e) => { Settings.XmlToJson.Enabled = true; AutoSaveSettings(); };
         enabledCheckBox.Unchecked += (s, e) => { Settings.XmlToJson.Enabled = false; AutoSaveSettings(); };
         XmlToJsonPanel.Children.Add(enabledCheckBox);
 
         var filePathsLabel = new TextBlock { Text = "File Paths:", Margin = new Thickness(0, 0, 0, 5) };
+        filePathsLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
         XmlToJsonPanel.Children.Add(filePathsLabel);
 
         foreach (var path in Settings.XmlToJson.FilePaths!)
         {
             var pathPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(20, 0, 0, 5) };
-            pathPanel.Children.Add(new TextBlock { Text = "Path: ", Width = 50, VerticalAlignment = VerticalAlignment.Center });
+            var pathLabel = new TextBlock { Text = "Path: ", Width = 50, VerticalAlignment = VerticalAlignment.Center };
+            pathLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
+            pathPanel.Children.Add(pathLabel);
             var pathTextBox = new TextBox { Text = path.Path, Width = 300 };
+            pathTextBox.Style = (Style)FindResource("ModernTextBoxStyle");
             pathTextBox.TextChanged += (s, e) => { path.Path = pathTextBox.Text; AutoSaveSettings(); };
             pathPanel.Children.Add(pathTextBox);
             XmlToJsonPanel.Children.Add(pathPanel);
@@ -920,6 +946,23 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
         StartProcess();
+        ThemeManager.ApplyLightTheme();
+    }
+
+    private void ThemeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ComboBox comboBox && comboBox.SelectedItem != null)
+        {
+            string theme = comboBox.SelectedItem.ToString()!;
+            if (theme == "Light")
+            {
+                ThemeManager.ApplyLightTheme();
+            }
+            else if (theme == "Dark")
+            {
+                ThemeManager.ApplyDarkTheme();
+            }
+        }
     }
 
     protected override void OnClosed(EventArgs e)

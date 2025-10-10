@@ -5,14 +5,14 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:NcaaTranslator.Wpf"
         xmlns:lib="clr-namespace:NcaaTranslator.Library;assembly=NcaaTranslator.Library"
-        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
         Title="NCAA Translator" Height="600" Width="1000"
+        Background="{DynamicResource BackgroundBrush}"
         Loaded="MainWindow_Loaded">
-    <Grid>
-        <TabControl x:Name="MainTabControl" SelectionChanged="MainTabControl_SelectionChanged">
-            <TabItem Header="Main">
+    <Grid Background="{DynamicResource BackgroundBrush}">
+        <TabControl x:Name="MainTabControl" SelectionChanged="MainTabControl_SelectionChanged" Style="{DynamicResource ModernTabControlStyle}" TabStripPlacement="Top">
+            <TabItem Header="Main" Style="{DynamicResource ModernTabItemStyle}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -21,20 +21,20 @@
                     </Grid.RowDefinitions>
 
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10">
-                        <Button x:Name="StartButton" Content="Start" Click="StartButton_Click" Width="80" Margin="0,0,10,0"/>
-                        <Button x:Name="StopButton" Content="Stop" Click="StopButton_Click" Width="80" Margin="0,0,10,0" IsEnabled="False"/>
-                        <TextBlock x:Name="StatusText" Text="Status: Stopped" VerticalAlignment="Center" Margin="20,0,0,0"/>
-                        <TextBlock x:Name="LastUpdateText" Text="Last Update: Never" VerticalAlignment="Center" Margin="20,0,0,0"/>
+                        <Button x:Name="StartButton" Content="Start" Click="StartButton_Click" Width="80" Margin="0,0,10,0" Style="{DynamicResource ModernButtonStyle}"/>
+                        <Button x:Name="StopButton" Content="Stop" Click="StopButton_Click" Width="80" Margin="0,0,10,0" IsEnabled="False" Style="{DynamicResource ModernButtonStyle}"/>
+                        <TextBlock x:Name="StatusText" Text="Status: Stopped" VerticalAlignment="Center" Margin="20,0,0,0" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock x:Name="LastUpdateText" Text="Last Update: Never" VerticalAlignment="Center" Margin="20,0,0,0" Foreground="{DynamicResource TextSecondaryBrush}"/>
                     </StackPanel>
 
                     <ScrollViewer Grid.Row="1" Margin="10" VerticalScrollBarVisibility="Auto">
                         <ItemsControl x:Name="SportsItemsControl" ItemsSource="{Binding SportTabs}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Expander Margin="0,0,0,10" Padding="5" IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
+                                    <Expander Margin="0,0,0,10" Padding="5" IsExpanded="{Binding IsExpanded, Mode=TwoWay}" Style="{DynamicResource ModernExpanderStyle}">
                                         <Expander.Header>
                                             <StackPanel Orientation="Horizontal">
-                                                <TextBlock VerticalAlignment="Center" Margin="0,0,10,0">
+                                                <TextBlock VerticalAlignment="Center" Margin="0,0,10,0" Foreground="{DynamicResource TextPrimaryBrush}">
                                                     <TextBlock.Text>
                                                         <MultiBinding StringFormat="{}{0} (Conf: {1}, Non-Conf: {2}, Home: {3})">
                                                             <Binding Path="SportName"/>
@@ -44,20 +44,18 @@
                                                         </MultiBinding>
                                                     </TextBlock.Text>
                                                 </TextBlock>
-                                                <TextBlock Text="{Binding GameDisplayMode}" VerticalAlignment="Center" FontWeight="Bold"/>
+                                                <TextBlock Text="{Binding GameDisplayMode}" VerticalAlignment="Center" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                             </StackPanel>
                                         </Expander.Header>
-                                        <ListView ItemsSource="{Binding Games}" BorderThickness="0">
-                                            <ListView.View>
-                                                <GridView>
-                                                    <GridViewColumn Header="Home" DisplayMemberBinding="{Binding teams[0].nameShort}" Width="150"/>
-                                                    <GridViewColumn Header="Score" DisplayMemberBinding="{Binding teams[0].score}" Width="60"/>
-                                                    <GridViewColumn Header="Away" DisplayMemberBinding="{Binding teams[1].nameShort}" Width="150"/>
-                                                    <GridViewColumn Header="Score" DisplayMemberBinding="{Binding teams[1].score}" Width="60"/>
-                                                    <GridViewColumn Header="Clock" DisplayMemberBinding="{Binding displayClock}" Width="100"/>
-                                                </GridView>
-                                            </ListView.View>
-                                        </ListView>
+                                        <DataGrid ItemsSource="{Binding Games}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" IsReadOnly="True" CanUserReorderColumns="False" Style="{DynamicResource ModernDataGridStyle}">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="Home" Binding="{Binding teams[0].nameShort}" Width="150"/>
+                                                <DataGridTextColumn Header="Score" Binding="{Binding teams[0].score}" Width="60"/>
+                                                <DataGridTextColumn Header="Away" Binding="{Binding teams[1].nameShort}" Width="150"/>
+                                                <DataGridTextColumn Header="Score" Binding="{Binding teams[1].score}" Width="60"/>
+                                                <DataGridTextColumn Header="Clock" Binding="{Binding displayClock}" Width="100"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
                                     </Expander>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -66,15 +64,15 @@
                 </Grid>
             </TabItem>
 
-            <TabItem Header="Settings">
+            <TabItem Header="Settings" Style="{DynamicResource ModernTabItemStyle}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <TabControl Grid.Row="0" Margin="10">
+                    <TabControl Grid.Row="0" Margin="10" Style="{DynamicResource ModernTabControlStyle}">
                         <!-- General Tab -->
-                        <TabItem Header="General">
+                        <TabItem Header="General" Style="{DynamicResource ModernTabItemStyle}">
                             <ScrollViewer Margin="10">
                                 <StackPanel x:Name="GeneralSettingsPanel">
                                     <!-- General settings will be dynamically added here -->
@@ -83,7 +81,7 @@
                         </TabItem>
 
                         <!-- Sports Tab -->
-                        <TabItem Header="Sports">
+                        <TabItem Header="Sports" Style="{DynamicResource ModernTabItemStyle}">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
@@ -98,19 +96,19 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Search Sports:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                    <TextBox Grid.Column="1" x:Name="SportsSearchTextBox" Margin="0,0,10,0" TextChanged="SportsSearchTextBox_TextChanged"/>
-                                    <Button x:Name="AddSportButton" Grid.Column="2" Content="Add Sport" Click="AddSportButton_Click"/>
+                                    <TextBlock Grid.Column="0" Text="Search Sports:" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBox Grid.Column="1" x:Name="SportsSearchTextBox" Margin="0,0,10,0" TextChanged="SportsSearchTextBox_TextChanged" Style="{DynamicResource ModernTextBoxStyle}"/>
+                                    <Button x:Name="AddSportButton" Grid.Column="2" Content="Add Sport" Click="AddSportButton_Click" Style="{DynamicResource ModernButtonStyle}"/>
                                 </Grid>
 
                                 <!-- Sports DataGrid -->
-                               <DataGrid x:Name="SportsDataGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False"
-                                         CanUserDeleteRows="False" SelectionMode="Single" IsReadOnly="False" CanUserReorderColumns="False">
+                                <DataGrid x:Name="SportsDataGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False"
+                                          CanUserDeleteRows="False" SelectionMode="Single" IsReadOnly="False" CanUserReorderColumns="False" Style="{DynamicResource ModernDataGridStyle}">
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Sport Name" Binding="{Binding SportName}" Width="Auto"/>
-                                            <DataGridCheckBoxColumn Header="Enabled" Binding="{Binding Enabled, UpdateSourceTrigger=PropertyChanged}" Width="Auto"/>
-                                            <DataGridComboBoxColumn x:Name="ConferenceColumn" Header="Conference" SelectedItemBinding="{Binding ConferenceName}" Width="Auto"/>
-                                            <DataGridComboBoxColumn Header="Display Mode" SelectedItemBinding="{Binding GameDisplayMode}" Width="Auto">
+                                        <DataGridTextColumn Header="Sport Name" Binding="{Binding SportName}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
+                                         <DataGridCheckBoxColumn Header="Enabled" Binding="{Binding Enabled, UpdateSourceTrigger=PropertyChanged}" Width="Auto" ElementStyle="{DynamicResource CenteredModernCheckBoxStyle}" EditingElementStyle="{DynamicResource CenteredModernCheckBoxStyle}"/>
+                                         <DataGridComboBoxColumn x:Name="ConferenceColumn" Header="Conference" SelectedItemBinding="{Binding ConferenceName}" Width="Auto" MinWidth="150" ElementStyle="{DynamicResource ModernComboBoxStyle}" EditingElementStyle="{DynamicResource ModernComboBoxStyle}"/>
+                                         <DataGridComboBoxColumn Header="Display Mode" SelectedItemBinding="{Binding GameDisplayMode}" Width="Auto" ElementStyle="{DynamicResource ModernComboBoxStyle}" EditingElementStyle="{DynamicResource ModernComboBoxStyle}">
                                                 <DataGridComboBoxColumn.ItemsSource>
                                                     <x:Array Type="{x:Type lib:GameDisplayMode}">
                                                         <lib:GameDisplayMode>Live</lib:GameDisplayMode>
@@ -119,19 +117,19 @@
                                                     </x:Array>
                                                 </DataGridComboBoxColumn.ItemsSource>
                                             </DataGridComboBoxColumn>
-                                            <DataGridTextColumn Header="Sport Code" Binding="{Binding SportCode}" Width="Auto"/>
-                                            <DataGridTextColumn Header="Division" Binding="{Binding Division}" Width="Auto"/>
-                                            <DataGridTextColumn Header="Week" Binding="{Binding Week}" Width="Auto"/>
-                                            <DataGridCheckBoxColumn Header="Top 25" Binding="{Binding ListsNeeded.top25Games, UpdateSourceTrigger=PropertyChanged}" Width="Auto"/>
-                                            <DataGridCheckBoxColumn Header="OOS Enabled" Binding="{Binding OosUpdater.Enabled, UpdateSourceTrigger=PropertyChanged}" Width="Auto"/>
-                                            <DataGridTextColumn Header="OOS Path" Binding="{Binding OosUpdater.OosFilePath}" Width="Auto"/>
-                                            <DataGridTextColumn Header="OOS File" Binding="{Binding OosUpdater.OosFileName}" Width="Auto"/>
-                                            <DataGridTextColumn Header="OOS Scores" Binding="{Binding OosUpdater.NumberOfOutScores}" Width="Auto"/>
-                                            <DataGridTextColumn Header="OOS Teams" Binding="{Binding OosUpdater.NumberOfTeamsPer}" Width="Auto"/>
+                                            <DataGridTextColumn Header="Sport Code" Binding="{Binding SportCode}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
+                                            <DataGridTextColumn Header="Division" Binding="{Binding Division}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
+                                            <DataGridTextColumn Header="Week" Binding="{Binding Week}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
+                                            <DataGridCheckBoxColumn Header="Top 25" Binding="{Binding ListsNeeded.top25Games, UpdateSourceTrigger=PropertyChanged}" Width="Auto" ElementStyle="{DynamicResource CenteredModernCheckBoxStyle}" EditingElementStyle="{DynamicResource CenteredModernCheckBoxStyle}"/>
+                                            <DataGridCheckBoxColumn Header="OOS Enabled" Binding="{Binding OosUpdater.Enabled, UpdateSourceTrigger=PropertyChanged}" Width="Auto" ElementStyle="{DynamicResource CenteredModernCheckBoxStyle}" EditingElementStyle="{DynamicResource CenteredModernCheckBoxStyle}"/>
+                                            <DataGridTextColumn Header="OOS Path" Binding="{Binding OosUpdater.OosFilePath}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
+                                            <DataGridTextColumn Header="OOS File" Binding="{Binding OosUpdater.OosFileName}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
+                                            <DataGridTextColumn Header="OOS Scores" Binding="{Binding OosUpdater.NumberOfOutScores}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
+                                            <DataGridTextColumn Header="OOS Teams" Binding="{Binding OosUpdater.NumberOfTeamsPer}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
                                         <DataGridTemplateColumn Header="" Width="Auto">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
-                                                    <Button Click="RemoveSportButton_Click" Tag="{Binding}" Width="20" Height="20" Padding="0" Content="X"/>
+                                                    <Button Click="RemoveSportButton_Click" Tag="{Binding}" Width="20" Height="20" Padding="0" Content="X" Style="{DynamicResource ModernButtonStyle}"/>
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
@@ -139,12 +137,12 @@
                                 </DataGrid>
 
                                 <!-- Sports Status -->
-                                <TextBlock Grid.Row="2" Margin="0,10,0,0" Text="Double-click cells to edit values. Changes are saved automatically."/>
+                                <TextBlock Grid.Row="2" Margin="0,10,0,0" Text="Double-click cells to edit values. Changes are saved automatically." Foreground="{DynamicResource TextPrimaryBrush}"/>
                             </Grid>
                         </TabItem>
 
                         <!-- Display Teams Tab -->
-                        <TabItem Header="Display Teams">
+                        <TabItem Header="Display Teams" Style="{DynamicResource ModernTabItemStyle}">
                             <Grid Margin="10">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
@@ -158,20 +156,20 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Add Team:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                    <ComboBox x:Name="AddTeamComboBox" Grid.Column="1" Margin="0,0,10,0" IsEditable="True"/>
-                                    <Button x:Name="AddTeamButton" Grid.Column="2" Content="Add" Click="AddTeamButton_Click" Width="60"/>
+                                    <TextBlock Grid.Column="0" Text="Add Team:" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <ComboBox x:Name="AddTeamComboBox" Grid.Column="1" Margin="0,0,10,0" IsEditable="True" Style="{DynamicResource ModernComboBoxStyle}"/>
+                                    <Button x:Name="AddTeamButton" Grid.Column="2" Content="Add" Click="AddTeamButton_Click" Width="60" Style="{DynamicResource ModernButtonStyle}"/>
                                 </Grid>
 
                                 <!-- Display Teams DataGrid -->
                                 <DataGrid x:Name="DisplayTeamsDataGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False"
-                                          CanUserDeleteRows="False" IsReadOnly="True" CanUserReorderColumns="False">
+                                           CanUserDeleteRows="False" IsReadOnly="True" CanUserReorderColumns="False" Style="{DynamicResource ModernDataGridStyle}">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="Team Name" Binding="{Binding NcaaTeamName}" Width="*"/>
                                         <DataGridTemplateColumn Header="" Width="160">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
-                                                    <Button Click="RemoveTeamButton_Click" Tag="{Binding}" Content="Remove"/>
+                                                    <Button Click="RemoveTeamButton_Click" Tag="{Binding}" Content="Remove" Style="{DynamicResource ModernButtonStyle}"/>
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
@@ -181,7 +179,7 @@
                         </TabItem>
 
                         <!-- XML to JSON Tab -->
-                        <TabItem Header="XML to JSON">
+                        <TabItem Header="XML to JSON" Style="{DynamicResource ModernTabItemStyle}">
                             <ScrollViewer Margin="10">
                                 <StackPanel x:Name="XmlToJsonPanel">
                                     <!-- XML to JSON settings will be dynamically added here -->
@@ -192,16 +190,16 @@
                 </Grid>
             </TabItem>
 
-            <TabItem Header="Name Converters">
+            <TabItem Header="Name Converters" Style="{DynamicResource ModernTabItemStyle}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
                     <!-- Main Content Area -->
-                    <TabControl Grid.Row="0" Margin="10">
+                    <TabControl Grid.Row="0" Margin="10" Style="{DynamicResource ModernTabControlStyle}">
                         <!-- Teams Tab -->
-                        <TabItem Header="Teams">
+                        <TabItem Header="Teams" Style="{DynamicResource ModernTabItemStyle}">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
@@ -215,28 +213,28 @@
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Search Teams:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                    <TextBox Grid.Column="1" x:Name="TeamsSearchTextBox" Margin="0,0,10,0" TextChanged="TeamsSearchTextBox_TextChanged"/>
+                                    <TextBlock Grid.Column="0" Text="Search Teams:" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBox Grid.Column="1" x:Name="TeamsSearchTextBox" Margin="0,0,10,0" TextChanged="TeamsSearchTextBox_TextChanged" Style="{DynamicResource ModernTextBoxStyle}"/>
                                 </Grid>
 
                                 <!-- Teams DataGrid -->
                                 <DataGrid x:Name="TeamsDataGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False"
-                                          CanUserDeleteRows="False" SelectionMode="Single" IsReadOnly="False" CanUserReorderColumns="False">
+                                           CanUserDeleteRows="False" SelectionMode="Single" IsReadOnly="False" CanUserReorderColumns="False" Style="{DynamicResource ModernDataGridStyle}">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="Char6 Code" Binding="{Binding name6Char}" Width="120" IsReadOnly="True"/>
-                                        <DataGridTextColumn Header="Display Name" Binding="{Binding customName}" Width="200" IsReadOnly="False"/>
+                                        <DataGridTextColumn Header="Display Name" Binding="{Binding customName}" Width="200" IsReadOnly="False" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
                                         <DataGridTextColumn Header="SEO Name" Binding="{Binding seoname}" Width="150" IsReadOnly="True"/>
                                         <DataGridTextColumn Header="Short Name" Binding="{Binding nameShort}" Width="200" IsReadOnly="True"/>
                                     </DataGrid.Columns>
                                 </DataGrid>
 
                                 <!-- Teams Status -->
-                                <TextBlock Grid.Row="2" Margin="0,10,0,0" Text="Double-click cells to edit display names. Changes are saved automatically."/>
+                                <TextBlock Grid.Row="2" Margin="0,10,0,0" Text="Double-click cells to edit display names. Changes are saved automatically." Foreground="{DynamicResource TextPrimaryBrush}"/>
                             </Grid>
                         </TabItem>
 
                         <!-- Conferences Tab -->
-                        <TabItem Header="Conferences">
+                        <TabItem Header="Conferences" Style="{DynamicResource ModernTabItemStyle}">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
@@ -250,21 +248,21 @@
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Search Conferences:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                    <TextBox Grid.Column="1" x:Name="ConferencesSearchTextBox" Margin="0,0,10,0" TextChanged="ConferencesSearchTextBox_TextChanged"/>
+                                    <TextBlock Grid.Column="0" Text="Search Conferences:" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBox Grid.Column="1" x:Name="ConferencesSearchTextBox" Margin="0,0,10,0" TextChanged="ConferencesSearchTextBox_TextChanged" Style="{DynamicResource ModernTextBoxStyle}"/>
                                 </Grid>
 
                                 <!-- Conferences DataGrid -->
                                 <DataGrid x:Name="ConferencesDataGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False"
-                                          CanUserDeleteRows="False" SelectionMode="Single" IsReadOnly="False" CanUserReorderColumns="False">
+                                           CanUserDeleteRows="False" SelectionMode="Single" IsReadOnly="False" CanUserReorderColumns="False" Style="{DynamicResource ModernDataGridStyle}">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="SEO Name" Binding="{Binding conferenceSeo}" Width="150" IsReadOnly="True"/>
-                                        <DataGridTextColumn Header="Custom Name" Binding="{Binding customConferenceName}" Width="250" IsReadOnly="False"/>
+                                        <DataGridTextColumn Header="Custom Name" Binding="{Binding customConferenceName}" Width="250" IsReadOnly="False" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
                                     </DataGrid.Columns>
                                 </DataGrid>
 
                                 <!-- Conferences Status -->
-                                <TextBlock Grid.Row="2" Margin="0,10,0,0" Text="Double-click cells to edit custom names. Changes are saved automatically."/>
+                                <TextBlock Grid.Row="2" Margin="0,10,0,0" Text="Double-click cells to edit custom names. Changes are saved automatically." Foreground="{DynamicResource TextPrimaryBrush}"/>
                             </Grid>
                         </TabItem>
                     </TabControl>
