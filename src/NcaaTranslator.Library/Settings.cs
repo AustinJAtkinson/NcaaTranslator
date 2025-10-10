@@ -5,6 +5,13 @@ using System.ComponentModel;
 
 namespace NcaaTranslator.Library
 {
+    public enum GameDisplayMode
+    {
+        Live,
+        All,
+        Display
+    }
+
     public class DisplayTeam
     {
         public string? NcaaTeamName { get; set; }
@@ -130,6 +137,7 @@ namespace NcaaTranslator.Library
     public class Sport : INotifyPropertyChanged
     {
         private bool _enabled = true;
+        private GameDisplayMode _gameDisplayMode = GameDisplayMode.Live;
 
         public string? SportName { get; set; }
 
@@ -142,6 +150,19 @@ namespace NcaaTranslator.Library
                 {
                     _enabled = value;
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Enabled)));
+                }
+            }
+        }
+
+        public GameDisplayMode GameDisplayMode
+        {
+            get => _gameDisplayMode;
+            set
+            {
+                if (_gameDisplayMode != value)
+                {
+                    _gameDisplayMode = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(GameDisplayMode)));
                 }
             }
         }

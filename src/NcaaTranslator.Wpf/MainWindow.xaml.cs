@@ -166,15 +166,31 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     allGames.AddRange(scoreboard.data.nonConferenceGames);
                     allGames.AddRange(scoreboard.data.homeGames);
 
-                    // Filter for games in contest (live games) - include games that are in progress ("I")
-                    var gamesInContest = allGames
-                        .Where(c => c.gameState == "I") // "I" = in progress/live
-                        .ToList();
+                    // Filter based on GameDisplayMode setting
+                    List<Contest> gamesToShow;
+                    switch (sport.GameDisplayMode)
+                    {
+                        case GameDisplayMode.All:
+                            gamesToShow = allGames;
+                            break;
+                        case GameDisplayMode.Display:
+                            gamesToShow = scoreboard.data.displayGames ?? new List<Contest>();
+                            break;
+                        case GameDisplayMode.Live:
+                        default:
+                            gamesToShow = allGames.Where(c => c.gameState == "I").ToList();
+                            break;
+                    }
 
                     newSportTabs.Add(new SportGamesViewModel
                     {
                         SportName = sport.SportName!,
-                        Games = gamesInContest
+                        Games = gamesToShow,
+                        ConfGamesCount = scoreboard.data.conferenceGames.Count,
+                        NonConfGamesCount = scoreboard.data.nonConferenceGames.Count,
+                        HomeGamesCount = scoreboard.data.homeGames.Count,
+                        GameDisplayMode = sport.GameDisplayMode,
+                        Sport = sport
                     });
                 }
             }
@@ -186,9 +202,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public class SportGamesViewModel : INotifyPropertyChanged
     {
         private bool _isExpanded = true;
+        private GameDisplayMode _gameDisplayMode = GameDisplayMode.Live;
 
         public string SportName { get; set; } = "";
         public List<Contest> Games { get; set; } = new List<Contest>();
+        public int ConfGamesCount { get; set; }
+        public int NonConfGamesCount { get; set; }
+        public int HomeGamesCount { get; set; }
+        public Sport Sport { get; set; } = new Sport();
 
         public bool IsExpanded
         {
@@ -199,6 +220,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 {
                     _isExpanded = value;
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsExpanded)));
+                }
+            }
+        }
+
+        public GameDisplayMode GameDisplayMode
+        {
+            get => _gameDisplayMode;
+            set
+            {
+                if (_gameDisplayMode != value)
+                {
+                    _gameDisplayMode = value;
+                    Sport.GameDisplayMode = value;
+                    // AutoSaveSettings and UpdateSportsTabs are called via Sport.PropertyChanged
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(GameDisplayMode)));
                 }
             }
         }
@@ -860,6 +896,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void Sport_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         AutoSaveSettings();
+        if (e.PropertyName == "GameDisplayMode")
+        {
+            UpdateSportsTabs();
+        }
     }
 
     private void OosUpdater_PropertyChanged(object? sender, PropertyChangedEventArgs e)

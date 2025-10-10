@@ -4,7 +4,9 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:NcaaTranslator.Wpf"
+        xmlns:lib="clr-namespace:NcaaTranslator.Library;assembly=NcaaTranslator.Library"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
         Title="NCAA Translator" Height="600" Width="1000"
         Loaded="MainWindow_Loaded">
@@ -29,7 +31,22 @@
                         <ItemsControl x:Name="SportsItemsControl" ItemsSource="{Binding SportTabs}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Expander Header="{Binding SportName}" Margin="0,0,0,10" Padding="5" IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
+                                    <Expander Margin="0,0,0,10" Padding="5" IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
+                                        <Expander.Header>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock VerticalAlignment="Center" Margin="0,0,10,0">
+                                                    <TextBlock.Text>
+                                                        <MultiBinding StringFormat="{}{0} (Conf: {1}, Non-Conf: {2}, Home: {3})">
+                                                            <Binding Path="SportName"/>
+                                                            <Binding Path="ConfGamesCount"/>
+                                                            <Binding Path="NonConfGamesCount"/>
+                                                            <Binding Path="HomeGamesCount"/>
+                                                        </MultiBinding>
+                                                    </TextBlock.Text>
+                                                </TextBlock>
+                                                <TextBlock Text="{Binding GameDisplayMode}" VerticalAlignment="Center" FontWeight="Bold"/>
+                                            </StackPanel>
+                                        </Expander.Header>
                                         <ListView ItemsSource="{Binding Games}" BorderThickness="0">
                                             <ListView.View>
                                                 <GridView>
@@ -91,17 +108,26 @@
                                          CanUserDeleteRows="False" SelectionMode="Single" IsReadOnly="False" CanUserReorderColumns="False">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="Sport Name" Binding="{Binding SportName}" Width="Auto"/>
-                                        <DataGridCheckBoxColumn Header="Enabled" Binding="{Binding Enabled, UpdateSourceTrigger=PropertyChanged}" Width="Auto"/>
-                                        <DataGridComboBoxColumn x:Name="ConferenceColumn" Header="Conference" SelectedItemBinding="{Binding ConferenceName}" Width="Auto"/>
-                                        <DataGridTextColumn Header="Sport Code" Binding="{Binding SportCode}" Width="Auto"/>
-                                        <DataGridTextColumn Header="Division" Binding="{Binding Division}" Width="Auto"/>
-                                        <DataGridTextColumn Header="Week" Binding="{Binding Week}" Width="Auto"/>
-                                        <DataGridCheckBoxColumn Header="Top 25" Binding="{Binding ListsNeeded.top25Games, UpdateSourceTrigger=PropertyChanged}" Width="Auto"/>
-                                        <DataGridCheckBoxColumn Header="OOS Enabled" Binding="{Binding OosUpdater.Enabled, UpdateSourceTrigger=PropertyChanged}" Width="Auto"/>
-                                        <DataGridTextColumn Header="OOS Path" Binding="{Binding OosUpdater.OosFilePath}" Width="Auto"/>
-                                        <DataGridTextColumn Header="OOS File" Binding="{Binding OosUpdater.OosFileName}" Width="Auto"/>
-                                        <DataGridTextColumn Header="OOS Scores" Binding="{Binding OosUpdater.NumberOfOutScores}" Width="Auto"/>
-                                        <DataGridTextColumn Header="OOS Teams" Binding="{Binding OosUpdater.NumberOfTeamsPer}" Width="Auto"/>
+                                            <DataGridCheckBoxColumn Header="Enabled" Binding="{Binding Enabled, UpdateSourceTrigger=PropertyChanged}" Width="Auto"/>
+                                            <DataGridComboBoxColumn x:Name="ConferenceColumn" Header="Conference" SelectedItemBinding="{Binding ConferenceName}" Width="Auto"/>
+                                            <DataGridComboBoxColumn Header="Display Mode" SelectedItemBinding="{Binding GameDisplayMode}" Width="Auto">
+                                                <DataGridComboBoxColumn.ItemsSource>
+                                                    <x:Array Type="{x:Type lib:GameDisplayMode}">
+                                                        <lib:GameDisplayMode>Live</lib:GameDisplayMode>
+                                                        <lib:GameDisplayMode>All</lib:GameDisplayMode>
+                                                        <lib:GameDisplayMode>Display</lib:GameDisplayMode>
+                                                    </x:Array>
+                                                </DataGridComboBoxColumn.ItemsSource>
+                                            </DataGridComboBoxColumn>
+                                            <DataGridTextColumn Header="Sport Code" Binding="{Binding SportCode}" Width="Auto"/>
+                                            <DataGridTextColumn Header="Division" Binding="{Binding Division}" Width="Auto"/>
+                                            <DataGridTextColumn Header="Week" Binding="{Binding Week}" Width="Auto"/>
+                                            <DataGridCheckBoxColumn Header="Top 25" Binding="{Binding ListsNeeded.top25Games, UpdateSourceTrigger=PropertyChanged}" Width="Auto"/>
+                                            <DataGridCheckBoxColumn Header="OOS Enabled" Binding="{Binding OosUpdater.Enabled, UpdateSourceTrigger=PropertyChanged}" Width="Auto"/>
+                                            <DataGridTextColumn Header="OOS Path" Binding="{Binding OosUpdater.OosFilePath}" Width="Auto"/>
+                                            <DataGridTextColumn Header="OOS File" Binding="{Binding OosUpdater.OosFileName}" Width="Auto"/>
+                                            <DataGridTextColumn Header="OOS Scores" Binding="{Binding OosUpdater.NumberOfOutScores}" Width="Auto"/>
+                                            <DataGridTextColumn Header="OOS Teams" Binding="{Binding OosUpdater.NumberOfTeamsPer}" Width="Auto"/>
                                         <DataGridTemplateColumn Header="" Width="Auto">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>

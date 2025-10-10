@@ -159,14 +159,14 @@ namespace NcaaTranslator.Library
                     {
                         ncaaGames.data!.conferenceGames.Add(gameData);
 
-                        if (sport.OosUpdater.Enabled)
+                        if (sport.OosUpdater.Enabled || sport.GameDisplayMode == GameDisplayMode.Display)
                             ncaaGames.data!.displayGames.Add(gameData);
                     }
                 }
                 else
                 {
                     ncaaGames.data!.nonConferenceGames.Add(gameData);
-                    if (sport.OosUpdater.Enabled)
+                    if (sport.OosUpdater.Enabled || sport.GameDisplayMode == GameDisplayMode.Display)
                     {
                         var homeTeamDisp = gameData.teams.FirstOrDefault(t => t.isHome);
                         var awayTeamDisp = gameData.teams.FirstOrDefault(t => !t.isHome);
