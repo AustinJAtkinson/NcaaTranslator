@@ -547,30 +547,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void LoadSettingsUI()
     {
         // General settings
-        GeneralSettingsPanel.Children.Clear();
+        TimerComboBox.Text = Settings.SettingsList!.Timer.ToString();
 
-        // Timer setting with cool preset options
-        var timerPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
-        var timerLabel = new TextBlock { Text = "Timer (seconds): ", Width = 120, VerticalAlignment = VerticalAlignment.Center };
-        timerLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
-        timerPanel.Children.Add(timerLabel);
-        var timerComboBox = new ComboBox { Text = (Settings.SettingsList!.Timer).ToString(), Width = 100, IsEditable = true, Name = "TimerComboBox" };
-        timerComboBox.Style = (Style)FindResource("ModernComboBoxStyle");
-        timerComboBox.ItemsSource = new List<int> { 5, 10, 15, 20, 30, 60, 120, 300 };
-        timerComboBox.SelectionChanged += TimerComboBox_SelectionChanged;
-        timerComboBox.LostFocus += TimerComboBox_LostFocus;
-        timerPanel.Children.Add(timerComboBox);
-        GeneralSettingsPanel.Children.Add(timerPanel);
-
-        // Home team setting as dropdown
-        var homeTeamPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
-        var homeTeamLabel = new TextBlock { Text = "Home Team: ", Width = 120, VerticalAlignment = VerticalAlignment.Center };
-        homeTeamLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
-        homeTeamPanel.Children.Add(homeTeamLabel);
-        var homeTeamComboBox = new ComboBox { Text = Settings.homeTeam, Width = 200, IsEditable = true, Name = "HomeTeamComboBox" };
-        homeTeamComboBox.Style = (Style)FindResource("ModernComboBoxStyle");
-
-        // Populate with team options from NameConverters
+        // Populate Home Team ComboBox
         if (NameConverters.NameList == null)
         {
             NameConverters.Load();
@@ -581,22 +560,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             Display = t.customName ?? t.nameShort ?? t.name6Char,
             Value = t.name6Char
         }).OrderBy(t => t.Display).ToList();
-        homeTeamComboBox.ItemsSource = teamOptions;
-        homeTeamComboBox.DisplayMemberPath = "Display";
-        homeTeamComboBox.SelectedValuePath = "Value";
+        HomeTeamComboBox.ItemsSource = teamOptions;
+        HomeTeamComboBox.DisplayMemberPath = "Display";
+        HomeTeamComboBox.SelectedValuePath = "Value";
 
         // Set current selection if it exists
         var currentTeam = teamOptions.FirstOrDefault(t => t.Value == Settings.homeTeam);
         if (currentTeam != null)
         {
-            homeTeamComboBox.SelectedItem = currentTeam;
+            HomeTeamComboBox.SelectedItem = currentTeam;
         }
-
-        homeTeamComboBox.SelectionChanged += HomeTeamComboBox_SelectionChanged;
-        homeTeamComboBox.LostFocus += HomeTeamComboBox_LostFocus;
-        homeTeamPanel.Children.Add(homeTeamComboBox);
-        GeneralSettingsPanel.Children.Add(homeTeamPanel);
-
 
         // Sports
         var sports = Settings.GetSports();
@@ -648,34 +621,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         AddTeamComboBox.AddHandler(System.Windows.Controls.Primitives.TextBoxBase.TextChangedEvent, new System.Windows.Controls.TextChangedEventHandler(AddTeamComboBox_TextChanged));
 
         // XML to JSON
-        XmlToJsonPanel.Children.Clear();
-        var xmlLabel = new TextBlock { Text = "XML to JSON:", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 10) };
-        xmlLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
-        XmlToJsonPanel.Children.Add(xmlLabel);
-
-        var enabledCheckBox = new CheckBox { IsChecked = Settings.XmlToJson!.Enabled, Content = "Enabled", Margin = new Thickness(0, 0, 0, 10) };
-        enabledCheckBox.Style = (Style)FindResource("ModernCheckBoxStyle");
-        enabledCheckBox.SetResourceReference(CheckBox.ForegroundProperty, "TextPrimaryBrush");
-        enabledCheckBox.Checked += (s, e) => { Settings.XmlToJson.Enabled = true; AutoSaveSettings(); };
-        enabledCheckBox.Unchecked += (s, e) => { Settings.XmlToJson.Enabled = false; AutoSaveSettings(); };
-        XmlToJsonPanel.Children.Add(enabledCheckBox);
-
-        var filePathsLabel = new TextBlock { Text = "File Paths:", Margin = new Thickness(0, 0, 0, 5) };
-        filePathsLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
-        XmlToJsonPanel.Children.Add(filePathsLabel);
-
-        foreach (var path in Settings.XmlToJson.FilePaths!)
-        {
-            var pathPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(20, 0, 0, 5) };
-            var pathLabel = new TextBlock { Text = "Path: ", Width = 50, VerticalAlignment = VerticalAlignment.Center };
-            pathLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
-            pathPanel.Children.Add(pathLabel);
-            var pathTextBox = new TextBox { Text = path.Path, Width = 300 };
-            pathTextBox.Style = (Style)FindResource("ModernTextBoxStyle");
-            pathTextBox.TextChanged += (s, e) => { path.Path = pathTextBox.Text; AutoSaveSettings(); };
-            pathPanel.Children.Add(pathTextBox);
-            XmlToJsonPanel.Children.Add(pathPanel);
-        }
+        XmlToJsonEnabledCheckBox.IsChecked = Settings.XmlToJson!.Enabled;
+        XmlToJsonPathsItemsControl.ItemsSource = Settings.XmlToJson.FilePaths;
     }
 
     private void LoadConvertersUI()
@@ -929,6 +876,27 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void ListsNeeded_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         AutoSaveSettings();
+    }
+
+    private void XmlToJsonEnabledCheckBox_Checked(object sender, RoutedEventArgs e)
+    {
+        Settings.XmlToJson!.Enabled = true;
+        AutoSaveSettings();
+    }
+
+    private void XmlToJsonEnabledCheckBox_Unchecked(object sender, RoutedEventArgs e)
+    {
+        Settings.XmlToJson!.Enabled = false;
+        AutoSaveSettings();
+    }
+
+    private void XmlToJsonPathTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (sender is TextBox textBox && textBox.DataContext is FilePath filePath)
+        {
+            filePath.Path = textBox.Text;
+            AutoSaveSettings();
+        }
     }
 
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)

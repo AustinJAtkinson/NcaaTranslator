@@ -75,7 +75,30 @@
                         <TabItem Header="General" Style="{DynamicResource ModernTabItemStyle}">
                             <ScrollViewer Margin="10">
                                 <StackPanel x:Name="GeneralSettingsPanel">
-                                    <!-- General settings will be dynamically added here -->
+                                    <!-- Timer setting -->
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                        <TextBlock Text="Timer (seconds): " Width="120" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <ComboBox x:Name="TimerComboBox" Width="100" IsEditable="true" Style="{DynamicResource ModernComboBoxStyle}" SelectionChanged="TimerComboBox_SelectionChanged" LostFocus="TimerComboBox_LostFocus">
+                                            <ComboBox.ItemsSource>
+                                                <x:Array Type="sys:Int32">
+                                                    <sys:Int32>5</sys:Int32>
+                                                    <sys:Int32>10</sys:Int32>
+                                                    <sys:Int32>15</sys:Int32>
+                                                    <sys:Int32>20</sys:Int32>
+                                                    <sys:Int32>30</sys:Int32>
+                                                    <sys:Int32>60</sys:Int32>
+                                                    <sys:Int32>120</sys:Int32>
+                                                    <sys:Int32>300</sys:Int32>
+                                                </x:Array>
+                                            </ComboBox.ItemsSource>
+                                        </ComboBox>
+                                    </StackPanel>
+
+                                    <!-- Home team setting -->
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                        <TextBlock Text="Home Team: " Width="120" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <ComboBox x:Name="HomeTeamComboBox" Width="200" IsEditable="true" Style="{DynamicResource ModernComboBoxStyle}" SelectionChanged="HomeTeamComboBox_SelectionChanged" LostFocus="HomeTeamComboBox_LostFocus"/>
+                                    </StackPanel>
                                 </StackPanel>
                             </ScrollViewer>
                         </TabItem>
@@ -98,7 +121,7 @@
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Search Sports:" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                     <TextBox Grid.Column="1" x:Name="SportsSearchTextBox" Margin="0,0,10,0" TextChanged="SportsSearchTextBox_TextChanged" Style="{DynamicResource ModernTextBoxStyle}"/>
-                                    <Button x:Name="AddSportButton" Grid.Column="2" Content="Add Sport" Click="AddSportButton_Click" Style="{DynamicResource ModernButtonStyle}"/>
+                                    <Button x:Name="AddSportButton" Grid.Column="2" Content="Add Sport" Click="AddSportButton_Click" Width="100" Style="{DynamicResource ModernButtonStyle}"/>
                                 </Grid>
 
                                 <!-- Sports DataGrid -->
@@ -182,7 +205,19 @@
                         <TabItem Header="XML to JSON" Style="{DynamicResource ModernTabItemStyle}">
                             <ScrollViewer Margin="10">
                                 <StackPanel x:Name="XmlToJsonPanel">
-                                    <!-- XML to JSON settings will be dynamically added here -->
+                                    <TextBlock Text="XML to JSON:" FontWeight="Bold" Margin="0,0,0,10" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <CheckBox x:Name="XmlToJsonEnabledCheckBox" Content="Enabled" Margin="0,0,0,10" Style="{DynamicResource ModernCheckBoxStyle}" Foreground="{DynamicResource TextPrimaryBrush}" Checked="XmlToJsonEnabledCheckBox_Checked" Unchecked="XmlToJsonEnabledCheckBox_Unchecked"/>
+                                    <TextBlock Text="File Paths:" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <ItemsControl x:Name="XmlToJsonPathsItemsControl">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" Margin="20,0,0,5">
+                                                    <TextBlock Text="Path: " Width="50" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                    <TextBox Text="{Binding Path}" Width="300" Style="{DynamicResource ModernTextBoxStyle}" TextChanged="XmlToJsonPathTextBox_TextChanged"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
                                 </StackPanel>
                             </ScrollViewer>
                         </TabItem>

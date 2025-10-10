@@ -11,6 +11,7 @@ namespace NcaaTranslator.Wpf
             Application.Current.Resources["PrimaryBrush"] = new SolidColorBrush(Color.FromRgb(0, 120, 212));
             Application.Current.Resources["SecondaryBrush"] = new SolidColorBrush(Color.FromRgb(16, 110, 190));
             Application.Current.Resources["AccentBrush"] = new SolidColorBrush(Color.FromRgb(0, 90, 158));
+            Application.Current.Resources["SelectedBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0, 120, 212));
             Application.Current.Resources["BackgroundBrush"] = new SolidColorBrush(Colors.White);
             Application.Current.Resources["SurfaceBrush"] = new SolidColorBrush(Colors.White);
             Application.Current.Resources["TextPrimaryBrush"] = new SolidColorBrush(Colors.Black);
@@ -19,6 +20,7 @@ namespace NcaaTranslator.Wpf
             Application.Current.Resources["HoverBrush"] = new SolidColorBrush(Color.FromRgb(229, 243, 255));
             Application.Current.Resources["PressedBrush"] = new SolidColorBrush(Color.FromRgb(199, 228, 247));
             Application.Current.Resources["AlternatingRowBrush"] = new SolidColorBrush(Color.FromRgb(248, 248, 248));
+            Application.Current.Resources[SystemColors.InactiveSelectionHighlightBrushKey] = new SolidColorBrush(Color.FromRgb(0, 120, 212));
         }
 
         public static void ApplyDarkTheme()
@@ -26,6 +28,7 @@ namespace NcaaTranslator.Wpf
             Application.Current.Resources["PrimaryBrush"] = new SolidColorBrush(Color.FromRgb(0, 120, 212));
             Application.Current.Resources["SecondaryBrush"] = new SolidColorBrush(Color.FromRgb(16, 110, 190));
             Application.Current.Resources["AccentBrush"] = new SolidColorBrush(Color.FromRgb(0, 90, 158));
+            Application.Current.Resources["SelectedBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(80, 80, 80));
             Application.Current.Resources["BackgroundBrush"] = new SolidColorBrush(Color.FromRgb(30, 30, 30));
             Application.Current.Resources["SurfaceBrush"] = new SolidColorBrush(Color.FromRgb(45, 45, 45));
             Application.Current.Resources["TextPrimaryBrush"] = new SolidColorBrush(Colors.White);
@@ -34,6 +37,7 @@ namespace NcaaTranslator.Wpf
             Application.Current.Resources["HoverBrush"] = new SolidColorBrush(Color.FromRgb(60, 60, 60));
             Application.Current.Resources["PressedBrush"] = new SolidColorBrush(Color.FromRgb(80, 80, 80));
             Application.Current.Resources["AlternatingRowBrush"] = new SolidColorBrush(Color.FromRgb(74, 74, 74));
+            Application.Current.Resources[SystemColors.InactiveSelectionHighlightBrushKey] = new SolidColorBrush(Color.FromRgb(80, 80, 80));
         }
 
         public static bool IsLightTheme()
