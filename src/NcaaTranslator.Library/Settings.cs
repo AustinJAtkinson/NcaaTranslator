@@ -209,12 +209,7 @@ namespace NcaaTranslator.Library
 
         public static void Save()
         {
-            var options = new JsonSerializerOptions
-            {
-                WriteIndented = true
-            };
-            string jsonString = JsonSerializer.Serialize(SettingsList, options);
-            File.WriteAllText(fileName, jsonString);
+            File.WriteAllText(fileName, JsonSerializer.Serialize(SettingsList));
         }
 
     }

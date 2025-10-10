@@ -62,8 +62,7 @@ namespace NcaaTranslator.Library
         {
             NameList!.teams.OrderBy(x => x.name6Char);
             NameList!.conferences.OrderBy(x => x.customConferenceName);
-            var test = JsonSerializer.Serialize<NameConverter>(NameList, new JsonSerializerOptions() { WriteIndented = true });
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(NameList, new JsonSerializerOptions() { WriteIndented = true }));
+            File.WriteAllText(FilePath, JsonSerializer.Serialize(NameList));
             Load();
         }
 
