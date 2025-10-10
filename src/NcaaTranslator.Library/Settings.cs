@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using System.ComponentModel;
 
 namespace NcaaTranslator.Library
 {
@@ -9,13 +10,80 @@ namespace NcaaTranslator.Library
         public string? NcaaTeamName { get; set; }
     }
 
-    public class OosUpdater
+    public class OosUpdater : INotifyPropertyChanged
     {
-        public bool Enabled { get; set; }
-        public string? OosFilePath { get; set; }
-        public string? OosFileName { get; set; }
-        public int NumberOfOutScores { get; set; }
-        public int NumberOfTeamsPer { get; set; }
+        private bool _enabled;
+        private string? _oosFilePath;
+        private string? _oosFileName;
+        private int _numberOfOutScores;
+        private int _numberOfTeamsPer;
+
+        public bool Enabled
+        {
+            get => _enabled;
+            set
+            {
+                if (_enabled != value)
+                {
+                    _enabled = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Enabled)));
+                }
+            }
+        }
+
+        public string? OosFilePath
+        {
+            get => _oosFilePath;
+            set
+            {
+                if (_oosFilePath != value)
+                {
+                    _oosFilePath = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(OosFilePath)));
+                }
+            }
+        }
+
+        public string? OosFileName
+        {
+            get => _oosFileName;
+            set
+            {
+                if (_oosFileName != value)
+                {
+                    _oosFileName = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(OosFileName)));
+                }
+            }
+        }
+
+        public int NumberOfOutScores
+        {
+            get => _numberOfOutScores;
+            set
+            {
+                if (_numberOfOutScores != value)
+                {
+                    _numberOfOutScores = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(NumberOfOutScores)));
+                }
+            }
+        }
+
+        public int NumberOfTeamsPer
+        {
+            get => _numberOfTeamsPer;
+            set
+            {
+                if (_numberOfTeamsPer != value)
+                {
+                    _numberOfTeamsPer = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(NumberOfTeamsPer)));
+                }
+            }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 
     public class XmlToJson
@@ -29,13 +97,80 @@ namespace NcaaTranslator.Library
         public string? Path { get; set;}
     }
 
-    public class ListsNeeded
+    public class ListsNeeded : INotifyPropertyChanged
     {
-        public bool nonConferenceGames { get; set; } = true;
-        public bool nonConferenceSorted { get; set; } = true;
-        public bool conferenceGames { get; set; } = true;
-        public bool top25Games { get; set; } = true;
-        public bool filteredGames { get; set; } = true;
+        private bool _nonConferenceGames = true;
+        private bool _nonConferenceSorted = true;
+        private bool _conferenceGames = true;
+        private bool _top25Games = true;
+        private bool _filteredGames = true;
+
+        public bool nonConferenceGames
+        {
+            get => _nonConferenceGames;
+            set
+            {
+                if (_nonConferenceGames != value)
+                {
+                    _nonConferenceGames = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(nonConferenceGames)));
+                }
+            }
+        }
+
+        public bool nonConferenceSorted
+        {
+            get => _nonConferenceSorted;
+            set
+            {
+                if (_nonConferenceSorted != value)
+                {
+                    _nonConferenceSorted = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(nonConferenceSorted)));
+                }
+            }
+        }
+
+        public bool conferenceGames
+        {
+            get => _conferenceGames;
+            set
+            {
+                if (_conferenceGames != value)
+                {
+                    _conferenceGames = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(conferenceGames)));
+                }
+            }
+        }
+
+        public bool top25Games
+        {
+            get => _top25Games;
+            set
+            {
+                if (_top25Games != value)
+                {
+                    _top25Games = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(top25Games)));
+                }
+            }
+        }
+
+        public bool filteredGames
+        {
+            get => _filteredGames;
+            set
+            {
+                if (_filteredGames != value)
+                {
+                    _filteredGames = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(filteredGames)));
+                }
+            }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 
     public class Setting
@@ -48,16 +183,33 @@ namespace NcaaTranslator.Library
         public XmlToJson? XmlToJson{ get; set; }
     }
 
-    public class Sport
+    public class Sport : INotifyPropertyChanged
     {
+        private bool _enabled = true;
+
         public string? SportName { get; set; }
-        public bool Enabled { get; set; } = true;
+
+        public bool Enabled
+        {
+            get => _enabled;
+            set
+            {
+                if (_enabled != value)
+                {
+                    _enabled = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Enabled)));
+                }
+            }
+        }
+
         public string? ConferenceName { get; set; }
         public string? SportCode { get; set; }
         public int Division { get; set; }
         public int? Week { get; set; }
         public OosUpdater OosUpdater { get; set; } = new OosUpdater();
         public ListsNeeded ListsNeeded { get; set; } = new ListsNeeded();
+
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 
     public class Settings

@@ -88,17 +88,17 @@
                                           CanUserDeleteRows="False" SelectionMode="Single" IsReadOnly="False" CanUserReorderColumns="False">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="Sport Name" Binding="{Binding SportName}" Width="Auto"/>
-                                        <DataGridCheckBoxColumn Header="Enabled" Binding="{Binding Enabled}" Width="Auto"/>
+                                        <DataGridCheckBoxColumn Header="Enabled" Binding="{Binding Enabled, UpdateSourceTrigger=PropertyChanged}" Width="Auto"/>
                                         <DataGridComboBoxColumn x:Name="ConferenceColumn" Header="Conference" SelectedItemBinding="{Binding ConferenceName}" Width="Auto"/>
                                         <DataGridTextColumn Header="Sport Code" Binding="{Binding SportCode}" Width="Auto"/>
                                         <DataGridTextColumn Header="Division" Binding="{Binding Division}" Width="Auto"/>
                                         <DataGridTextColumn Header="Week" Binding="{Binding Week}" Width="Auto"/>
-                                        <DataGridCheckBoxColumn Header="Non-Conf Games" Binding="{Binding ListsNeeded.nonConferenceGames}" Width="Auto"/>
-                                        <DataGridCheckBoxColumn Header="Non-Conf Sorted" Binding="{Binding ListsNeeded.nonConferenceSorted}" Width="Auto"/>
-                                        <DataGridCheckBoxColumn Header="Conf Games" Binding="{Binding ListsNeeded.conferenceGames}" Width="Auto"/>
-                                        <DataGridCheckBoxColumn Header="Top 25" Binding="{Binding ListsNeeded.top25Games}" Width="Auto"/>
-                                        <DataGridCheckBoxColumn Header="Filtered" Binding="{Binding ListsNeeded.filteredGames}" Width="Auto"/>
-                                        <DataGridCheckBoxColumn Header="OOS Enabled" Binding="{Binding OosUpdater.Enabled}" Width="Auto"/>
+                                        <DataGridCheckBoxColumn Header="Non-Conf Games" Binding="{Binding ListsNeeded.nonConferenceGames, UpdateSourceTrigger=PropertyChanged}" Width="Auto"/>
+                                        <DataGridCheckBoxColumn Header="Non-Conf Sorted" Binding="{Binding ListsNeeded.nonConferenceSorted, UpdateSourceTrigger=PropertyChanged}" Width="Auto"/>
+                                        <DataGridCheckBoxColumn Header="Conf Games" Binding="{Binding ListsNeeded.conferenceGames, UpdateSourceTrigger=PropertyChanged}" Width="Auto"/>
+                                        <DataGridCheckBoxColumn Header="Top 25" Binding="{Binding ListsNeeded.top25Games, UpdateSourceTrigger=PropertyChanged}" Width="Auto"/>
+                                        <DataGridCheckBoxColumn Header="Filtered" Binding="{Binding ListsNeeded.filteredGames, UpdateSourceTrigger=PropertyChanged}" Width="Auto"/>
+                                        <DataGridCheckBoxColumn Header="OOS Enabled" Binding="{Binding OosUpdater.Enabled, UpdateSourceTrigger=PropertyChanged}" Width="Auto"/>
                                         <DataGridTextColumn Header="OOS Path" Binding="{Binding OosUpdater.OosFilePath}" Width="Auto"/>
                                         <DataGridTextColumn Header="OOS File" Binding="{Binding OosUpdater.OosFileName}" Width="Auto"/>
                                         <DataGridTextColumn Header="OOS Scores" Binding="{Binding OosUpdater.NumberOfOutScores}" Width="Auto"/>

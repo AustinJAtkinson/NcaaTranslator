@@ -369,7 +369,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         // Auto-save the changes
         AutoSaveSettings();
+
+        // Refresh OOS column visibility if OOS settings were changed
+        if (e.Column.Header.ToString() == "OOS Enabled")
+        {
+            bool hasOosEnabled = HasAnyOosEnabled();
+            SetOosColumnsVisibility(hasOosEnabled);
+        }
     }
+
 
     private void AutoSaveSettings()
     {
@@ -441,6 +449,27 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
 
 
+    private bool HasAnyOosEnabled()
+    {
+        var sports = Settings.GetSports();
+        return sports?.Any(s => s.OosUpdater?.Enabled == true) ?? false;
+    }
+
+    private void SetOosColumnsVisibility(bool visible)
+    {
+        // Find OOS columns by header name and set visibility
+        foreach (var column in SportsDataGrid.Columns)
+        {
+            if (column.Header.ToString() == "OOS Path" ||
+                column.Header.ToString() == "OOS File" ||
+                column.Header.ToString() == "OOS Scores" ||
+                column.Header.ToString() == "OOS Teams")
+            {
+                column.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+            }
+        }
+    }
+
     private void LoadSettingsUI()
     {
         // General settings
@@ -493,6 +522,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         SportsDataGrid.ItemsSource = sports;
         _originalSports = new List<Sport>(sports!);
 
+        // Subscribe to PropertyChanged events for auto-save
+        foreach (var sport in sports!)
+        {
+            sport.PropertyChanged += Sport_PropertyChanged;
+            sport.OosUpdater.PropertyChanged += OosUpdater_PropertyChanged;
+            sport.ListsNeeded.PropertyChanged += ListsNeeded_PropertyChanged;
+        }
+
         // Set conference dropdown items
         if (NameConverters.NameList == null)
         {
@@ -501,6 +538,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var conferences = NameConverters.GetConferences();
         var conferenceNames = conferences.Select(c => c.customConferenceName).ToList();
         ConferenceColumn.ItemsSource = conferenceNames;
+
+        // Conditionally show/hide OOS columns based on whether any sport has OOS enabled
+        bool hasOosEnabled = HasAnyOosEnabled();
+        SetOosColumnsVisibility(hasOosEnabled);
 
         // Set up event handlers for DataGrid validation
         SportsDataGrid.CellEditEnding += SportsDataGrid_CellEditEnding;
@@ -776,6 +817,26 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 AutoSaveConverters();
             }
         }
+    }
+
+    private void Sport_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        AutoSaveSettings();
+    }
+
+    private void OosUpdater_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        AutoSaveSettings();
+        if (e.PropertyName == "Enabled")
+        {
+            bool hasOosEnabled = HasAnyOosEnabled();
+            SetOosColumnsVisibility(hasOosEnabled);
+        }
+    }
+
+    private void ListsNeeded_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        AutoSaveSettings();
     }
 
     protected override void OnClosed(EventArgs e)

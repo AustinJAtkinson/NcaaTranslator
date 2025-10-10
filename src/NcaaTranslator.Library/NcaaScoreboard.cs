@@ -22,12 +22,7 @@ namespace NcaaTranslator.Library
 
     public class Contest
     {
-        [JsonPropertyName("__typename")]
-        public string? Typename { get; set; }
-        public string? championshipId { get; set; }
-        public string? bracketId { get; set; }
         public long contestId { get; set; }
-        public string? url { get; set; }
         public string? gameState { get; set; }
         public string? statusCodeDisplay { get; set; }
         public string? currentPeriod { get; set; }
@@ -37,18 +32,8 @@ namespace NcaaTranslator.Library
         public string? startTime { get; set; }
         public string? startDate { get; set; }
         public bool hasStartTime { get; set; }
-        public string? broadcasterId { get; set; }
-        public string? broadcasterName { get; set; }
-        public string? roundNumber { get; set; }
-        public string? roundDescription { get; set; }
-        public string? sportUrl { get; set; }
-        public int stage { get; set; }
         public bool tba { get; set; }
-        public bool isChampionship { get; set; }
-        public string? championshipGame { get; set; }
         public List<ContestTeam> teams { get; set; } = new List<ContestTeam>();
-        public List<LiveVideo> liveVideos { get; set; } = new List<LiveVideo>();
-
         public string ctStateTime
         {
             get
@@ -69,7 +54,6 @@ namespace NcaaTranslator.Library
                 }
             }
         }
-
         public string displayClock
         {
             get
@@ -86,7 +70,6 @@ namespace NcaaTranslator.Library
                 return string.Format("{0}     {1}", currentPeriod!.Replace("2OT", "SO"), contestClock!);
             }
         }
-
         public string displayClockDefault
         {
             get
@@ -108,25 +91,18 @@ namespace NcaaTranslator.Library
 
     public class ContestTeam
     {
-        [JsonPropertyName("__typename")]
-        public string? Typename { get; set; }
         public bool isHome { get; set; }
         public string? seoname { get; set; }
         public string? nameShort { get; set; }
         public string? name6Char { get; set; }
-        public string? name8Char { get; set; }
-        public string? name10Char { get; set; }
         public string? seed { get; set; }
         public int? teamRank { get; set; }
         public int? score { get; set; }
         public bool isWinner { get; set; }
         public string? conferenceSeo { get; set; }
+        public string? customConferenceName { get; set; }
     }
 
-    public class LiveVideo
-    {
-        // Add properties as needed
-    }
     public class Names
     {
         // New properties for updated team name layout

@@ -17,12 +17,14 @@ namespace NcaaTranslator.Library
             {
                 var homeShortLookup = NameConverters.LookupTeam(new Names { name6Char = home.name6Char, nameShort = home.nameShort, seoname = home.seoname });
                 home.nameShort = homeShortLookup != "" ? homeShortLookup : home.nameShort;
+                home.customConferenceName = NameConverters.GetConferences().FirstOrDefault(c => c.conferenceSeo == home.conferenceSeo)?.customConferenceName;
             }
 
             if (away != null)
             {
                 var awayShortLookup = NameConverters.LookupTeam(new Names { name6Char = away.name6Char, nameShort = away.nameShort, seoname = away.seoname });
                 away.nameShort = awayShortLookup != "" ? awayShortLookup : away.nameShort;
+                away.customConferenceName = NameConverters.GetConferences().FirstOrDefault(c => c.conferenceSeo == away.conferenceSeo)?.customConferenceName;
             }
         }
 
@@ -226,7 +228,7 @@ namespace NcaaTranslator.Library
             if (!sport.ListsNeeded.filteredGames)
                 ncaaGames.data!.filteredGames.Clear();
 
-            File.WriteAllText(string.Format("{0}-Games.json", sport.SportName!), JsonSerializer.Serialize<NcaaScoreboard>(ncaaGames, new JsonSerializerOptions() { WriteIndented = true }));
+            File.WriteAllText(string.Format("{0}-Games.json", sport.SportName!), JsonSerializer.Serialize<NcaaScoreboard>(ncaaGames));
 
             if (sport.OosUpdater.Enabled)
                 UpdateOos(ncaaGames, sport.OosUpdater);
