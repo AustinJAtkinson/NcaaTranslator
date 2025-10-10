@@ -50,9 +50,21 @@
                                         <DataGrid ItemsSource="{Binding Games}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" IsReadOnly="True" CanUserReorderColumns="False" Style="{DynamicResource ModernDataGridStyle}">
                                             <DataGrid.Columns>
                                                 <DataGridTextColumn Header="Home" Binding="{Binding teams[0].nameShort}" Width="150"/>
-                                                <DataGridTextColumn Header="Score" Binding="{Binding teams[0].score}" Width="60"/>
+                                                <DataGridTextColumn Header="Score" Binding="{Binding teams[0].score}" Width="60">
+                                                    <DataGridTextColumn.ElementStyle>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                        </Style>
+                                                    </DataGridTextColumn.ElementStyle>
+                                                </DataGridTextColumn>
                                                 <DataGridTextColumn Header="Away" Binding="{Binding teams[1].nameShort}" Width="150"/>
-                                                <DataGridTextColumn Header="Score" Binding="{Binding teams[1].score}" Width="60"/>
+                                                <DataGridTextColumn Header="Score" Binding="{Binding teams[1].score}" Width="60">
+                                                    <DataGridTextColumn.ElementStyle>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                        </Style>
+                                                    </DataGridTextColumn.ElementStyle>
+                                                </DataGridTextColumn>
                                                 <DataGridTextColumn Header="Clock" Binding="{Binding displayClock}" Width="100"/>
                                             </DataGrid.Columns>
                                         </DataGrid>
