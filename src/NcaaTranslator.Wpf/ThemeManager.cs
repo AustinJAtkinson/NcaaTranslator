@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Media;
+using Microsoft.Win32;
 
 namespace NcaaTranslator.Wpf
 {
@@ -33,6 +34,41 @@ namespace NcaaTranslator.Wpf
             Application.Current.Resources["HoverBrush"] = new SolidColorBrush(Color.FromRgb(60, 60, 60));
             Application.Current.Resources["PressedBrush"] = new SolidColorBrush(Color.FromRgb(80, 80, 80));
             Application.Current.Resources["AlternatingRowBrush"] = new SolidColorBrush(Color.FromRgb(74, 74, 74));
+        }
+
+        public static bool IsLightTheme()
+        {
+            try
+            {
+                using (var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"))
+                {
+                    if (key != null)
+                    {
+                        var value = key.GetValue("AppsUseLightTheme");
+                        if (value is int intValue)
+                        {
+                            return intValue == 1;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // If registry access fails, default to light theme
+            }
+            return true;
+        }
+
+        public static void ApplySystemTheme()
+        {
+            if (IsLightTheme())
+            {
+                ApplyLightTheme();
+            }
+            else
+            {
+                ApplyDarkTheme();
+            }
         }
     }
 }

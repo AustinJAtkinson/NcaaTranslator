@@ -597,18 +597,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         homeTeamPanel.Children.Add(homeTeamComboBox);
         GeneralSettingsPanel.Children.Add(homeTeamPanel);
 
-        // Theme setting
-        var themePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
-        var themeLabel = new TextBlock { Text = "Theme: ", Width = 120, VerticalAlignment = VerticalAlignment.Center };
-        themeLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
-        themePanel.Children.Add(themeLabel);
-        var themeComboBox = new ComboBox { Width = 100, Name = "ThemeComboBox" };
-        themeComboBox.Style = (Style)FindResource("ModernComboBoxStyle");
-        themeComboBox.ItemsSource = new List<string> { "Light", "Dark" };
-        themeComboBox.SelectedItem = "Light";
-        themeComboBox.SelectionChanged += ThemeComboBox_SelectionChanged;
-        themePanel.Children.Add(themeComboBox);
-        GeneralSettingsPanel.Children.Add(themePanel);
 
         // Sports
         var sports = Settings.GetSports();
@@ -946,24 +934,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
         StartProcess();
-        ThemeManager.ApplyLightTheme();
     }
 
-    private void ThemeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (sender is ComboBox comboBox && comboBox.SelectedItem != null)
-        {
-            string theme = comboBox.SelectedItem.ToString()!;
-            if (theme == "Light")
-            {
-                ThemeManager.ApplyLightTheme();
-            }
-            else if (theme == "Dark")
-            {
-                ThemeManager.ApplyDarkTheme();
-            }
-        }
-    }
 
     protected override void OnClosed(EventArgs e)
     {
