@@ -6,7 +6,8 @@
         xmlns:local="clr-namespace:NcaaTranslator.Wpf"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         mc:Ignorable="d"
-        Title="NCAA Translator" Height="600" Width="1000">
+        Title="NCAA Translator" Height="600" Width="1000"
+        Loaded="MainWindow_Loaded">
     <Grid>
         <TabControl x:Name="MainTabControl" SelectionChanged="MainTabControl_SelectionChanged">
             <TabItem Header="Main">

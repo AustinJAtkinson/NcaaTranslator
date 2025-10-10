@@ -78,7 +78,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private async void StartButton_Click(object sender, RoutedEventArgs e)
+    private async void StartProcess()
     {
         // Run the conversion once immediately
         await PerformConversion(DateTime.Now);
@@ -88,6 +88,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         StartButton.IsEnabled = false;
         StopButton.IsEnabled = true;
         StatusText.Text = "Status: Running";
+    }
+
+    private void StartButton_Click(object sender, RoutedEventArgs e)
+    {
+        StartProcess();
     }
 
     private void StopButton_Click(object sender, RoutedEventArgs e)
@@ -870,6 +875,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void ListsNeeded_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         AutoSaveSettings();
+    }
+
+    private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        StartProcess();
     }
 
     protected override void OnClosed(EventArgs e)
