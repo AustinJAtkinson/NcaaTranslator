@@ -85,8 +85,8 @@ namespace NcaaTranslator.Library
                     var gameData = ncaaScoreboard.data!.displayGames[gameNeeded];
                     var home = gameData.teams.FirstOrDefault(t => t.isHome);
                     var away = gameData.teams.FirstOrDefault(t => !t.isHome);
-                    var homeTeam = home?.nameShort ?? "";
-                    var awayTeam = away?.nameShort ?? "";
+                    var homeTeam = home?.customName ?? "";
+                    var awayTeam = away?.customName ?? "";
                     var homeScore = home?.score?.ToString() ?? "";
                     var awayScore = away?.score?.ToString() ?? "";
                     var clock = gameData.displayClockDefault;
