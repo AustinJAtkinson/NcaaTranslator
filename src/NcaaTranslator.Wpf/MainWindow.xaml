@@ -144,16 +144,30 @@
                                         <DataGridTextColumn Header="Short" Binding="{Binding SportShortName}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
                                         <DataGridTextColumn Header="Code" Binding="{Binding SportCode}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
                                         <DataGridCheckBoxColumn Header="Enabled" Binding="{Binding Enabled, UpdateSourceTrigger=PropertyChanged}" Width="Auto" ElementStyle="{DynamicResource CenteredModernCheckBoxStyle}" EditingElementStyle="{DynamicResource CenteredModernCheckBoxStyle}"/>
-                                        <DataGridComboBoxColumn x:Name="ConferenceColumn" Header="Conference" SelectedItemBinding="{Binding ConferenceName}" Width="Auto" MinWidth="150" ElementStyle="{DynamicResource ModernComboBoxStyle}" EditingElementStyle="{DynamicResource ModernComboBoxStyle}"/>
-                                        <DataGridComboBoxColumn Header="Display Mode" SelectedItemBinding="{Binding GameDisplayMode}" Width="Auto" ElementStyle="{DynamicResource ModernComboBoxStyle}" EditingElementStyle="{DynamicResource ModernComboBoxStyle}">
-                                            <DataGridComboBoxColumn.ItemsSource>
-                                                <x:Array Type="{x:Type lib:GameDisplayMode}">
-                                                    <lib:GameDisplayMode>Live</lib:GameDisplayMode>
-                                                    <lib:GameDisplayMode>All</lib:GameDisplayMode>
-                                                    <lib:GameDisplayMode>Display</lib:GameDisplayMode>
-                                                </x:Array>
-                                            </DataGridComboBoxColumn.ItemsSource>
-                                        </DataGridComboBoxColumn>
+                                        <DataGridTemplateColumn Header="Conference" Width="Auto" MinWidth="150">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding ConferenceName}" />
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                            <DataGridTemplateColumn.CellEditingTemplate>
+                                                <DataTemplate>
+                                                    <ComboBox SelectedItem="{Binding ConferenceName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" ItemsSource="{Binding ConferenceNames, RelativeSource={RelativeSource AncestorType=Window}}" Style="{DynamicResource ModernComboBoxStyle}" />
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellEditingTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTemplateColumn Header="Display Mode" Width="Auto">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding GameDisplayMode}" />
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                            <DataGridTemplateColumn.CellEditingTemplate>
+                                                <DataTemplate>
+                                                    <ComboBox SelectedItem="{Binding GameDisplayMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" ItemsSource="{Binding GameDisplayModes, RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellEditingTemplate>
+                                        </DataGridTemplateColumn>
                                         <DataGridTextColumn Header="Division" Binding="{Binding Division}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
                                         <DataGridTextColumn Header="Week" Binding="{Binding Week}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
                                         <DataGridCheckBoxColumn Header="Top 25" Binding="{Binding ListsNeeded.top25Games, UpdateSourceTrigger=PropertyChanged}" Width="Auto" ElementStyle="{DynamicResource CenteredModernCheckBoxStyle}" EditingElementStyle="{DynamicResource CenteredModernCheckBoxStyle}"/>

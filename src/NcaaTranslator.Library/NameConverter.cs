@@ -38,6 +38,7 @@ namespace NcaaTranslator.Library
         internal static Dictionary<string, Team> TeamDict { get; set; } = new Dictionary<string, Team>();
         internal static Dictionary<string, Conferences> ConfDict { get; set; } = new Dictionary<string, Conferences>();
         public static NameConverter? NameList { get; set; }
+        // DO NOT CHANGE THIS PATH - it is correct as is
         internal static string FilePath = "NcaaNameConverter.json";
 
         public static List<Team> GetTeams()

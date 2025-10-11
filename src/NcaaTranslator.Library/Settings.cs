@@ -181,6 +181,7 @@ namespace NcaaTranslator.Library
     public class Settings
     {
         public static Setting? SettingsList { get; set; }
+        // DO NOT CHANGE THIS PATH - it is correct as is
         internal static string fileName = "Settings.json";
 
         public static void Load()

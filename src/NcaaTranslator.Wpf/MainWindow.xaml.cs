@@ -44,6 +44,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    public GameDisplayMode[] GameDisplayModes { get; } = (GameDisplayMode[])Enum.GetValues(typeof(GameDisplayMode));
+    public List<string> ConferenceNames { get; set; } = new List<string>();
+
     protected virtual void OnPropertyChanged(string propertyName)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
@@ -418,6 +421,22 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 sport.OosUpdater.NumberOfTeamsPer = value;
             }
         }
+        else if (e.Column.Header.ToString() == "Display Mode")
+        {
+            var comboBox = e.EditingElement as ComboBox;
+            if (comboBox != null && comboBox.SelectedItem is GameDisplayMode mode)
+            {
+                sport.GameDisplayMode = mode;
+            }
+        }
+        else if (e.Column.Header.ToString() == "Conference")
+        {
+            var comboBox = e.EditingElement as ComboBox;
+            if (comboBox != null && comboBox.SelectedItem is string conference)
+            {
+                sport.ConferenceName = conference;
+            }
+        }
 
         // Auto-save the changes
         AutoSaveSettings();
@@ -440,7 +459,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            // Error saving settings - silently handle
+            MessageBox.Show($"Error saving settings: {ex.Message}", "Save Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -601,7 +620,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
         var conferences = NameConverters.GetConferences();
         var conferenceNames = conferences.Select(c => c.customConferenceName).ToList();
-        ConferenceColumn.ItemsSource = conferenceNames;
+        ConferenceNames = conferenceNames;
 
         // Conditionally show/hide OOS columns based on whether any sport has OOS enabled
         bool hasOosEnabled = HasAnyOosEnabled();
