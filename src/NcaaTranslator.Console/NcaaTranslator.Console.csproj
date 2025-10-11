@@ -17,10 +17,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Update="config\Settings.json">
+		<None Update="..\..\config\Settings.json">
 		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
-		<None Update="config\NcaaNameConverter.json">
+		<None Update="..\..\config\NcaaNameConverter.json">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
 	</ItemGroup>

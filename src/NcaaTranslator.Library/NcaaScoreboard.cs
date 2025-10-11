@@ -36,7 +36,7 @@ namespace NcaaTranslator.Library
         public bool tba { get; set; }
         public List<ContestTeam> teams { get; set; } = new List<ContestTeam>();
         public string? conferenceDisplayName { get; set; }
-        public string ctStateTime
+        public string ctStateTime24h
         {
             get
             {
@@ -49,6 +49,26 @@ namespace NcaaTranslator.Library
                     dateTime = dateTime.AddSeconds(startTimeEpoch).ToLocalTime();
 
                     return dateTime.ToString("HH:mm");
+                }
+                catch
+                {
+                    return startTime!;
+                }
+            }
+        }
+        public string ctStateTime
+        {
+            get
+            {
+                try
+                {
+                    if (startTime == "TBA")
+                        return startTime!;
+
+                    DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+                    dateTime = dateTime.AddSeconds(startTimeEpoch).ToLocalTime();
+
+                    return dateTime.ToString("h:mm tt");
                 }
                 catch
                 {
