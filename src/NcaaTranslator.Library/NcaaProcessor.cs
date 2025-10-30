@@ -210,7 +210,21 @@ namespace NcaaTranslator.Library
             if (ncaaGames.data!.displayGames!.Count == 0) ncaaGames.data.displayGames = null;
             if (ncaaGames.data!.top25Games!.Count == 0) ncaaGames.data.top25Games = null;
 
-            File.WriteAllText(string.Format("{0}-Games.json", sport.SportName!), JsonSerializer.Serialize<NcaaScoreboard>(ncaaGames));
+            // Create a copy for JSON export with conditional nullification based on export settings
+            var exportData = new NcaaScoreboard
+            {
+                data = new Data
+                {
+                    contests = ncaaGames.data.contests,
+                    nonConferenceGames = sport.ListsNeeded.nonConferenceGames ? ncaaGames.data.nonConferenceGames : null,
+                    conferenceGames = sport.ListsNeeded.conferenceGames ? ncaaGames.data.conferenceGames : null,
+                    displayGames = ncaaGames.data.displayGames,
+                    homeGames = ncaaGames.data.homeGames,
+                    top25Games = ncaaGames.data.top25Games
+                }
+            };
+
+            File.WriteAllText(string.Format("{0}-Games.json", sport.SportName!), JsonSerializer.Serialize<NcaaScoreboard>(exportData));
 
             if (sport.OosUpdater.Enabled)
                 UpdateOos(ncaaGames, sport.OosUpdater);

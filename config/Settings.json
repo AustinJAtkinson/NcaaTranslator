@@ -12,10 +12,8 @@
       "Week": null,
       "ListsNeeded": {
         "nonConferenceGames": true,
-        "nonConferenceSorted": true,
         "conferenceGames": true,
-        "top25Games": false,
-        "filteredGames": false
+        "top25Games": false
       }
     },
     {
@@ -27,11 +25,9 @@
       "Division": 1,
       "Week": null,
       "ListsNeeded": {
-        "nonConferenceGames": false,
-        "nonConferenceSorted": true,
-        "conferenceGames": false,
-        "top25Games": false,
-        "filteredGames": false
+        "nonConferenceGames": true,
+        "conferenceGames": true,
+        "top25Games": false
       }
     },
     {
@@ -42,12 +38,10 @@
       "SportCode": "WBB",
       "Division": 1,
       "Week": null,
-      "ListsNeeded": { 
-        "nonConferenceGames": false,
-        "nonConferenceSorted": true,
-        "conferenceGames": false,
-        "top25Games": false,
-        "filteredGames": false
+      "ListsNeeded": {
+        "nonConferenceGames": true,
+        "conferenceGames": true,
+        "top25Games": false
       }
     },
     {
@@ -59,11 +53,9 @@
       "Division": 1,
       "Week": null,
       "ListsNeeded": {
-        "nonConferenceGames": false,
-        "nonConferenceSorted": true,
-        "conferenceGames": false,
-        "top25Games": false,
-        "filteredGames": false
+        "nonConferenceGames": true,
+        "conferenceGames": true,
+        "top25Games": false
       }
     },
     {
@@ -75,11 +67,9 @@
       "Division": 12,
       "Week": 2,
       "ListsNeeded": {
-        "nonConferenceGames": false,
-        "nonConferenceSorted": true,
-        "conferenceGames": false,
-        "top25Games": false,
-        "filteredGames": false
+        "nonConferenceGames": true,
+        "conferenceGames": true,
+        "top25Games": false
       },
       "OosUpdater": {
         "Enabled": false,
@@ -98,11 +88,9 @@
       "Division": 11,
       "Week": 2,
       "ListsNeeded": {
-        "nonConferenceGames": false,
-        "nonConferenceSorted": true,
-        "conferenceGames": false,
-        "top25Games": false,
-        "filteredGames": false
+        "nonConferenceGames": true,
+        "conferenceGames": true,
+        "top25Games": false
       }
     }
   ],

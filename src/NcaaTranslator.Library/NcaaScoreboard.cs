@@ -12,8 +12,10 @@ namespace NcaaTranslator.Library
     {
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public List<Contest>? contests { get; set; } = new List<Contest>();
-        public List<Contest> nonConferenceGames { get; set; } = new List<Contest>();
-        public List<Contest> conferenceGames { get; set; } = new List<Contest>();
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<Contest>? nonConferenceGames { get; set; } = new List<Contest>();
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<Contest>? conferenceGames { get; set; } = new List<Contest>();
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public List<Contest>? displayGames { get; set; } = new List<Contest>();
         public List<Contest> homeGames { get; set; } = new List<Contest>();

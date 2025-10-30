@@ -107,6 +107,8 @@ namespace NcaaTranslator.Library
     public class ListsNeeded : INotifyPropertyChanged
     {
         private bool _top25Games = true;
+        private bool _conferenceGames = true;
+        private bool _nonConferenceGames = true;
 
         public bool top25Games
         {
@@ -117,6 +119,32 @@ namespace NcaaTranslator.Library
                 {
                     _top25Games = value;
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(top25Games)));
+                }
+            }
+        }
+
+        public bool conferenceGames
+        {
+            get => _conferenceGames;
+            set
+            {
+                if (_conferenceGames != value)
+                {
+                    _conferenceGames = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(conferenceGames)));
+                }
+            }
+        }
+
+        public bool nonConferenceGames
+        {
+            get => _nonConferenceGames;
+            set
+            {
+                if (_nonConferenceGames != value)
+                {
+                    _nonConferenceGames = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(nonConferenceGames)));
                 }
             }
         }

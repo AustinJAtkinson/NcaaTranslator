@@ -165,12 +165,14 @@
                                             </DataGridTemplateColumn.CellTemplate>
                                             <DataGridTemplateColumn.CellEditingTemplate>
                                                 <DataTemplate>
-                                                    <ComboBox SelectedItem="{Binding GameDisplayMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" ItemsSource="{Binding GameDisplayModes, RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                    <ComboBox SelectedItem="{Binding GameDisplayMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" ItemsSource="{Binding GameDisplayModes, RelativeSource={RelativeSource AncestorType=Window}}" Style="{DynamicResource ModernComboBoxStyle}" />
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellEditingTemplate>
                                         </DataGridTemplateColumn>
                                         <DataGridTextColumn Header="Division" Binding="{Binding Division}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
                                         <DataGridTextColumn Header="Week" Binding="{Binding Week}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
+                                        <DataGridCheckBoxColumn Header="Conf" Binding="{Binding ListsNeeded.conferenceGames, UpdateSourceTrigger=PropertyChanged}" Width="Auto" ElementStyle="{DynamicResource CenteredModernCheckBoxStyle}" EditingElementStyle="{DynamicResource CenteredModernCheckBoxStyle}"/>
+                                        <DataGridCheckBoxColumn Header="Non-Conf" Binding="{Binding ListsNeeded.nonConferenceGames, UpdateSourceTrigger=PropertyChanged}" Width="Auto" ElementStyle="{DynamicResource CenteredModernCheckBoxStyle}" EditingElementStyle="{DynamicResource CenteredModernCheckBoxStyle}"/>
                                         <DataGridCheckBoxColumn Header="Top 25" Binding="{Binding ListsNeeded.top25Games, UpdateSourceTrigger=PropertyChanged}" Width="Auto" ElementStyle="{DynamicResource CenteredModernCheckBoxStyle}" EditingElementStyle="{DynamicResource CenteredModernCheckBoxStyle}"/>
                                         <DataGridCheckBoxColumn Header="OOS Enabled" Binding="{Binding OosUpdater.Enabled, UpdateSourceTrigger=PropertyChanged}" Width="Auto" ElementStyle="{DynamicResource CenteredModernCheckBoxStyle}" EditingElementStyle="{DynamicResource CenteredModernCheckBoxStyle}"/>
                                         <DataGridTextColumn Header="OOS Path" Binding="{Binding OosUpdater.OosFilePath}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
