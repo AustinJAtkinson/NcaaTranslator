@@ -191,6 +191,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                         Games = gamesToShow,
                         ConfGamesCount = scoreboard.data.conferenceGames.Count,
                         NonConfGamesCount = scoreboard.data.nonConferenceGames.Count,
+                        DisplayGamesCount = scoreboard.data.displayGames?.Count ?? 0,
                         HomeGamesCount = scoreboard.data.homeGames.Count,
                         GameDisplayMode = sport.GameDisplayMode,
                         Sport = sport
@@ -211,6 +212,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         public List<Contest> Games { get; set; } = new List<Contest>();
         public int ConfGamesCount { get; set; }
         public int NonConfGamesCount { get; set; }
+        public int DisplayGamesCount { get; set; }
         public int HomeGamesCount { get; set; }
         public Sport Sport { get; set; } = new Sport { SportName = "", SportShortName = "" };
 

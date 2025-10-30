@@ -42,7 +42,7 @@ namespace NcaaTranslator.Library
             {
                 try
                 {
-                    if (startTime == "TBA")
+                    if (startTime == "TBA" || tba)
                         return startTime!;
 
                     DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
@@ -62,7 +62,7 @@ namespace NcaaTranslator.Library
             {
                 try
                 {
-                    if (startTime == "TBA")
+                    if (startTime == "TBA" || tba)
                         return startTime!;
 
                     DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);

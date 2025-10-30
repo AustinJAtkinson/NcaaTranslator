@@ -36,10 +36,11 @@
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock VerticalAlignment="Center" Margin="0,0,10,0" Foreground="{DynamicResource TextPrimaryBrush}">
                                                     <TextBlock.Text>
-                                                        <MultiBinding StringFormat="{}{0} (Conf: {1}, Non-Conf: {2}, Home: {3})">
+                                                        <MultiBinding StringFormat="{}{0} (Conf: {1}, Non-Conf: {2}, Display: {3}, Home: {4})">
                                                             <Binding Path="SportName"/>
                                                             <Binding Path="ConfGamesCount"/>
                                                             <Binding Path="NonConfGamesCount"/>
+                                                            <Binding Path="DisplayGamesCount"/>
                                                             <Binding Path="HomeGamesCount"/>
                                                         </MultiBinding>
                                                     </TextBlock.Text>
@@ -49,7 +50,7 @@
                                         </Expander.Header>
                                         <DataGrid ItemsSource="{Binding Games}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" IsReadOnly="True" CanUserReorderColumns="False" Style="{DynamicResource ModernDataGridStyle}">
                                             <DataGrid.Columns>
-                                                <DataGridTextColumn Header="Home" Binding="{Binding teams[0].nameShort}" Width="150"/>
+                                                <DataGridTextColumn Header="Home" Binding="{Binding teams[0].customName}" Width="150"/>
                                                 <DataGridTextColumn Header="Score" Binding="{Binding teams[0].score}" Width="60">
                                                     <DataGridTextColumn.ElementStyle>
                                                         <Style TargetType="TextBlock">
@@ -57,7 +58,7 @@
                                                         </Style>
                                                     </DataGridTextColumn.ElementStyle>
                                                 </DataGridTextColumn>
-                                                <DataGridTextColumn Header="Away" Binding="{Binding teams[1].nameShort}" Width="150"/>
+                                                <DataGridTextColumn Header="Away" Binding="{Binding teams[1].customName}" Width="150"/>
                                                 <DataGridTextColumn Header="Score" Binding="{Binding teams[1].score}" Width="60">
                                                     <DataGridTextColumn.ElementStyle>
                                                         <Style TargetType="TextBlock">
