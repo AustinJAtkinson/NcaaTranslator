@@ -170,20 +170,6 @@
                                 <Trigger Property="IsMouseOver" Value="True">
                                     <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
                                 </Trigger>
-                                <MultiTrigger>
-                                    <MultiTrigger.Conditions>
-                                        <Condition Property="IsSelected" Value="True"/>
-                                        <Condition Property="AlternationIndex" Value="0"/>
-                                    </MultiTrigger.Conditions>
-                                    <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
-                                </MultiTrigger>
-                                <MultiTrigger>
-                                    <MultiTrigger.Conditions>
-                                        <Condition Property="IsSelected" Value="True"/>
-                                        <Condition Property="AlternationIndex" Value="1"/>
-                                    </MultiTrigger.Conditions>
-                                    <Setter Property="Background" Value="{DynamicResource AlternatingRowBrush}"/>
-                                </MultiTrigger>
                             </Style.Triggers>
                         </Style>
                     </Setter.Value>
@@ -345,6 +331,7 @@
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsChecked" Value="True">
                                     <Setter TargetName="checkMark" Property="Visibility" Value="Visible"/>
+                                    <Setter TargetName="checkMark" Property="Stroke" Value="White"/>
                                     <Setter TargetName="checkBoxBorder" Property="Background" Value="{DynamicResource PrimaryBrush}"/>
                                     <Setter TargetName="checkBoxBorder" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
                                 </Trigger>
