@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text.Json;
+using NcaaTranslator.Library;
 
 namespace NcaaTranslator.Library
 {
@@ -70,6 +71,121 @@ namespace NcaaTranslator.Library
             return JsonSerializer.Deserialize<GitHubRelease>(json);
         }
 
+        private static NameConverter MergeNameConverters(NameConverter user, NameConverter @new)
+        {
+            var merged = new NameConverter();
+
+            // Merge teams
+            var userTeams = user.teams.ToDictionary(t => t.name6Char, t => t);
+            var newTeams = @new.teams.ToDictionary(t => t.name6Char, t => t);
+
+            foreach (var kvp in newTeams)
+            {
+                if (userTeams.TryGetValue(kvp.Key, out var userTeam))
+                {
+                    // Use user custom name if different
+                    kvp.Value.customName = userTeam.customName ?? kvp.Value.customName;
+                }
+                merged.teams.Add(kvp.Value);
+            }
+
+            // Add user teams not in new
+            foreach (var kvp in userTeams)
+            {
+                if (!newTeams.ContainsKey(kvp.Key))
+                {
+                    merged.teams.Add(kvp.Value);
+                }
+            }
+
+            // Merge conferences
+            var userConfs = user.conferences.ToDictionary(c => c.conferenceSeo, c => c);
+            var newConfs = @new.conferences.ToDictionary(c => c.conferenceSeo, c => c);
+
+            foreach (var kvp in newConfs)
+            {
+                if (userConfs.TryGetValue(kvp.Key, out var userConf))
+                {
+                    kvp.Value.customConferenceName = userConf.customConferenceName ?? kvp.Value.customConferenceName;
+                }
+                merged.conferences.Add(kvp.Value);
+            }
+
+            // Add user conferences not in new
+            foreach (var kvp in userConfs)
+            {
+                if (!newConfs.ContainsKey(kvp.Key))
+                {
+                    merged.conferences.Add(kvp.Value);
+                }
+            }
+
+            return merged;
+        }
+
+        private static Setting MergeSettings(Setting user, Setting @new)
+        {
+            var merged = new Setting
+            {
+                Timer = user.Timer > 0 ? user.Timer : @new.Timer,
+                HomeTeam = user.HomeTeam ?? @new.HomeTeam,
+                XmlToJson = user.XmlToJson ?? @new.XmlToJson,
+                DisplayTeams = @new.DisplayTeams ?? new List<DisplayTeam>(),
+                Sports = new List<Sport>()
+            };
+
+            // Merge display teams
+            var userDisplayTeams = user.DisplayTeams?.ToDictionary(dt => dt.NcaaTeamName, dt => dt) ?? new Dictionary<string?, DisplayTeam>();
+            if (@new.DisplayTeams != null)
+            {
+                foreach (var dt in @new.DisplayTeams)
+                {
+                    merged.DisplayTeams.Add(dt);
+                }
+            }
+            if (user.DisplayTeams != null)
+            {
+                foreach (var dt in user.DisplayTeams)
+                {
+                    if (!merged.DisplayTeams.Any(mdt => mdt.NcaaTeamName == dt.NcaaTeamName))
+                    {
+                        merged.DisplayTeams.Add(dt);
+                    }
+                }
+            }
+
+            // Merge sports
+            var userSports = user.Sports?.ToDictionary(s => s.SportShortName, s => s) ?? new Dictionary<string, Sport>();
+            var newSports = @new.Sports?.ToDictionary(s => s.SportShortName, s => s) ?? new Dictionary<string, Sport>();
+
+            foreach (var kvp in newSports)
+            {
+                var sport = kvp.Value;
+                if (userSports.TryGetValue(kvp.Key, out var userSport))
+                {
+                    // Merge user settings
+                    sport.Enabled = userSport.Enabled;
+                    sport.GameDisplayMode = userSport.GameDisplayMode;
+                    sport.ConferenceName = userSport.ConferenceName ?? sport.ConferenceName;
+                    sport.Week = userSport.Week ?? sport.Week;
+                    sport.OosUpdater = userSport.OosUpdater ?? sport.OosUpdater;
+                    sport.ListsNeeded = userSport.ListsNeeded ?? sport.ListsNeeded;
+                }
+                merged.Sports.Add(sport);
+            }
+
+            // Add user sports not in new
+            foreach (var kvp in userSports)
+            {
+                if (!newSports.ContainsKey(kvp.Key))
+                {
+                    merged.Sports.Add(kvp.Value);
+                }
+            }
+
+            return merged;
+        }
+
         private static async Task DownloadAndInstallUpdateAsync(GitHubRelease release)
         {
             if (release.assets == null || !release.assets.Any())
@@ -117,6 +233,24 @@ namespace NcaaTranslator.Library
         {
             var appDir = AppDomain.CurrentDomain.BaseDirectory;
 
+            // Backup user config files
+            var settingsPath = Path.Combine(appDir, "Settings.json");
+            var nameConverterPath = Path.Combine(appDir, "NcaaNameConverter.json");
+            string? settingsBackup = null;
+            string? nameConverterBackup = null;
+
+            if (File.Exists(settingsPath))
+            {
+                settingsBackup = Path.Combine(appDir, "Settings.json.backup");
+                File.Copy(settingsPath, settingsBackup, true);
+            }
+
+            if (File.Exists(nameConverterPath))
+            {
+                nameConverterBackup = Path.Combine(appDir, "NcaaNameConverter.json.backup");
+                File.Copy(nameConverterPath, nameConverterBackup, true);
+            }
+
             // Copy all files except the exe (can't overwrite running exe)
             foreach (var file in Directory.GetFiles(extractPath, "*", SearchOption.AllDirectories))
             {
@@ -139,6 +273,43 @@ namespace NcaaTranslator.Library
             {
                 var exeTarget = Path.Combine(appDir, "NcaaTranslator.Wpf.exe.new");
                 File.Copy(exeSource, exeTarget, true);
+            }
+
+            // Merge config files
+            try
+            {
+                if (settingsBackup != null && File.Exists(settingsPath))
+                {
+                    var userSettings = JsonSerializer.Deserialize<Setting>(File.ReadAllText(settingsBackup));
+                    var newSettings = JsonSerializer.Deserialize<Setting>(File.ReadAllText(settingsPath));
+                    if (userSettings != null && newSettings != null)
+                    {
+                        var merged = MergeSettings(userSettings, newSettings);
+                        File.WriteAllText(settingsPath, JsonSerializer.Serialize(merged, new JsonSerializerOptions { WriteIndented = true }));
+                    }
+                }
+
+                if (nameConverterBackup != null && File.Exists(nameConverterPath))
+                {
+                    var userNameConverter = JsonSerializer.Deserialize<NameConverter>(File.ReadAllText(nameConverterBackup));
+                    var newNameConverter = JsonSerializer.Deserialize<NameConverter>(File.ReadAllText(nameConverterPath));
+                    if (userNameConverter != null && newNameConverter != null)
+                    {
+                        var merged = MergeNameConverters(userNameConverter, newNameConverter);
+                        File.WriteAllText(nameConverterPath, JsonSerializer.Serialize(merged, new JsonSerializerOptions { WriteIndented = true }));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Config merge failed: {ex.Message}");
+                // If merge fails, keep the new files
+            }
+            finally
+            {
+                // Cleanup backups
+                if (settingsBackup != null && File.Exists(settingsBackup)) File.Delete(settingsBackup);
+                if (nameConverterBackup != null && File.Exists(nameConverterBackup)) File.Delete(nameConverterBackup);
             }
         }
 

@@ -44,7 +44,7 @@ jobs:
     - name: Create ZIP
       run: |
         cd ./artifacts
-        zip -r ../NcaaTranslator-${{ steps.gitversion.outputs.semVer }}.zip .
+        Compress-Archive -Path .\* -DestinationPath ..\NcaaTranslator-${{ steps.gitversion.outputs.semVer }}.zip
     
     - name: Create Release
       uses: softprops/action-gh-release@v1
