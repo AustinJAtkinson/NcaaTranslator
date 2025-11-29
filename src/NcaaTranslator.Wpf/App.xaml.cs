@@ -1,6 +1,8 @@
 ﻿using System.Configuration;
 using System.Data;
 using System.Windows;
+using System.Threading.Tasks;
+using NcaaTranslator.Library;
 
 namespace NcaaTranslator.Wpf;
 
@@ -9,10 +11,16 @@ namespace NcaaTranslator.Wpf;
 /// </summary>
 public partial class App : Application
 {
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
         ThemeManager.ApplySystemTheme();
+
+        // Apply any pending updates
+        UpdateManager.ApplyPendingUpdate();
+
+        // Check for updates in background
+        _ = Task.Run(() => UpdateManager.CheckForUpdatesAsync());
     }
 }
 

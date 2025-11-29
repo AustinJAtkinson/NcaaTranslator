@@ -40,7 +40,24 @@ jobs:
 
     - name: Publish
       run: dotnet publish NcaaTranslator.sln --configuration Release --no-build --output ./artifacts /p:Version=${{ steps.gitversion.outputs.semVer }}
-
+    
+    - name: Create ZIP
+      run: |
+        cd ./artifacts
+        zip -r ../NcaaTranslator-${{ steps.gitversion.outputs.semVer }}.zip .
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ steps.gitversion.outputs.semVer }}
+        name: Release v${{ steps.gitversion.outputs.semVer }}
+        body: |
+          Automatic release created by GitHub Actions.
+          Version: ${{ steps.gitversion.outputs.semVer }}
+        draft: false
+        prerelease: ${{ steps.gitversion.outputs.preReleaseTag != '' }}
+        files: ./NcaaTranslator-${{ steps.gitversion.outputs.semVer }}.zip
+    
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
