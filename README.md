@@ -7,16 +7,16 @@ A powerful Windows desktop application for processing and translating NCAA sport
 
 ## 📋 Table of Contents
 
-- [Features](#features)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Usage](#usage)
-- [User Interface](#user-interface)
-- [Settings](#settings)
-- [Name Converters](#name-converters)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
+- [Features](#-features)
+- [Prerequisites](#-prerequisites)
+- [Installation](#-installation)
+- [Configuration](#-configuration)
+- [Usage](#-usage)
+- [User Interface](#-user-interface)
+- [Settings](#-settings)
+- [Name Converters](#-name-converters)
+- [Troubleshooting](#-troubleshooting)
+- [Contributing](#-contributing)
 
 ## ✨ Features
 
