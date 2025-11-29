@@ -43,10 +43,16 @@ namespace NcaaTranslator.Library
 
                 if (latestRelease?.tag_name != null && Version.TryParse(latestRelease.tag_name.TrimStart('v'), out var latestVersion))
                 {
-                    if (latestVersion > currentVersion)
+                    if (latestVersion != currentVersion)
                     {
                         // Update available
-                        await DownloadAndInstallUpdateAsync(latestRelease);
+                        var newExePath = await DownloadAndInstallUpdateAsync(latestRelease);
+                        if (newExePath != null)
+                        {
+                            // Launch new version and exit
+                            Process.Start(newExePath);
+                            Environment.Exit(0);
+                        }
                     }
                 }
             }
@@ -130,7 +136,7 @@ namespace NcaaTranslator.Library
                 Timer = user.Timer > 0 ? user.Timer : @new.Timer,
                 HomeTeam = user.HomeTeam ?? @new.HomeTeam,
                 XmlToJson = user.XmlToJson ?? @new.XmlToJson,
-                DisplayTeams = @new.DisplayTeams ?? new List<DisplayTeam>(),
+                DisplayTeams = new List<DisplayTeam>(),
                 Sports = new List<Sport>()
             };
 
@@ -186,18 +192,22 @@ namespace NcaaTranslator.Library
             return merged;
         }
 
-        private static async Task DownloadAndInstallUpdateAsync(GitHubRelease release)
+        private static async Task<string?> DownloadAndInstallUpdateAsync(GitHubRelease release)
         {
             if (release.assets == null || !release.assets.Any())
-                return;
+                return null;
 
             // Assume the first asset is the zip
             var asset = release.assets.FirstOrDefault(a => a.name?.EndsWith(".zip") == true);
             if (asset?.browser_download_url == null)
-                return;
+                return null;
 
-            var tempPath = Path.Combine(Path.GetTempPath(), $"NcaaTranslator_Update_{Guid.NewGuid()}.zip");
-            var extractPath = Path.Combine(Path.GetTempPath(), $"NcaaTranslator_Update_{Guid.NewGuid()}");
+            var currentAppDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
+            var tempDir = Path.Combine(currentAppDir, "update_temp");
+            Directory.CreateDirectory(tempDir);
+
+            var tempPath = Path.Combine(tempDir, asset.name);
+            var extractPath = Path.Combine(tempDir, Path.GetFileNameWithoutExtension(asset.name));
 
             try
             {
@@ -207,96 +217,99 @@ namespace NcaaTranslator.Library
                 await using var fs = new FileStream(tempPath, FileMode.Create);
                 await response.Content.CopyToAsync(fs);
 
-                // Extract
-                System.IO.Compression.ZipFile.ExtractToDirectory(tempPath, extractPath);
+                // Unblock the downloaded file (remove restricted attributes from internet download)
+                File.SetAttributes(tempPath, FileAttributes.Normal);
+
+                // Wait for antivirus scanning to complete
+                await Task.Delay(2000);
+
+                // Copy to a new file to avoid any locks on the original
+                var extractZipPath = Path.Combine(tempDir, Path.GetFileNameWithoutExtension(asset.name) + "_extract.zip");
+                File.Copy(tempPath, extractZipPath, true);
+
+                // Extract with retry to handle file lock issues
+                const int maxRetries = 5;
+                for (int i = 0; i < maxRetries; i++)
+                {
+                    try
+                    {
+                        System.IO.Compression.ZipFile.ExtractToDirectory(extractZipPath, extractPath);
+                        break; // Success, exit loop
+                    }
+                    catch (IOException) when (i < maxRetries - 1)
+                    {
+                        int delayMs = (int)Math.Pow(2, i) * 1000; // Exponential backoff: 1s, 2s, 4s, 8s
+                        await Task.Delay(delayMs);
+                    }
+                }
 
                 // Install
-                await InstallUpdateAsync(extractPath);
-
-                // Notify user
-                // Since WPF, we need to dispatch to UI thread, but for now, assume console or log
-                Debug.WriteLine("Update installed. Please restart the application.");
+                var newExePath = InstallUpdateAsync(extractPath, release);
+                return newExePath;
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Update installation failed: {ex.Message}");
+                return null;
             }
             finally
             {
                 // Cleanup
-                if (File.Exists(tempPath)) File.Delete(tempPath);
-                if (Directory.Exists(extractPath)) Directory.Delete(extractPath, true);
+                if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
             }
         }
 
-        private static async Task InstallUpdateAsync(string extractPath)
+        private static string? InstallUpdateAsync(string extractPath, GitHubRelease release)
         {
-            var appDir = AppDomain.CurrentDomain.BaseDirectory;
+            var currentAppDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
+            var parentDir = Path.GetDirectoryName(currentAppDir);
+            if (parentDir == null) return null;
 
-            // Backup user config files
-            var settingsPath = Path.Combine(appDir, "Settings.json");
-            var nameConverterPath = Path.Combine(appDir, "NcaaNameConverter.json");
-            string? settingsBackup = null;
-            string? nameConverterBackup = null;
+            var latestVersion = Version.Parse(release.tag_name!.TrimStart('v'));
+            var newVersionDir = Path.Combine(parentDir, $"NcaaTranslator-{latestVersion}");
 
-            if (File.Exists(settingsPath))
-            {
-                settingsBackup = Path.Combine(appDir, "Settings.json.backup");
-                File.Copy(settingsPath, settingsBackup, true);
-            }
+            // Create new version directory
+            Directory.CreateDirectory(newVersionDir);
 
-            if (File.Exists(nameConverterPath))
-            {
-                nameConverterBackup = Path.Combine(appDir, "NcaaNameConverter.json.backup");
-                File.Copy(nameConverterPath, nameConverterBackup, true);
-            }
-
-            // Copy all files except the exe (can't overwrite running exe)
+            // Copy all files from extract to new version dir
             foreach (var file in Directory.GetFiles(extractPath, "*", SearchOption.AllDirectories))
             {
                 var relativePath = Path.GetRelativePath(extractPath, file);
-                var targetPath = Path.Combine(appDir, relativePath);
+                var targetPath = Path.Combine(newVersionDir, relativePath);
 
                 // Ensure directory exists
                 Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
 
-                // Skip exe
-                if (Path.GetFileName(targetPath).Equals("NcaaTranslator.Wpf.exe", StringComparison.OrdinalIgnoreCase))
-                    continue;
-
                 File.Copy(file, targetPath, true);
-            }
-
-            // For exe, copy to .new
-            var exeSource = Directory.GetFiles(extractPath, "NcaaTranslator.Wpf.exe", SearchOption.AllDirectories).FirstOrDefault();
-            if (exeSource != null)
-            {
-                var exeTarget = Path.Combine(appDir, "NcaaTranslator.Wpf.exe.new");
-                File.Copy(exeSource, exeTarget, true);
             }
 
             // Merge config files
             try
             {
-                if (settingsBackup != null && File.Exists(settingsPath))
+                var currentSettingsPath = Path.Combine(currentAppDir, "Settings.json");
+                var currentNameConverterPath = Path.Combine(currentAppDir, "NcaaNameConverter.json");
+                var newSettingsPath = Path.Combine(newVersionDir, "Settings.json");
+                var newNameConverterPath = Path.Combine(newVersionDir, "NcaaNameConverter.json");
+
+                if (File.Exists(currentSettingsPath) && File.Exists(newSettingsPath))
                 {
-                    var userSettings = JsonSerializer.Deserialize<Setting>(File.ReadAllText(settingsBackup));
-                    var newSettings = JsonSerializer.Deserialize<Setting>(File.ReadAllText(settingsPath));
+                    var userSettings = JsonSerializer.Deserialize<Setting>(File.ReadAllText(currentSettingsPath));
+                    var newSettings = JsonSerializer.Deserialize<Setting>(File.ReadAllText(newSettingsPath));
                     if (userSettings != null && newSettings != null)
                     {
                         var merged = MergeSettings(userSettings, newSettings);
-                        File.WriteAllText(settingsPath, JsonSerializer.Serialize(merged, new JsonSerializerOptions { WriteIndented = true }));
+                        File.WriteAllText(newSettingsPath, JsonSerializer.Serialize(merged, new JsonSerializerOptions { WriteIndented = true }));
                     }
                 }
 
-                if (nameConverterBackup != null && File.Exists(nameConverterPath))
+                if (File.Exists(currentNameConverterPath) && File.Exists(newNameConverterPath))
                 {
-                    var userNameConverter = JsonSerializer.Deserialize<NameConverter>(File.ReadAllText(nameConverterBackup));
-                    var newNameConverter = JsonSerializer.Deserialize<NameConverter>(File.ReadAllText(nameConverterPath));
+                    var userNameConverter = JsonSerializer.Deserialize<NameConverter>(File.ReadAllText(currentNameConverterPath));
+                    var newNameConverter = JsonSerializer.Deserialize<NameConverter>(File.ReadAllText(newNameConverterPath));
                     if (userNameConverter != null && newNameConverter != null)
                     {
                         var merged = MergeNameConverters(userNameConverter, newNameConverter);
-                        File.WriteAllText(nameConverterPath, JsonSerializer.Serialize(merged, new JsonSerializerOptions { WriteIndented = true }));
+                        File.WriteAllText(newNameConverterPath, JsonSerializer.Serialize(merged, new JsonSerializerOptions { WriteIndented = true }));
                     }
                 }
             }
@@ -305,34 +318,10 @@ namespace NcaaTranslator.Library
                 Debug.WriteLine($"Config merge failed: {ex.Message}");
                 // If merge fails, keep the new files
             }
-            finally
-            {
-                // Cleanup backups
-                if (settingsBackup != null && File.Exists(settingsBackup)) File.Delete(settingsBackup);
-                if (nameConverterBackup != null && File.Exists(nameConverterBackup)) File.Delete(nameConverterBackup);
-            }
+
+            var newExePath = Path.Combine(newVersionDir, "NcaaTranslator.Wpf.exe");
+            return File.Exists(newExePath) ? newExePath : null;
         }
 
-        // Method to apply exe update on startup
-        public static void ApplyPendingUpdate()
-        {
-            var appDir = AppDomain.CurrentDomain.BaseDirectory;
-            var newExe = Path.Combine(appDir, "NcaaTranslator.Wpf.exe.new");
-            var oldExe = Path.Combine(appDir, "NcaaTranslator.Wpf.exe.old");
-
-            if (File.Exists(newExe))
-            {
-                // Backup current
-                if (File.Exists(Path.Combine(appDir, "NcaaTranslator.Wpf.exe")))
-                {
-                    File.Move(Path.Combine(appDir, "NcaaTranslator.Wpf.exe"), oldExe, true);
-                }
-
-                // Apply new
-                File.Move(newExe, Path.Combine(appDir, "NcaaTranslator.Wpf.exe"), true);
-
-                // Delete old on next start or something, but for now leave it
-            }
-        }
     }
 }

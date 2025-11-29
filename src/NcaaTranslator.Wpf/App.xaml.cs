@@ -16,9 +16,6 @@ public partial class App : Application
         base.OnStartup(e);
         ThemeManager.ApplySystemTheme();
 
-        // Apply any pending updates
-        UpdateManager.ApplyPendingUpdate();
-
         // Check for updates in background
         _ = Task.Run(() => UpdateManager.CheckForUpdatesAsync());
     }
