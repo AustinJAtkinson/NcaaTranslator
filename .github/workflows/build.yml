@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -49,6 +52,7 @@ jobs:
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
+        token: ${{ secrets.GITHUB_TOKEN }}
         tag_name: v${{ steps.gitversion.outputs.semVer }}
         name: Release v${{ steps.gitversion.outputs.semVer }}
         body: |
