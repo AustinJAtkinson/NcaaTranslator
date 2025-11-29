@@ -1,0 +1,48 @@
+name: Build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+
+    - name: Install GitVersion
+      uses: gittools/actions/gitversion/setup@v0.10.2
+      with:
+        versionSpec: '5.x'
+
+    - name: Determine Version
+      id: gitversion
+      uses: gittools/actions/gitversion/execute@v0.10.2
+
+    - name: Restore dependencies
+      run: dotnet restore NcaaTranslator.sln
+
+    - name: Build
+      run: dotnet build NcaaTranslator.sln --configuration Release --no-restore /p:Version=${{ steps.gitversion.outputs.semVer }}
+
+    - name: Test
+      run: dotnet test NcaaTranslator.sln --no-build --verbosity normal
+
+    - name: Pack
+      run: dotnet pack NcaaTranslator.sln --configuration Release --no-build --output ./artifacts /p:Version=${{ steps.gitversion.outputs.semVer }}
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: packages
+        path: ./artifacts/
