@@ -38,11 +38,11 @@ jobs:
     - name: Test
       run: dotnet test NcaaTranslator.sln --no-build --verbosity normal
 
-    - name: Pack
-      run: dotnet pack NcaaTranslator.sln --configuration Release --no-build --output ./artifacts /p:Version=${{ steps.gitversion.outputs.semVer }}
+    - name: Publish
+      run: dotnet publish NcaaTranslator.sln --configuration Release --no-build --output ./artifacts /p:Version=${{ steps.gitversion.outputs.semVer }}
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: packages
+        name: release
         path: ./artifacts/
