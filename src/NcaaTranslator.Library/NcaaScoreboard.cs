@@ -120,7 +120,7 @@ namespace NcaaTranslator.Library
         public string? nameShort { get; set; }
         public string? name6Char { get; set; }
         public string? customName { get; set; }
-        public string? seed { get; set; }
+        public int? seed { get; set; }
         public int? teamRank { get; set; }
         public int? score { get; set; }
         public bool isWinner { get; set; }
