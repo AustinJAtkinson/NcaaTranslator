@@ -28,7 +28,7 @@ namespace NcaaTranslator.Library
 
         public static string GetUrl(Sport sport)
         {
-            int seasonYear = DateTime.Now.Year;
+            int seasonYear = 2025;
             int? week = GetCurrentWeek(sport.SportCode!);
             string? contestDate = week.HasValue ? null : DateTime.Now.ToString("MM/dd/yyyy");
             var variables = new
