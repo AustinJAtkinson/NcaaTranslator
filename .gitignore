@@ -21,5 +21,10 @@
 bld/
 [Bb]in/
 [Oo]bj/
+artifacts/
+*.zip
+
+# NuGet packages.config restore folder (SDK-style projects use the global cache)
+packages/
 
 .vs/

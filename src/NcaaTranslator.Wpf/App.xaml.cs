@@ -1,8 +1,5 @@
-﻿using System.Configuration;
-using System.Data;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Windows;
-using System.Threading.Tasks;
 using NcaaTranslator.Library;
 
 namespace NcaaTranslator.Wpf;

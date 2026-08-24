@@ -1,200 +1,101 @@
-# NCAA Translator WPF Application
+# NCAA Translator
 
-[![.NET](https://img.shields.io/badge/.NET-8.0-blue.svg)](https://dotnet.microsoft.com/)
-[![Windows](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://www.microsoft.com/windows)
+Windows WPF app that fetches NCAA scoreboard data, translates team and conference names, and optionally updates Out-of-Score (OOS) XML templates.
 
-A powerful Windows desktop application for processing and translating NCAA sports data, featuring real-time game monitoring, name translation, and graphics template updates.
+Requires Windows 10 or later and the .NET 8 desktop runtime.
 
-## 📋 Table of Contents
+## Clone, build, run
 
-- [Features](#-features)
-- [Prerequisites](#-prerequisites)
-- [Installation](#-installation)
-- [Configuration](#-configuration)
-- [Usage](#-usage)
-- [User Interface](#-user-interface)
-- [Settings](#-settings)
-- [Name Converters](#-name-converters)
-- [Troubleshooting](#-troubleshooting)
-- [Contributing](#-contributing)
-
-## ✨ Features
-
-### Real-Time Data Processing
-- **Live Game Monitoring**: Automatically fetches and displays live NCAA game data
-- **Periodic Updates**: Configurable timer-based data refresh (5-300 seconds)
-- **Multiple Sports Support**: Basketball, Football, Hockey, Volleyball, and more
-
-### Advanced Filtering & Display
-- **Game Display Modes**:
-  - **Live**: Shows only currently active games
-  - **All**: Displays all games (conference, non-conference, home)
-  - **Display**: Shows games for configured display teams
-- **Conference & Non-Conference Games**: Separate categorization
-- **Home Team Highlighting**: Special handling for your favorite team
-
-### Name Translation System
-- **Team Name Mapping**: Custom display names for NCAA 6-character codes
-- **Conference Translation**: Localized conference names
-- **Dynamic Updates**: Add new teams and conferences on-the-fly
-
-### Graphics Integration
-- **XML Template Updates**: Automatic Out-of-Score (OOS) template updates
-- **JSON Conversion**: XML to JSON conversion for modern systems
-- **Configurable Output**: Custom file paths and naming patterns
-
-### User-Friendly Interface
-- **Tabbed Interface**: Organized settings and data views
-- **Search & Filter**: Quick team and conference lookup
-- **Auto-Save**: Changes saved automatically
-- **Modern UI**: Clean, responsive WPF interface
-
-## 🔧 Prerequisites
-
-- **Operating System**: Windows 10 or later
-- **.NET Runtime**: .NET 8.0 Desktop Runtime
-- **Internet Connection**: Required for fetching NCAA data
-
-## 📦 Installation
-
-### Option 1: Download Release
-1. Download the latest release from the [Releases](https://github.com/yourusername/NcaaTranslator/releases) page
-2. Extract the ZIP file to your desired location
-3. Run `NcaaTranslator.Wpf.exe`
-
-### Option 2: Build from Source
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/NcaaTranslator.git
+git clone https://github.com/AustinJAtkinson/NcaaTranslator.git
 cd NcaaTranslator
 
-# Build the WPF application
-dotnet build src/NcaaTranslator.Wpf/NcaaTranslator.Wpf.csproj
-
-# Run the application
+dotnet restore
+dotnet build NcaaTranslator.sln
 dotnet run --project src/NcaaTranslator.Wpf/NcaaTranslator.Wpf.csproj
 ```
 
-## ⚙️ Configuration
+On a non-Windows host, pass `/p:EnableWindowsTargeting=true` to `dotnet build` / `dotnet test`. The WPF app itself only runs on Windows.
 
-The application uses two main configuration files located in the `config/` directory:
+Tests:
+
+```bash
+dotnet test NcaaTranslator.sln
+```
+
+A GitHub release zip extracts to `NcaaTranslator.Wpf.exe`. Config files next to the exe (`Settings.json`, `NcaaNameConverter.json`) are copied from `config/` at build time.
+
+## Layout
+
+- `src/NcaaTranslator.Wpf/` — WPF UI
+- `src/NcaaTranslator.Library/` — fetch, translate, categorize, OOS/XML
+- `tests/NcaaTranslator.Library.Tests/` — library tests
+- `config/` — `Settings.json` and `NcaaNameConverter.json`
+
+## Usage
+
+On launch the app starts fetching for every enabled sport. Use Start/Stop on the Main tab. Settings and Name Converters tabs edit config; changes are saved back to the JSON files.
+
+Game display modes (per sport):
+
+- **Live** — in-progress games (`gameState == "I"`)
+- **All** — conference, non-conference, and home games
+- **Display** — games involving configured display teams
+
+## Configuration
+
+Files live in `config/` and are copied to the app output directory.
 
 ### Settings.json
-Contains application settings including:
-- Timer intervals
-- Home team configuration
-- Sports settings
-- Display teams list
-- XML-to-JSON conversion settings
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `Timer` | int | Poll interval in **seconds**. UI treats this as seconds; the library multiplies by 1000 for the timer. Sample default is `20`. |
+| `HomeTeam` | string | NCAA 6-character team code (e.g. `"NO DAK"`). Used to categorize home games. |
+| `Sports` | array | Sports to monitor. See below. |
+| `DisplayTeams` | array of `{ "NcaaTeamName": "..." }` | Teams used when a sport's `GameDisplayMode` is `Display`. |
+| `XmlToJson` | object | Optional XML-to-JSON conversion. |
+
+Each sport:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `SportName` | string | Display name (required). |
+| `SportShortName` | string | Short id used as a merge key (required). |
+| `Enabled` | bool | Whether the sport is polled. |
+| `ConferenceName` | string | Conference filter / label. |
+| `SportCode` | string | NCAA API sport code (`MBB`, `MFB`, `MIH`, `WVB`, …). |
+| `Division` | int | NCAA API division. |
+| `Week` | int or null | NCAA API week. If null, the request uses today's date instead of a week. |
+| `SeasonYear` | int or null | Optional NCAA `seasonYear` override. Leave blank/null to use the academic year (August–July). Calendar year is not used — January 2026 is still season 2025. |
+| `GameDisplayMode` | `Live` \| `All` \| `Display` | How the Main tab filters games. Defaults to `Live` if omitted. |
+| `ListsNeeded` | object | Which lists the processor fills: `conferenceGames`, `nonConferenceGames`, `top25Games` (bools). |
+| `OosUpdater` | object | Optional OOS XML template updates. |
+
+`OosUpdater`:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `Enabled` | bool | Write live scores into OOS XML templates. |
+| `OosFilePath` | string | Directory containing the templates. |
+| `OosFileName` | string | Filename prefix (e.g. `OUT_Score_`). Files are `{OosFileName}{n}.tmp`. |
+| `NumberOfOutScores` | int | How many template files to update. |
+| `NumberOfTeamsPer` | int | Games written per template file. |
+
+`XmlToJson`:
+
+```json
+"XmlToJson": {
+  "Enabled": false,
+  "FilePaths": [
+    { "Path": "D:\\1.xml" }
+  ]
+}
+```
 
 ### NcaaNameConverter.json
-Contains name mappings for:
-- Team translations (6-char codes to display names)
-- Conference name translations
 
-## 🚀 Usage
-
-### Getting Started
-
-1. **Launch the Application**: Run `NcaaTranslator.Wpf.exe`
-2. **Initial Setup**: The app starts automatically and begins fetching data
-3. **Configure Sports**: Go to Settings → Sports tab to enable desired sports
-4. **Set Home Team**: Configure your favorite team in Settings → General
-
-### Main Interface
-
-The main tab displays live game data organized by sport:
-
-- **Sport Expanders**: Click to expand/collapse sport details
-- **Game Information**: Home/Away teams, scores, and game clock
-- **Status Indicators**: Running/Stopped status and last update time
-
-### Basic Workflow
-
-1. **Enable Sports**: In Settings → Sports, check "Enabled" for sports you want to monitor
-2. **Configure Display**: Choose game display mode (Live/All/Display)
-3. **Start Monitoring**: Click "Start" to begin automatic data fetching
-4. **Monitor Games**: View live scores and game status in the main tab
-
-## 🖥️ User Interface
-
-### Main Tab
-- **Control Panel**: Start/Stop buttons and status information
-- **Sports Display**: Expandable sections showing games by sport
-- **Game Details**: Team names, scores, and game clocks
-
-### Settings Tab
-
-#### General Settings
-- **Timer**: Set data refresh interval (5-300 seconds)
-- **Home Team**: Select your primary team for special handling
-
-#### Sports Configuration
-- **Add/Remove Sports**: Manage which sports to monitor
-- **Sport Details**: Name, code, division, week, season year, conference
-- **Game Lists**: Enable conference, non-conference, and top-25 games
-- **Display Mode**: Choose how games are filtered
-- **OOS Updates**: Configure XML template updates
-
-#### Display Teams
-- **Team Management**: Add teams for "Display" mode filtering
-- **Search**: Find teams quickly by name
-
-#### XML to JSON
-- **Conversion Toggle**: Enable/disable XML-to-JSON conversion
-- **File Paths**: Configure input XML file locations
-
-### Name Converters Tab
-
-#### Teams
-- **Search**: Filter teams by name or code
-- **Edit Display Names**: Customize how team names appear
-- **6-Character Codes**: NCAA standard team identifiers
-
-#### Conferences
-- **Search**: Filter conferences by name
-- **Custom Names**: Override default conference names
-
-## 🔧 Settings
-
-### Timer Configuration
-```json
-"Timer": 20
-```
-- Range: 5-300 seconds
-- Default: 20 seconds
-- Controls how often data is fetched from NCAA APIs
-
-### Home Team Setup
-```json
-"HomeTeam": "NO DAK"
-```
-- Uses 6-character NCAA team code
-- Affects game categorization and display
-
-### Sports Configuration
-Each sport can be configured with:
-- **Enabled**: Whether to monitor this sport
-- **Conference**: Associated conference for filtering
-- **Division/Week**: NCAA API parameters
-- **Season Year**: Optional NCAA `seasonYear` override. Leave blank to use the academic year (August–July). Calendar year is not used — January 2026 is still season 2025.
-- **Lists Needed**: Which game categories to include
-- **OOS Settings**: XML template update configuration
-
-### Display Teams
-```json
-"DisplayTeams": [
-  {
-    "NcaaTeamName": "UVA"
-  }
-]
-```
-Teams listed here are prioritized in "Display" mode.
-
-## 🏷️ Name Converters
-
-### Team Name Translation
-The application maintains a mapping between NCAA's 6-character team codes and display names:
+Team mappings (NCAA 6-character code → display name):
 
 ```json
 {
@@ -205,8 +106,7 @@ The application maintains a mapping between NCAA's 6-character team codes and di
 }
 ```
 
-### Conference Translation
-Similar mapping for conference names:
+Conference mappings:
 
 ```json
 {
@@ -215,69 +115,13 @@ Similar mapping for conference names:
 }
 ```
 
-## 🔍 Troubleshooting
+Unknown teams/conferences encountered in live data are appended to this file.
 
-### Common Issues
+## Troubleshooting
 
-#### Application Won't Start
-- Ensure .NET 8.0 Desktop Runtime is installed
-- Check Windows Event Viewer for error details
-- Verify config files are present and valid JSON
+- App will not start: install the .NET 8 desktop runtime; confirm `Settings.json` and `NcaaNameConverter.json` sit next to the exe and are valid JSON.
+- No games: check network access to NCAA APIs, that the sport is `Enabled`, and that the timer is running.
+- Settings not saved: the process needs write permission on the config files.
+- OOS updates fail: `OosFilePath` must exist and the `{OosFileName}{n}.tmp` templates must be writable.
 
-#### No Data Appearing
-- Check internet connection
-- Verify sports are enabled in settings
-- Confirm NCAA APIs are accessible
-- Check timer is running (Status: Running)
-
-#### Settings Not Saving
-- Ensure write permissions to config directory
-- Check JSON syntax in configuration files
-- Restart application after manual config changes
-
-#### OOS Updates Not Working
-- Verify file paths exist and are writable
-- Check OOS settings are properly configured
-- Ensure XML templates are in correct format
-
-### Debug Mode
-- Enable additional logging by checking the console output
-
-### Logs and Diagnostics
-- Application logs errors silently by default
-- Check Windows Event Viewer for system-level errors
-- Manual config file validation using JSON validators
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### Development Setup
-```bash
-# Clone and setup
-git clone https://github.com/yourusername/NcaaTranslator.git
-cd NcaaTranslator
-
-# Build all components
-dotnet build NcaaTranslator.sln
-
-# Run tests
-dotnet test
-
-# Debug WPF app
-dotnet run --project src/NcaaTranslator.Wpf/
-```
-
-## 🙏 Acknowledgments
-
-- NCAA for providing sports data APIs
-- .NET community for excellent development tools
-- WPF for robust desktop application framework
-
----
-
-**Note**: This application is not officially affiliated with the NCAA. Please ensure compliance with NCAA data usage policies.
+This project is not affiliated with the NCAA. Follow NCAA data-use rules.

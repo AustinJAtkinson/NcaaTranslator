@@ -185,47 +185,6 @@
                 <Setter Property="Margin" Value="0,0,0,8"/>
             </Style>
 
-            <!-- Modern ListView Style -->
-            <Style x:Key="ModernListViewStyle" TargetType="ListView">
-                <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
-                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
-                <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="Padding" Value="0"/>
-            </Style>
-
-            <!-- Modern Navigation Button Style -->
-            <Style x:Key="ModernNavButtonStyle" TargetType="Button">
-                <Setter Property="Background" Value="Transparent"/>
-                <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
-                <Setter Property="BorderThickness" Value="0"/>
-                <Setter Property="Height" Value="48"/>
-                <Setter Property="Padding" Value="20,12"/>
-                <Setter Property="FontSize" Value="14"/>
-                <Setter Property="FontWeight" Value="SemiBold"/>
-                <Setter Property="Cursor" Value="Hand"/>
-                <Setter Property="HorizontalAlignment" Value="Stretch"/>
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="Button">
-                            <Border x:Name="border" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}" CornerRadius="0">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="border" Property="Background" Value="{DynamicResource HoverBrush}"/>
-                                    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-                                </Trigger>
-                                <Trigger Property="Tag" Value="Selected">
-                                    <Setter TargetName="border" Property="Background" Value="{DynamicResource PrimaryBrush}"/>
-                                    <Setter Property="Foreground" Value="White"/>
-                                    <Setter Property="FontWeight" Value="Bold"/>
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
-            </Style>
-
             <!-- Modern TabPanel Style -->
             <Style TargetType="TabPanel">
                 <Setter Property="HorizontalAlignment" Value="Stretch"/>
