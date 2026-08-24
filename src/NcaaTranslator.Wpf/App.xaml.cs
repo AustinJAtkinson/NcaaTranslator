@@ -11,6 +11,10 @@ public partial class App : Application
 {
     protected override void OnStartup(StartupEventArgs e)
     {
+        var appDir = AppContext.BaseDirectory;
+        Settings.BaseDirectory = appDir;
+        NameConverters.BaseDirectory = appDir;
+
         base.OnStartup(e);
         ThemeManager.ApplySystemTheme();
 

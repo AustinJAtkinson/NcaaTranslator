@@ -74,6 +74,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         try
         {
+            var appDir = AppContext.BaseDirectory;
+            NameConverters.BaseDirectory = appDir;
+            Settings.BaseDirectory = appDir;
             NameConverters.Load();
             Settings.Load();
             aTimer!.Interval = Settings.Timer;

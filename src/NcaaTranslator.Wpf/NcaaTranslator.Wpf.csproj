@@ -5,11 +5,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- PreserveNewest so rebuilds do not clobber user Settings.json / NcaaNameConverter.json in bin/ -->
     <Content Include="..\..\config\Settings.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="..\..\config\NcaaNameConverter.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 

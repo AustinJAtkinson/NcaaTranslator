@@ -33,8 +33,19 @@ namespace NcaaTranslator.Library
         internal static Dictionary<string, Team> TeamDict { get; set; } = new Dictionary<string, Team>();
         internal static Dictionary<string, Conferences> ConfDict { get; set; } = new Dictionary<string, Conferences>();
         public static NameConverter? NameList { get; set; }
+        public static string BaseDirectory { get; set; } = AppContext.BaseDirectory;
         // DO NOT CHANGE THIS PATH - it is correct as is
         internal static string FilePath = "NcaaNameConverter.json";
+
+        internal static string ResolvePath()
+        {
+            if (string.IsNullOrWhiteSpace(FilePath))
+                throw new InvalidOperationException("Name converter file path is not set.");
+
+            return Path.IsPathRooted(FilePath)
+                ? Path.GetFullPath(FilePath)
+                : Path.GetFullPath(Path.Combine(BaseDirectory, FilePath));
+        }
 
         public static List<Team> GetTeams()
         {
@@ -51,10 +62,18 @@ namespace NcaaTranslator.Library
             if (path != null)
                 FilePath = path;
 
-            string jsonString = File.ReadAllText(FilePath);
-            NameList = JsonSerializer.Deserialize<NameConverter>(jsonString)!;
-            TeamDict = ToLastWinsDictionary(NameList!.teams, x => x.name6Char);
-            ConfDict = ToLastWinsDictionary(NameList!.conferences, x => x.conferenceSeo);
+            var resolved = ResolvePath();
+            if (!File.Exists(resolved))
+                throw new FileNotFoundException($"Name converter file not found: {resolved}", resolved);
+
+            string jsonString = File.ReadAllText(resolved);
+            NameList = JsonSerializer.Deserialize<NameConverter>(jsonString);
+            if (NameList == null)
+                throw new InvalidDataException($"Name converter file is empty or invalid: {resolved}");
+            NameList.teams ??= new List<Team>();
+            NameList.conferences ??= new List<Conferences>();
+            TeamDict = ToLastWinsDictionary(NameList.teams, x => x.name6Char);
+            ConfDict = ToLastWinsDictionary(NameList.conferences, x => x.conferenceSeo);
         }
 
         private static Dictionary<string, T> ToLastWinsDictionary<T>(List<T> items, Func<T, string?> keySelector)
@@ -74,7 +93,7 @@ namespace NcaaTranslator.Library
         {
             NameList!.teams = NameList.teams.OrderBy(x => x.name6Char).ToList();
             NameList!.conferences = NameList.conferences.OrderBy(x => x.customConferenceName).ToList();
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(NameList));
+            File.WriteAllText(ResolvePath(), JsonSerializer.Serialize(NameList));
             Load();
         }
 

@@ -19,8 +19,10 @@ internal static class TestHelpers
         NameConverters.TeamDict = new Dictionary<string, Team>();
         NameConverters.ConfDict = new Dictionary<string, Conferences>();
         NameConverters.FilePath = "NcaaNameConverter.json";
+        NameConverters.BaseDirectory = AppContext.BaseDirectory;
         Settings.SettingsList = null;
         Settings.fileName = "Settings.json";
+        Settings.BaseDirectory = AppContext.BaseDirectory;
         NcaaProcessor.HttpClient = NcaaProcessor.CreateHttpClient();
     }
 
@@ -159,6 +161,8 @@ internal sealed class TempWorkspace : IDisposable
         _originalCwd = Directory.GetCurrentDirectory();
         Directory.SetCurrentDirectory(DirectoryPath);
         TestHelpers.ResetStatics();
+        Settings.BaseDirectory = DirectoryPath;
+        NameConverters.BaseDirectory = DirectoryPath;
     }
 
     public void Dispose()

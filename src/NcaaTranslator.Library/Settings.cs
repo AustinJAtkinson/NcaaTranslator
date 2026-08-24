@@ -303,21 +303,38 @@ namespace NcaaTranslator.Library
     public class Settings
     {
         public static Setting? SettingsList { get; set; }
+        public static string BaseDirectory { get; set; } = AppContext.BaseDirectory;
         // DO NOT CHANGE THIS PATH - it is correct as is
         internal static string fileName = "Settings.json";
+
+        internal static string ResolvePath()
+        {
+            if (string.IsNullOrWhiteSpace(fileName))
+                throw new InvalidOperationException("Settings file name is not set.");
+
+            return Path.IsPathRooted(fileName)
+                ? Path.GetFullPath(fileName)
+                : Path.GetFullPath(Path.Combine(BaseDirectory, fileName));
+        }
 
         public static void Load(string? path = null)
         {
             if (path != null)
                 fileName = path;
 
+            var resolved = ResolvePath();
+            if (!File.Exists(resolved))
+                throw new FileNotFoundException($"Settings file not found: {resolved}", resolved);
+
             var options = new JsonSerializerOptions
             {
                 ReadCommentHandling = JsonCommentHandling.Skip
             };
 
-            string jsonString = File.ReadAllText(fileName);
-            SettingsList = JsonSerializer.Deserialize<Setting>(jsonString, options)!;
+            string jsonString = File.ReadAllText(resolved);
+            SettingsList = JsonSerializer.Deserialize<Setting>(jsonString, options);
+            if (SettingsList == null)
+                throw new InvalidDataException($"Settings file is empty or invalid: {resolved}");
         }
 
         public static List<Sport>? GetSports()
@@ -336,7 +353,7 @@ namespace NcaaTranslator.Library
 
         public static void Save()
         {
-            File.WriteAllText(fileName, JsonSerializer.Serialize(SettingsList));
+            File.WriteAllText(ResolvePath(), JsonSerializer.Serialize(SettingsList));
         }
 
     }
