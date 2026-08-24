@@ -4,7 +4,7 @@ namespace NcaaTranslator.Library.Tests;
 
 public class ConfigPathTests : IDisposable
 {
-    private readonly TempWorkspace _workspace = new();
+    private readonly TempWorkspace _workspace = new(isolateCwd: true);
 
     public void Dispose() => _workspace.Dispose();
 
@@ -28,6 +28,7 @@ public class ConfigPathTests : IDisposable
         Assert.Equal(42, Settings.SettingsList!.Timer);
         Assert.Equal("NDSU", Settings.homeTeam);
         Assert.Equal(ExpectedPath("Settings.json"), Settings.ResolvePath());
+        AssertConfigOnlyInBaseDirectory("Settings.json");
     }
 
     [Fact]
@@ -38,6 +39,7 @@ public class ConfigPathTests : IDisposable
 
         Assert.Contains("Settings.json", ex.Message);
         Assert.Contains(expected, ex.Message);
+        Assert.DoesNotContain(Path.GetFullPath(_workspace.CwdPath), ex.Message);
         Assert.Equal(expected, ex.FileName);
         Assert.Null(Settings.SettingsList);
     }
@@ -72,6 +74,8 @@ public class ConfigPathTests : IDisposable
             Assert.Equal(Path.GetFullPath(path), Settings.ResolvePath());
             Assert.Contains("\"Timer\":9", File.ReadAllText(path));
             Assert.False(File.Exists(Path.Combine(_workspace.DirectoryPath, "Settings.json")));
+            Assert.False(File.Exists(Path.Combine(_workspace.CwdPath, "custom-settings.json")));
+            Assert.False(File.Exists(Path.Combine(_workspace.CwdPath, "Settings.json")));
         }
         finally
         {
@@ -100,6 +104,7 @@ public class ConfigPathTests : IDisposable
         Assert.Equal(ExpectedPath("NcaaNameConverter.json"), NameConverters.ResolvePath());
         Assert.Contains(NameConverters.GetTeams(), t => t.name6Char == "ZZZ");
         Assert.Contains("ZZZ", File.ReadAllText(NameConverters.ResolvePath()));
+        AssertConfigOnlyInBaseDirectory("NcaaNameConverter.json");
     }
 
     [Fact]
@@ -110,6 +115,7 @@ public class ConfigPathTests : IDisposable
 
         Assert.Contains("NcaaNameConverter.json", ex.Message);
         Assert.Contains(expected, ex.Message);
+        Assert.DoesNotContain(Path.GetFullPath(_workspace.CwdPath), ex.Message);
         Assert.Equal(expected, ex.FileName);
         Assert.Null(NameConverters.NameList);
     }
@@ -140,6 +146,15 @@ public class ConfigPathTests : IDisposable
     private void WriteSettings(string json)
     {
         File.WriteAllText(Path.Combine(_workspace.DirectoryPath, "Settings.json"), json);
+    }
+
+    private void AssertConfigOnlyInBaseDirectory(string fileName)
+    {
+        Assert.True(File.Exists(ExpectedPath(fileName)));
+        Assert.False(File.Exists(Path.Combine(_workspace.CwdPath, fileName)));
+        Assert.NotEqual(
+            Path.GetFullPath(_workspace.CwdPath),
+            Path.GetFullPath(_workspace.DirectoryPath));
     }
 
     private string ExpectedPath(string fileName) =>

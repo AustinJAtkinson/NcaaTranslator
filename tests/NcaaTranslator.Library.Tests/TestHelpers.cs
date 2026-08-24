@@ -153,16 +153,30 @@ internal sealed class FakeHttpMessageHandler : HttpMessageHandler
 internal sealed class TempWorkspace : IDisposable
 {
     public string DirectoryPath { get; }
+    public string CwdPath { get; }
     private readonly string _originalCwd;
+    private readonly bool _ownsCwd;
 
-    public TempWorkspace()
+    public TempWorkspace(bool isolateCwd = false)
     {
         DirectoryPath = TestHelpers.CreateTempDir();
         _originalCwd = Directory.GetCurrentDirectory();
-        Directory.SetCurrentDirectory(DirectoryPath);
         TestHelpers.ResetStatics();
         Settings.BaseDirectory = DirectoryPath;
         NameConverters.BaseDirectory = DirectoryPath;
+
+        if (isolateCwd)
+        {
+            CwdPath = TestHelpers.CreateTempDir();
+            _ownsCwd = true;
+        }
+        else
+        {
+            CwdPath = DirectoryPath;
+            _ownsCwd = false;
+        }
+
+        Directory.SetCurrentDirectory(CwdPath);
     }
 
     public void Dispose()
@@ -170,5 +184,7 @@ internal sealed class TempWorkspace : IDisposable
         Directory.SetCurrentDirectory(_originalCwd);
         TestHelpers.ResetStatics();
         try { Directory.Delete(DirectoryPath, true); } catch { }
+        if (_ownsCwd)
+            try { Directory.Delete(CwdPath, true); } catch { }
     }
 }
