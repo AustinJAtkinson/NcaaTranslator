@@ -15,7 +15,7 @@ dotnet build NcaaTranslator.sln
 dotnet run --project src/NcaaTranslator.Wpf/NcaaTranslator.Wpf.csproj
 ```
 
-On a non-Windows host, pass `/p:EnableWindowsTargeting=true` to `dotnet build` / `dotnet test`. The WPF app itself only runs on Windows.
+On a non-Windows host, pass `/p:EnableWindowsTargeting=true` to `dotnet restore`, `dotnet build`, and `dotnet test`. The WPF app itself only runs on Windows.
 
 Tests:
 
@@ -99,10 +99,10 @@ Team mappings (NCAA 6-character code → display name):
 
 ```json
 {
-  "name6Char": "NODAK",
+  "name6Char": "NO DAK",
   "customName": "North Dakota",
   "seoname": "north-dakota",
-  "nameShort": "Fighting Hawks"
+  "nameShort": "North Dakota"
 }
 ```
 
