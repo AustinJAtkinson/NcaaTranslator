@@ -25,6 +25,7 @@ The NcaaTranslator is a .NET application designed to process and translate NCAA-
 - **Location**: `src/NcaaTranslator.Library/NcaaProcessor.cs`
 - **Responsibilities**:
   - Constructs URLs for NCAA API queries based on sport, season, week, or date.
+  - Resolves NCAA `seasonYear` from the academic calendar (August rollover) unless a sport sets `SeasonYear`.
   - Fetches JSON responses from NCAA endpoints asynchronously.
   - Fixes and translates team and conference names in contest data using NameConverter.
   - Categorizes games into conference, non-conference, home, display, and top-25 lists.

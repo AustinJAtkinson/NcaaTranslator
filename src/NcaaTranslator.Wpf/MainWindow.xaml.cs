@@ -391,6 +391,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 sport.Week = week;
             }
         }
+        else if (e.Column.Header.ToString() == "Season Year")
+        {
+            var textBox = e.EditingElement as TextBox;
+            if (textBox != null)
+            {
+                if (string.IsNullOrWhiteSpace(textBox.Text))
+                    sport.SeasonYear = null;
+                else if (int.TryParse(textBox.Text, out int seasonYear))
+                    sport.SeasonYear = seasonYear;
+            }
+        }
         else if (e.Column.Header.ToString() == "OOS Path")
         {
             var textBox = e.EditingElement as TextBox;

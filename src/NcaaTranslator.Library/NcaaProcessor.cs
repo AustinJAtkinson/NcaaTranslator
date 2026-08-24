@@ -28,7 +28,7 @@ namespace NcaaTranslator.Library
 
         public static string GetUrl(Sport sport)
         {
-            int seasonYear = 2025;
+            int seasonYear = GetSeasonYear(sport);
             int? week = GetCurrentWeek(sport.SportCode!);
             string? contestDate = week.HasValue ? null : DateTime.Now.ToString("MM/dd/yyyy");
             var variables = new
@@ -41,6 +41,15 @@ namespace NcaaTranslator.Library
             };
             string variablesJson = JsonSerializer.Serialize(variables);
             return $"https://sdataprod.ncaa.com/?meta=GetContests_web&extensions={{\"persistedQuery\":{{\"version\":1,\"sha256Hash\":\"7287cda610a9326931931080cb3a604828febe6fe3c9016a7e4a36db99efdb7c\"}}}}&variables={variablesJson}";
+        }
+
+        public static int GetSeasonYear(Sport sport, DateTime? asOf = null)
+        {
+            if (sport.SeasonYear.HasValue)
+                return sport.SeasonYear.Value;
+
+            var date = asOf ?? DateTime.Now;
+            return date.Month >= 8 ? date.Year : date.Year - 1;
         }
 
         private static int? GetCurrentWeek(string sportCode)

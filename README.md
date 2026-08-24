@@ -131,7 +131,7 @@ The main tab displays live game data organized by sport:
 
 #### Sports Configuration
 - **Add/Remove Sports**: Manage which sports to monitor
-- **Sport Details**: Name, code, division, week, conference
+- **Sport Details**: Name, code, division, week, season year, conference
 - **Game Lists**: Enable conference, non-conference, and top-25 games
 - **Display Mode**: Choose how games are filtered
 - **OOS Updates**: Configure XML template updates
@@ -177,6 +177,7 @@ Each sport can be configured with:
 - **Enabled**: Whether to monitor this sport
 - **Conference**: Associated conference for filtering
 - **Division/Week**: NCAA API parameters
+- **Season Year**: Optional NCAA `seasonYear` override. Leave blank to use the academic year (August–July). Calendar year is not used — January 2026 is still season 2025.
 - **Lists Needed**: Which game categories to include
 - **OOS Settings**: XML template update configuration
 

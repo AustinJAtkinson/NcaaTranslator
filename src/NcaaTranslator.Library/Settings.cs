@@ -200,6 +200,7 @@ namespace NcaaTranslator.Library
         public string? SportCode { get; set; }
         public int Division { get; set; }
         public int? Week { get; set; }
+        public int? SeasonYear { get; set; }
         public OosUpdater OosUpdater { get; set; } = new OosUpdater();
         public ListsNeeded ListsNeeded { get; set; } = new ListsNeeded();
 

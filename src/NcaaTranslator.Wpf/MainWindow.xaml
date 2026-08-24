@@ -171,6 +171,7 @@
                                         </DataGridTemplateColumn>
                                         <DataGridTextColumn Header="Division" Binding="{Binding Division}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
                                         <DataGridTextColumn Header="Week" Binding="{Binding Week}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
+                                        <DataGridTextColumn Header="Season Year" Binding="{Binding SeasonYear}" Width="Auto" EditingElementStyle="{DynamicResource ModernTextBoxStyle}"/>
                                         <DataGridCheckBoxColumn Header="Conf" Binding="{Binding ListsNeeded.conferenceGames, UpdateSourceTrigger=PropertyChanged}" Width="Auto" ElementStyle="{DynamicResource CenteredModernCheckBoxStyle}" EditingElementStyle="{DynamicResource CenteredModernCheckBoxStyle}"/>
                                         <DataGridCheckBoxColumn Header="Non-Conf" Binding="{Binding ListsNeeded.nonConferenceGames, UpdateSourceTrigger=PropertyChanged}" Width="Auto" ElementStyle="{DynamicResource CenteredModernCheckBoxStyle}" EditingElementStyle="{DynamicResource CenteredModernCheckBoxStyle}"/>
                                         <DataGridCheckBoxColumn Header="Top 25" Binding="{Binding ListsNeeded.top25Games, UpdateSourceTrigger=PropertyChanged}" Width="Auto" ElementStyle="{DynamicResource CenteredModernCheckBoxStyle}" EditingElementStyle="{DynamicResource CenteredModernCheckBoxStyle}"/>

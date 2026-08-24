@@ -174,6 +174,7 @@ namespace NcaaTranslator.Library
                     sport.GameDisplayMode = userSport.GameDisplayMode;
                     sport.ConferenceName = userSport.ConferenceName ?? sport.ConferenceName;
                     sport.Week = userSport.Week ?? sport.Week;
+                    sport.SeasonYear = userSport.SeasonYear ?? sport.SeasonYear;
                     sport.OosUpdater = userSport.OosUpdater ?? sport.OosUpdater;
                     sport.ListsNeeded = userSport.ListsNeeded ?? sport.ListsNeeded;
                 }
