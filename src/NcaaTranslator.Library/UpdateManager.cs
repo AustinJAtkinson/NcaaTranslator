@@ -29,43 +29,37 @@ namespace NcaaTranslator.Library
             _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("NcaaTranslator", GetCurrentVersion().ToString()));
         }
 
-        public static async Task CheckForUpdatesAsync()
+        public static bool ShouldUpdate(Version current, Version latest)
         {
-#if DEBUG
-            // Skip updates in debug mode
-            return;
-#endif
+            return latest > current;
+        }
 
+        public static async Task<GitHubRelease?> GetAvailableUpdateAsync()
+        {
             try
             {
                 var currentVersion = GetCurrentVersion();
                 var latestRelease = await GetLatestReleaseAsync();
 
-                if (latestRelease?.tag_name != null && Version.TryParse(latestRelease.tag_name.TrimStart('v'), out var latestVersion))
+                if (latestRelease?.tag_name != null
+                    && Version.TryParse(latestRelease.tag_name.TrimStart('v'), out var latestVersion)
+                    && ShouldUpdate(currentVersion, latestVersion))
                 {
-                    if (latestVersion != currentVersion)
-                    {
-                        // Update available
-                        var newExePath = await DownloadAndInstallUpdateAsync(latestRelease);
-                        if (newExePath != null)
-                        {
-                            // Launch new version and exit
-                            Process.Start(newExePath);
-                            Environment.Exit(0);
-                        }
-                    }
+                    return latestRelease;
                 }
             }
             catch (Exception ex)
             {
-                // Log error silently
                 Debug.WriteLine($"Update check failed: {ex.Message}");
             }
+
+            return null;
         }
 
-        private static Version GetCurrentVersion()
+        public static Version GetCurrentVersion()
         {
-            return Assembly.GetExecutingAssembly().GetName().Version ?? new Version(1, 0, 0);
+            var assembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
+            return assembly.GetName().Version ?? new Version(1, 0, 0);
         }
 
         private static async Task<GitHubRelease?> GetLatestReleaseAsync()
@@ -193,7 +187,7 @@ namespace NcaaTranslator.Library
             return merged;
         }
 
-        private static async Task<string?> DownloadAndInstallUpdateAsync(GitHubRelease release)
+        public static async Task<string?> DownloadAndInstallUpdateAsync(GitHubRelease release)
         {
             if (release.assets == null || !release.assets.Any())
                 return null;

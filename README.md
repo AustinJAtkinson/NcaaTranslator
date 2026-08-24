@@ -242,7 +242,6 @@ Similar mapping for conference names:
 
 ### Debug Mode
 - Enable additional logging by checking the console output
-- Use the console application version for command-line debugging
 
 ### Logs and Diagnostics
 - Application logs errors silently by default

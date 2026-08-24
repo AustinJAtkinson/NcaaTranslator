@@ -70,13 +70,6 @@ The NcaaTranslator is a .NET application designed to process and translate NCAA-
   - MainWindow for user interaction.
   - Integrates with library components for real-time data processing.
 
-### Console Application
-- **Location**: `src/NcaaTranslator.Console/`
-- **Purpose**: Command-line interface for batch processing and automated operations.
-- **Key Features**:
-  - Program.cs entry point for console-based execution.
-  - Suitable for scheduled tasks or headless environments.
-
 ## Configuration
 
 - **Settings.json**: Main configuration file containing sports, display teams, timer settings, and home team.
