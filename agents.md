@@ -40,8 +40,22 @@ The NcaaTranslator is a .NET application designed to process and translate NCAA-
   - Defines structures for contests (games), teams, and data collections.
   - Includes properties for game state, scores, periods, clocks, and start times.
   - Provides computed properties for display clocks (e.g., handling pre-game, final, and in-progress states).
+  - Exposes HomeTeam / AwayTeam (and custom name/score) from `isHome`, not list order.
   - Supports serialization with JSON ignore conditions for null collections.
   - Represents various game lists: non-conference, conference, home, display, and top-25 games.
+
+### TeamSelection
+- **Purpose**: Resolves combo-box team picks to NCAA 6-character codes.
+- **Location**: `src/NcaaTranslator.Library/TeamSelection.cs`
+- **Responsibilities**:
+  - Builds display/value options with `name6Char` as the persisted value.
+  - Maps selected value or typed display/short names back to `name6Char`.
+
+### SingleFlightGate
+- **Purpose**: Prevents overlapping async conversions.
+- **Location**: `src/NcaaTranslator.Library/SingleFlightGate.cs`
+- **Responsibilities**:
+  - Single-flight `SemaphoreSlim` so a second poll is skipped while one is running.
 
 ### OutScore
 - **Purpose**: XML serialization models for graphics templates used in score displays.
@@ -69,6 +83,7 @@ The NcaaTranslator is a .NET application designed to process and translate NCAA-
 - **Key Features**:
   - MainWindow for user interaction.
   - Integrates with library components for real-time data processing.
+  - Loads settings/converters once at startup, gates polling, and updates sport expanders in place.
 
 ## Configuration
 

@@ -1,18 +1,7 @@
-﻿using System.Text;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 using System.Timers;
 using NcaaTranslator.Library;
-using System.Text.Json;
-using System.Linq;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 
@@ -28,9 +17,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private List<Team> _originalTeams = new List<Team>();
     private List<Conferences> _originalConferences = new List<Conferences>();
     private List<Sport> _originalSports = new List<Sport>();
-    private List<object> _originalAddTeamOptions = new List<object>();
+    private List<TeamOption> _originalAddTeamOptions = new List<TeamOption>();
+    private List<TeamOption> _teamOptions = new List<TeamOption>();
     private Dictionary<string, NcaaScoreboard> _sportScoreboards = new Dictionary<string, NcaaScoreboard>();
     private ObservableCollection<SportGamesViewModel> _sportTabs = new ObservableCollection<SportGamesViewModel>();
+    private readonly SingleFlightGate _conversionGate = new();
+    private bool _configLoaded;
+    private bool _settingsUiLoaded;
+    private bool _convertersUiLoaded;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -57,7 +51,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         InitializeComponent();
         DataContext = this;
         InitializeTimer();
+        SubscribeGridHandlers();
         LoadInitialData();
+    }
+
+    private void SubscribeGridHandlers()
+    {
+        TeamsDataGrid.CellEditEnding += TeamsDataGrid_CellEditEnding;
+        ConferencesDataGrid.CellEditEnding += ConferencesDataGrid_CellEditEnding;
+        AddTeamComboBox.AddHandler(System.Windows.Controls.Primitives.TextBoxBase.TextChangedEvent,
+            new TextChangedEventHandler(AddTeamComboBox_TextChanged));
     }
 
     private void InitializeTimer()
@@ -74,23 +77,33 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             NameConverters.Load();
             Settings.Load();
             aTimer!.Interval = Settings.Timer;
+            _configLoaded = true;
         }
         catch (Exception ex)
         {
-            // Error loading data - silently handle
+            _configLoaded = false;
+            StartButton.IsEnabled = false;
+            StatusText.Text = "Status: Load failed";
+            MessageBox.Show($"Error loading configuration: {ex.Message}", "Load Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
     private async void StartProcess()
     {
-        // Run the conversion once immediately
-        await PerformConversion(DateTime.Now);
+        if (!_configLoaded || Settings.SettingsList == null)
+        {
+            MessageBox.Show("Configuration failed to load. Polling will not start.", "Load Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
 
-        // Then start the timer for periodic runs
-        aTimer!.Enabled = true;
         StartButton.IsEnabled = false;
         StopButton.IsEnabled = true;
         StatusText.Text = "Status: Running";
+
+        await _conversionGate.RunAsync(() => PerformConversion(DateTime.Now));
+
+        if (aTimer != null)
+            aTimer.Enabled = true;
     }
 
     private void StartButton_Click(object sender, RoutedEventArgs e)
@@ -108,7 +121,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private async void ConvertNcaaScoreboard(Object? source, ElapsedEventArgs e)
     {
-        await PerformConversion(e.SignalTime);
+        await _conversionGate.RunAsync(() => PerformConversion(e.SignalTime));
     }
 
     private async Task PerformConversion(DateTime signalTime)
@@ -118,7 +131,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             LastUpdateText.Text = $"Last Update: {signalTime:HH:mm:ss.fff}";
         });
 
-        var sportsList = Settings.GetSports()!;
+        var sportsList = Settings.GetSports();
+        if (sportsList == null)
+            return;
 
         foreach (var sport in sportsList)
         {
@@ -129,23 +144,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 {
                     _sportScoreboards[sport.SportName!] = result;
                     UpdateSportsTabs();
-                    // Sport processing completed
                 });
             }
-            catch (Exception err)
+            catch (Exception)
             {
                 // Error processing sport - silently handle
             }
         }
 
-        if (Settings.XmlToJson!.Enabled)
+        if (Settings.XmlToJson?.Enabled == true)
         {
             try
             {
                 NcaaProcessor.ConvertXmlToJson(Settings.XmlToJson!);
-                // XML to JSON conversion completed
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // XML conversion error - silently handle
             }
@@ -157,64 +170,159 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         Dispatcher.Invoke(() =>
         {
-            var newSportTabs = new ObservableCollection<SportGamesViewModel>();
-            var enabledSports = Settings.GetSports()?.Where(s => s.Enabled) ?? new List<Sport>();
+            var enabledSports = Settings.GetSports()?.Where(s => s.Enabled) ?? Enumerable.Empty<Sport>();
+            var keepNames = new HashSet<string>();
+            var orderedNames = new List<string>();
 
             foreach (var sport in enabledSports)
             {
-                if (_sportScoreboards.TryGetValue(sport.SportName!, out var scoreboard) && scoreboard.data != null)
+                if (string.IsNullOrEmpty(sport.SportName))
+                    continue;
+
+                if (!_sportScoreboards.TryGetValue(sport.SportName, out var scoreboard) || scoreboard.data == null)
+                    continue;
+
+                keepNames.Add(sport.SportName);
+                orderedNames.Add(sport.SportName);
+
+                var gamesToShow = GetGamesToShow(scoreboard.data, sport.GameDisplayMode);
+                var existing = SportTabs.FirstOrDefault(t => t.SportName == sport.SportName);
+                if (existing != null)
                 {
-                    // Show all games for debugging first
-                    var allGames = scoreboard.data.conferenceGames.ToList();
-                    allGames.AddRange(scoreboard.data.nonConferenceGames);
-                    allGames.AddRange(scoreboard.data.homeGames);
-
-                    // Filter based on GameDisplayMode setting
-                    List<Contest> gamesToShow;
-                    switch (sport.GameDisplayMode)
+                    existing.UpdateFrom(sport, scoreboard.data, gamesToShow);
+                }
+                else
+                {
+                    SportTabs.Add(new SportGamesViewModel
                     {
-                        case GameDisplayMode.All:
-                            gamesToShow = allGames;
-                            break;
-                        case GameDisplayMode.Display:
-                            gamesToShow = scoreboard.data.displayGames ?? new List<Contest>();
-                            break;
-                        case GameDisplayMode.Live:
-                        default:
-                            gamesToShow = allGames.Where(c => c.gameState == "I").ToList();
-                            break;
-                    }
-
-                    newSportTabs.Add(new SportGamesViewModel
-                    {
-                        SportName = sport.SportName!,
-                        Games = gamesToShow,
-                        ConfGamesCount = scoreboard.data.conferenceGames.Count,
-                        NonConfGamesCount = scoreboard.data.nonConferenceGames.Count,
-                        DisplayGamesCount = scoreboard.data.displayGames?.Count ?? 0,
-                        HomeGamesCount = scoreboard.data.homeGames.Count,
+                        SportName = sport.SportName,
+                        Sport = sport,
                         GameDisplayMode = sport.GameDisplayMode,
-                        Sport = sport
+                        Games = gamesToShow,
+                        ConfGamesCount = scoreboard.data.conferenceGames?.Count ?? 0,
+                        NonConfGamesCount = scoreboard.data.nonConferenceGames?.Count ?? 0,
+                        DisplayGamesCount = scoreboard.data.displayGames?.Count ?? 0,
+                        HomeGamesCount = scoreboard.data.homeGames?.Count ?? 0
                     });
                 }
             }
 
-            SportTabs = newSportTabs;
+            for (int i = SportTabs.Count - 1; i >= 0; i--)
+            {
+                if (!keepNames.Contains(SportTabs[i].SportName))
+                    SportTabs.RemoveAt(i);
+            }
+
+            for (int i = 0; i < orderedNames.Count; i++)
+            {
+                var currentIndex = -1;
+                for (int j = 0; j < SportTabs.Count; j++)
+                {
+                    if (SportTabs[j].SportName == orderedNames[i])
+                    {
+                        currentIndex = j;
+                        break;
+                    }
+                }
+
+                if (currentIndex >= 0 && currentIndex != i)
+                    SportTabs.Move(currentIndex, i);
+            }
         });
+    }
+
+    private static List<Contest> GetGamesToShow(Data data, GameDisplayMode mode)
+    {
+        var conference = data.conferenceGames ?? new List<Contest>();
+        var nonConference = data.nonConferenceGames ?? new List<Contest>();
+        var home = data.homeGames ?? new List<Contest>();
+        var allGames = new List<Contest>(conference.Count + nonConference.Count + home.Count);
+        allGames.AddRange(conference);
+        allGames.AddRange(nonConference);
+        allGames.AddRange(home);
+
+        return mode switch
+        {
+            GameDisplayMode.All => allGames,
+            GameDisplayMode.Display => data.displayGames ?? new List<Contest>(),
+            _ => allGames.Where(c => c.gameState == "I").ToList()
+        };
     }
 
     public class SportGamesViewModel : INotifyPropertyChanged
     {
         private bool _isExpanded = true;
         private GameDisplayMode _gameDisplayMode = GameDisplayMode.Live;
+        private List<Contest> _games = new List<Contest>();
+        private int _confGamesCount;
+        private int _nonConfGamesCount;
+        private int _displayGamesCount;
+        private int _homeGamesCount;
 
         public string SportName { get; set; } = "";
-        public List<Contest> Games { get; set; } = new List<Contest>();
-        public int ConfGamesCount { get; set; }
-        public int NonConfGamesCount { get; set; }
-        public int DisplayGamesCount { get; set; }
-        public int HomeGamesCount { get; set; }
         public Sport Sport { get; set; } = new Sport { SportName = "", SportShortName = "" };
+
+        public List<Contest> Games
+        {
+            get => _games;
+            set
+            {
+                _games = value;
+                Raise(nameof(Games));
+            }
+        }
+
+        public int ConfGamesCount
+        {
+            get => _confGamesCount;
+            set
+            {
+                if (_confGamesCount != value)
+                {
+                    _confGamesCount = value;
+                    Raise(nameof(ConfGamesCount));
+                }
+            }
+        }
+
+        public int NonConfGamesCount
+        {
+            get => _nonConfGamesCount;
+            set
+            {
+                if (_nonConfGamesCount != value)
+                {
+                    _nonConfGamesCount = value;
+                    Raise(nameof(NonConfGamesCount));
+                }
+            }
+        }
+
+        public int DisplayGamesCount
+        {
+            get => _displayGamesCount;
+            set
+            {
+                if (_displayGamesCount != value)
+                {
+                    _displayGamesCount = value;
+                    Raise(nameof(DisplayGamesCount));
+                }
+            }
+        }
+
+        public int HomeGamesCount
+        {
+            get => _homeGamesCount;
+            set
+            {
+                if (_homeGamesCount != value)
+                {
+                    _homeGamesCount = value;
+                    Raise(nameof(HomeGamesCount));
+                }
+            }
+        }
 
         public bool IsExpanded
         {
@@ -224,7 +332,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 if (_isExpanded != value)
                 {
                     _isExpanded = value;
-                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsExpanded)));
+                    Raise(nameof(IsExpanded));
                 }
             }
         }
@@ -238,29 +346,28 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 {
                     _gameDisplayMode = value;
                     Sport.GameDisplayMode = value;
-                    // AutoSaveSettings and UpdateSportsTabs are called via Sport.PropertyChanged
-                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(GameDisplayMode)));
+                    Raise(nameof(GameDisplayMode));
                 }
             }
         }
 
-        public event PropertyChangedEventHandler? PropertyChanged;
-    }
-
-    private void TimerTextBox_TextChanged(object sender, TextChangedEventArgs e)
-    {
-        if (int.TryParse(((TextBox)sender).Text, out int timerValue))
+        public void UpdateFrom(Sport sport, Data data, List<Contest> games)
         {
-            Settings.SettingsList!.Timer = timerValue;
-            aTimer!.Interval = timerValue * 1000;
-            AutoSaveSettings();
+            Sport = sport;
+            Games = games;
+            ConfGamesCount = data.conferenceGames?.Count ?? 0;
+            NonConfGamesCount = data.nonConferenceGames?.Count ?? 0;
+            DisplayGamesCount = data.displayGames?.Count ?? 0;
+            HomeGamesCount = data.homeGames?.Count ?? 0;
+            GameDisplayMode = sport.GameDisplayMode;
         }
-    }
 
-    private void HomeTeamTextBox_TextChanged(object sender, TextChangedEventArgs e)
-    {
-        Settings.SettingsList!.HomeTeam = ((TextBox)sender).Text;
-        AutoSaveSettings();
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        private void Raise(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
     }
 
     private void TimerComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -289,22 +396,30 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private void PersistHomeTeam(string? selectedValue, string? text)
+    {
+        if (Settings.SettingsList == null)
+            return;
+
+        var options = _teamOptions.Count > 0 ? _teamOptions : TeamSelection.CreateOptions(NameConverters.GetTeams());
+        var code = TeamSelection.ResolveName6Char(selectedValue, text, options);
+        if (string.IsNullOrEmpty(code) || Settings.SettingsList.HomeTeam == code)
+            return;
+
+        Settings.SettingsList.HomeTeam = code;
+        AutoSaveSettings();
+    }
+
     private void HomeTeamComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (sender is ComboBox comboBox && comboBox.SelectedValue != null)
-        {
-            Settings.SettingsList!.HomeTeam = comboBox.SelectedValue.ToString();
-            AutoSaveSettings();
-        }
+        if (sender is ComboBox comboBox)
+            PersistHomeTeam(comboBox.SelectedValue as string, comboBox.Text);
     }
 
     private void HomeTeamComboBox_LostFocus(object sender, RoutedEventArgs e)
     {
         if (sender is ComboBox comboBox)
-        {
-            Settings.SettingsList!.HomeTeam = comboBox.Text;
-            AutoSaveSettings();
-        }
+            PersistHomeTeam(comboBox.SelectedValue as string, comboBox.Text);
     }
 
     private void SportsSearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -329,146 +444,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private void SportsDataGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
-    {
-        if (e.EditAction == DataGridEditAction.Cancel) return;
-
-        var sport = e.Row.Item as Sport;
-        if (sport == null) return;
-
-        // Validate and update based on column
-        if (e.Column.Header.ToString() == "Sport Name")
-        {
-            var textBox = e.EditingElement as TextBox;
-            if (textBox != null)
-            {
-                string newName = textBox.Text.Trim();
-                if (string.IsNullOrEmpty(newName))
-                {
-                    e.Cancel = true;
-                    return;
-                }
-                sport.SportName = newName;
-            }
-        }
-        else if (e.Column.Header.ToString() == "Sport Short Name")
-        {
-            var textBox = e.EditingElement as TextBox;
-            if (textBox != null)
-            {
-                sport.SportShortName = textBox.Text.Trim();
-            }
-        }
-        else if (e.Column.Header.ToString() == "Conference")
-        {
-            var textBox = e.EditingElement as TextBox;
-            if (textBox != null)
-            {
-                sport.ConferenceName = textBox.Text.Trim();
-            }
-        }
-        else if (e.Column.Header.ToString() == "Sport Code")
-        {
-            var textBox = e.EditingElement as TextBox;
-            if (textBox != null)
-            {
-                sport.SportCode = textBox.Text.Trim();
-            }
-        }
-        else if (e.Column.Header.ToString() == "Division")
-        {
-            var textBox = e.EditingElement as TextBox;
-            if (textBox != null && int.TryParse(textBox.Text, out int division))
-            {
-                sport.Division = division;
-            }
-        }
-        else if (e.Column.Header.ToString() == "Week")
-        {
-            var textBox = e.EditingElement as TextBox;
-            if (textBox != null && int.TryParse(textBox.Text, out int week))
-            {
-                sport.Week = week;
-            }
-        }
-        else if (e.Column.Header.ToString() == "Season Year")
-        {
-            var textBox = e.EditingElement as TextBox;
-            if (textBox != null)
-            {
-                if (string.IsNullOrWhiteSpace(textBox.Text))
-                    sport.SeasonYear = null;
-                else if (int.TryParse(textBox.Text, out int seasonYear))
-                    sport.SeasonYear = seasonYear;
-            }
-        }
-        else if (e.Column.Header.ToString() == "OOS Path")
-        {
-            var textBox = e.EditingElement as TextBox;
-            if (textBox != null)
-            {
-                sport.OosUpdater.OosFilePath = textBox.Text.Trim();
-            }
-        }
-        else if (e.Column.Header.ToString() == "OOS File")
-        {
-            var textBox = e.EditingElement as TextBox;
-            if (textBox != null)
-            {
-                sport.OosUpdater.OosFileName = textBox.Text.Trim();
-            }
-        }
-        else if (e.Column.Header.ToString() == "OOS Scores")
-        {
-            var textBox = e.EditingElement as TextBox;
-            if (textBox != null && int.TryParse(textBox.Text, out int value))
-            {
-                sport.OosUpdater.NumberOfOutScores = value;
-            }
-        }
-        else if (e.Column.Header.ToString() == "OOS Teams")
-        {
-            var textBox = e.EditingElement as TextBox;
-            if (textBox != null && int.TryParse(textBox.Text, out int value))
-            {
-                sport.OosUpdater.NumberOfTeamsPer = value;
-            }
-        }
-        else if (e.Column.Header.ToString() == "Display Mode")
-        {
-            var comboBox = e.EditingElement as ComboBox;
-            if (comboBox != null && comboBox.SelectedItem is GameDisplayMode mode)
-            {
-                sport.GameDisplayMode = mode;
-            }
-        }
-        else if (e.Column.Header.ToString() == "Conference")
-        {
-            var comboBox = e.EditingElement as ComboBox;
-            if (comboBox != null && comboBox.SelectedItem is string conference)
-            {
-                sport.ConferenceName = conference;
-            }
-        }
-
-        // Auto-save the changes
-        AutoSaveSettings();
-
-        // Refresh OOS column visibility if OOS settings were changed
-        if (e.Column.Header.ToString() == "OOS Enabled")
-        {
-            bool hasOosEnabled = HasAnyOosEnabled();
-            SetOosColumnsVisibility(hasOosEnabled);
-        }
-    }
-
-
     private void AutoSaveSettings()
     {
         try
         {
             Settings.Save();
-            // No status message needed for auto-save
         }
         catch (Exception ex)
         {
@@ -509,12 +489,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Settings.SettingsList!.Sports!.Add(newSport);
         _originalSports.Add(newSport);
 
-        // Subscribe to PropertyChanged events
         newSport.PropertyChanged += Sport_PropertyChanged;
         newSport.OosUpdater.PropertyChanged += OosUpdater_PropertyChanged;
         newSport.ListsNeeded.PropertyChanged += ListsNeeded_PropertyChanged;
 
-        // Refresh the DataGrid
         SportsDataGrid.Items.Refresh();
         AutoSaveSettings();
     }
@@ -538,7 +516,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             var result = MessageBox.Show($"Are you sure you want to remove the sport '{sportToRemove.SportName}'?", "Confirm Removal", MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (result == MessageBoxResult.Yes)
             {
-                // Find the sport in the settings list by matching properties since the Tag object might not be the same reference
                 var sportInList = Settings.SettingsList!.Sports!.FirstOrDefault(s =>
                     s.SportName == sportToRemove.SportName);
 
@@ -547,16 +524,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     if (sportInList != null)
                     {
                         Settings.SettingsList.Sports.Remove(sportInList);
-                        // Update the original sports list for search functionality
                         _originalSports.RemoveAll(s => s.SportName == sportToRemove.SportName);
-                        // Refresh the DataGrid
                         SportsDataGrid.Items.Refresh();
                         AutoSaveSettings();
                     }
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    // Error finding sport - silently handle
                     return;
                 }
             }
@@ -573,7 +547,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void SetOosColumnsVisibility(bool visible)
     {
-        // Find OOS columns by header name and set visibility
         foreach (var column in SportsDataGrid.Columns)
         {
             if (column.Header.ToString() == "OOS Path" ||
@@ -588,37 +561,26 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void LoadSettingsUI()
     {
-        // General settings
+        if (_settingsUiLoaded)
+            return;
+
         TimerComboBox.Text = Settings.SettingsList!.Timer.ToString();
 
-        // Populate Home Team ComboBox
-        if (NameConverters.NameList == null)
-        {
-            NameConverters.Load();
-        }
-        var teams = NameConverters.GetTeams();
-        var teamOptions = teams.Where(t => !string.IsNullOrEmpty(t.name6Char)).Select(t => new
-        {
-            Display = t.customName ?? t.nameShort ?? t.name6Char,
-            Value = t.name6Char
-        }).OrderBy(t => t.Display).ToList();
-        HomeTeamComboBox.ItemsSource = teamOptions;
-        HomeTeamComboBox.DisplayMemberPath = "Display";
-        HomeTeamComboBox.SelectedValuePath = "Value";
+        _teamOptions = TeamSelection.CreateOptions(NameConverters.GetTeams());
+        HomeTeamComboBox.ItemsSource = _teamOptions;
+        HomeTeamComboBox.DisplayMemberPath = nameof(TeamOption.Display);
+        HomeTeamComboBox.SelectedValuePath = nameof(TeamOption.Value);
 
-        // Set current selection if it exists
-        var currentTeam = teamOptions.FirstOrDefault(t => t.Value == Settings.homeTeam);
+        var currentTeam = _teamOptions.FirstOrDefault(t => t.Value == Settings.homeTeam);
         if (currentTeam != null)
         {
             HomeTeamComboBox.SelectedItem = currentTeam;
         }
 
-        // Sports
         var sports = Settings.GetSports();
         SportsDataGrid.ItemsSource = sports;
         _originalSports = new List<Sport>(sports!);
 
-        // Subscribe to PropertyChanged events for auto-save
         foreach (var sport in sports!)
         {
             sport.PropertyChanged += Sport_PropertyChanged;
@@ -626,68 +588,43 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             sport.ListsNeeded.PropertyChanged += ListsNeeded_PropertyChanged;
         }
 
-        // Set conference dropdown items
-        if (NameConverters.NameList == null)
-        {
-            NameConverters.Load();
-        }
         var conferences = NameConverters.GetConferences();
         var conferenceNames = conferences.Select(c => c.customConferenceName).ToList();
         ConferenceNames = conferenceNames;
 
-        // Conditionally show/hide OOS columns based on whether any sport has OOS enabled
         bool hasOosEnabled = HasAnyOosEnabled();
         SetOosColumnsVisibility(hasOosEnabled);
 
-        // Set up event handlers for DataGrid validation
-        SportsDataGrid.CellEditEnding += SportsDataGrid_CellEditEnding;
-
-        // Display Teams
         DisplayTeamsDataGrid.ItemsSource = Settings.GetDisplayTeams();
 
-        // Populate Add Team ComboBox with teams from NameConverters
-        if (NameConverters.NameList == null)
-        {
-            NameConverters.Load();
-        }
-        var addTeams = NameConverters.GetTeams();
-        var addTeamOptions = addTeams.Where(t => !string.IsNullOrEmpty(t.name6Char)).Select(t => new
-        {
-            Display = t.customName ?? t.nameShort ?? t.name6Char,
-            Value = t.nameShort ?? t.name6Char
-        }).OrderBy(t => t.Display).ToList();
-        _originalAddTeamOptions = addTeamOptions.Cast<object>().ToList();
-        AddTeamComboBox.ItemsSource = addTeamOptions;
-        AddTeamComboBox.DisplayMemberPath = "Display";
-        AddTeamComboBox.SelectedValuePath = "Value";
-        AddTeamComboBox.AddHandler(System.Windows.Controls.Primitives.TextBoxBase.TextChangedEvent, new System.Windows.Controls.TextChangedEventHandler(AddTeamComboBox_TextChanged));
+        _originalAddTeamOptions = _teamOptions;
+        AddTeamComboBox.ItemsSource = _teamOptions;
+        AddTeamComboBox.DisplayMemberPath = nameof(TeamOption.Display);
+        AddTeamComboBox.SelectedValuePath = nameof(TeamOption.Value);
 
-        // XML to JSON
         XmlToJsonEnabledCheckBox.IsChecked = Settings.XmlToJson!.Enabled;
         XmlToJsonPathsItemsControl.ItemsSource = Settings.XmlToJson.FilePaths;
+
+        _settingsUiLoaded = true;
     }
 
     private void LoadConvertersUI()
     {
-        // Load teams into DataGrid
+        if (_convertersUiLoaded)
+            return;
+
         var teams = NameConverters.GetTeams();
         TeamsDataGrid.ItemsSource = teams;
 
-        // Load conferences into DataGrid
         var conferences = NameConverters.GetConferences();
         ConferencesDataGrid.ItemsSource = conferences;
 
-        // Store original collections for filtering
         _originalTeams = new List<Team>(teams);
         _originalConferences = new List<Conferences>(conferences);
 
-        // Set up event handlers for DataGrid validation
-        TeamsDataGrid.CellEditEnding += TeamsDataGrid_CellEditEnding;
-        ConferencesDataGrid.CellEditEnding += ConferencesDataGrid_CellEditEnding;
+        _convertersUiLoaded = true;
     }
 
-
-    // ===== NEW NAME CONVERTERS EVENT HANDLERS =====
 
     private void TeamsSearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
     {
@@ -724,41 +661,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             var selectedTab = tabControl.SelectedItem as TabItem;
             if (selectedTab?.Header?.ToString() == "Name Converters")
             {
-                // Ensure data is loaded when the Name Converters tab is selected
-                if (NameConverters.NameList == null || NameConverters.NameList.teams.Count == 0 || NameConverters.NameList.conferences.Count == 0)
-                {
-                    try
-                    {
-                        NameConverters.Load();
-                        LoadConvertersUI();
-                    }
-                    catch (Exception ex)
-                    {
-                        // Could show error message if needed, but for now just load what we can
-                        LoadConvertersUI();
-                    }
-                }
-                else if (TeamsDataGrid.ItemsSource == null || ConferencesDataGrid.ItemsSource == null)
-                {
-                    // Data is loaded but UI isn't populated yet
+                if (TeamsDataGrid.ItemsSource == null || ConferencesDataGrid.ItemsSource == null)
                     LoadConvertersUI();
-                }
             }
             else if (selectedTab?.Header?.ToString() == "Settings")
             {
-                // Ensure settings UI is loaded when the Settings tab is selected
-                if (GeneralSettingsPanel.Children.Count == 0 || SportsDataGrid.ItemsSource == null)
-                {
-                    try
-                    {
-                        Settings.Load();
-                        LoadSettingsUI();
-                    }
-                    catch (Exception ex)
-                    {
-                        // Error loading settings - silently handle
-                    }
-                }
+                if (!_configLoaded)
+                    return;
+
+                if (SportsDataGrid.ItemsSource == null)
+                    LoadSettingsUI();
             }
         }
     }
@@ -767,7 +679,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         try
         {
-            // Update the NameList with current data
             if (NameConverters.NameList != null)
             {
                 NameConverters.NameList.teams = _originalTeams.ToList();
@@ -775,12 +686,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             }
 
             NameConverters.Reload();
-            // Changes are saved automatically - no status message needed
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            // Could show error message if needed, but for now just continue
-            // The user will see if something goes wrong through other means
         }
     }
 
@@ -814,12 +722,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         else
         {
             var filteredOptions = _originalAddTeamOptions.Where(o =>
-            {
-                var display = o.GetType().GetProperty("Display")?.GetValue(o, null) as string;
-                var value = o.GetType().GetProperty("Value")?.GetValue(o, null) as string;
-                return (display?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                       (value?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false);
-            }).ToList();
+                (o.Display?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (o.Value?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (o.NameShort?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false)
+            ).ToList();
             AddTeamComboBox.ItemsSource = filteredOptions;
         }
     }
@@ -827,14 +733,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
 
 
-    private void TeamsDataGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+    private void TeamsDataGrid_CellEditEnding(object? sender, DataGridCellEditEndingEventArgs e)
     {
         if (e.EditAction == DataGridEditAction.Cancel) return;
 
         var team = e.Row.Item as Team;
         if (team == null) return;
 
-        // Validate display name
         if (e.Column.Header.ToString() == "Display Name")
         {
             var textBox = e.EditingElement as TextBox;
@@ -850,7 +755,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
                 team.customName = newDisplayName;
 
-                // Auto-save the changes
                 AutoSaveConverters();
             }
         }
@@ -861,20 +765,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 team.customName = textBox.Text.Trim();
 
-                // Auto-save the changes
                 AutoSaveConverters();
             }
         }
     }
 
-    private void ConferencesDataGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+    private void ConferencesDataGrid_CellEditEnding(object? sender, DataGridCellEditEndingEventArgs e)
     {
         if (e.EditAction == DataGridEditAction.Cancel) return;
 
         var conference = e.Row.Item as Conferences;
         if (conference == null) return;
 
-        // Validate custom name
         if (e.Column.Header.ToString() == "Custom Name")
         {
             var textBox = e.EditingElement as TextBox;
@@ -890,7 +792,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
                 conference.customConferenceName = newCustomName;
 
-                // Auto-save the changes
                 AutoSaveConverters();
             }
         }
@@ -943,7 +844,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
-        StartProcess();
+        if (_configLoaded)
+            StartProcess();
     }
 
 
@@ -951,6 +853,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         aTimer?.Stop();
         aTimer?.Dispose();
+        _conversionGate.Dispose();
         base.OnClosed(e);
     }
 }

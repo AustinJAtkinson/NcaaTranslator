@@ -32,8 +32,8 @@ namespace NcaaTranslator.Library
 
         public static void FixNames(Contest gameData)
         {
-            var home = gameData.teams.FirstOrDefault(t => t.isHome);
-            var away = gameData.teams.FirstOrDefault(t => !t.isHome);
+            var home = gameData.HomeTeam;
+            var away = gameData.AwayTeam;
 
             if (home != null)
             {
@@ -107,8 +107,8 @@ namespace NcaaTranslator.Library
                 for (var j = 1; j <= updater.NumberOfTeamsPer; j++)
                 {
                     var gameData = displayGames[gameNeeded];
-                    var home = gameData.teams.FirstOrDefault(t => t.isHome);
-                    var away = gameData.teams.FirstOrDefault(t => !t.isHome);
+                    var home = gameData.HomeTeam;
+                    var away = gameData.AwayTeam;
                     var homeTeam = home?.customName ?? "";
                     var awayTeam = away?.customName ?? "";
                     var homeScore = home?.score?.ToString() ?? "";
@@ -176,8 +176,8 @@ namespace NcaaTranslator.Library
             {
                 FixNames(gameData);
 
-                var homeTeamObj = gameData.teams.FirstOrDefault(t => t.isHome);
-                var awayTeamObj = gameData.teams.FirstOrDefault(t => !t.isHome);
+                var homeTeamObj = gameData.HomeTeam;
+                var awayTeamObj = gameData.AwayTeam;
 
                 if (string.Equals(homeTeamObj?.customConferenceName, awayTeamObj?.customConferenceName, StringComparison.OrdinalIgnoreCase))
                 {

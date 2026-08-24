@@ -38,6 +38,19 @@ namespace NcaaTranslator.Library
         public bool tba { get; set; }
         public List<ContestTeam> teams { get; set; } = new List<ContestTeam>();
         public string? conferenceDisplayName { get; set; }
+
+        [JsonIgnore]
+        public ContestTeam? HomeTeam => teams.FirstOrDefault(t => t.isHome);
+        [JsonIgnore]
+        public ContestTeam? AwayTeam => teams.FirstOrDefault(t => !t.isHome);
+        [JsonIgnore]
+        public string? HomeCustomName => HomeTeam?.customName;
+        [JsonIgnore]
+        public string? AwayCustomName => AwayTeam?.customName;
+        [JsonIgnore]
+        public int? HomeScore => HomeTeam?.score;
+        [JsonIgnore]
+        public int? AwayScore => AwayTeam?.score;
         public string ctStateTime24h
         {
             get

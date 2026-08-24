@@ -50,16 +50,16 @@
                                         </Expander.Header>
                                         <DataGrid ItemsSource="{Binding Games}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" IsReadOnly="True" CanUserReorderColumns="False" Style="{DynamicResource ModernDataGridStyle}">
                                             <DataGrid.Columns>
-                                                <DataGridTextColumn Header="Home" Binding="{Binding teams[0].customName}" Width="150"/>
-                                                <DataGridTextColumn Header="Score" Binding="{Binding teams[0].score}" Width="60">
+                                                <DataGridTextColumn Header="Home" Binding="{Binding HomeCustomName}" Width="150"/>
+                                                <DataGridTextColumn Header="Score" Binding="{Binding HomeScore}" Width="60">
                                                     <DataGridTextColumn.ElementStyle>
                                                         <Style TargetType="TextBlock">
                                                             <Setter Property="HorizontalAlignment" Value="Center"/>
                                                         </Style>
                                                     </DataGridTextColumn.ElementStyle>
                                                 </DataGridTextColumn>
-                                                <DataGridTextColumn Header="Away" Binding="{Binding teams[1].customName}" Width="150"/>
-                                                <DataGridTextColumn Header="Score" Binding="{Binding teams[1].score}" Width="60">
+                                                <DataGridTextColumn Header="Away" Binding="{Binding AwayCustomName}" Width="150"/>
+                                                <DataGridTextColumn Header="Score" Binding="{Binding AwayScore}" Width="60">
                                                     <DataGridTextColumn.ElementStyle>
                                                         <Style TargetType="TextBlock">
                                                             <Setter Property="HorizontalAlignment" Value="Center"/>
