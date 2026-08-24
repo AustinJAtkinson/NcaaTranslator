@@ -57,4 +57,24 @@ public class SingleFlightGateTests
         }));
         Assert.True(ran);
     }
+
+    [Fact]
+    public async Task RunAsync_DisposeDuringRun_DoesNotThrowOnRelease()
+    {
+        var gate = new SingleFlightGate();
+        var started = new TaskCompletionSource();
+        var release = new TaskCompletionSource();
+
+        var first = gate.RunAsync(async () =>
+        {
+            started.SetResult();
+            await release.Task;
+        });
+
+        await started.Task;
+        gate.Dispose();
+        release.SetResult();
+
+        Assert.True(await first);
+    }
 }

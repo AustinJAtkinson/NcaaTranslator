@@ -16,7 +16,13 @@ namespace NcaaTranslator.Library
             }
             finally
             {
-                _gate.Release();
+                try
+                {
+                    _gate.Release();
+                }
+                catch (ObjectDisposedException)
+                {
+                }
             }
         }
 

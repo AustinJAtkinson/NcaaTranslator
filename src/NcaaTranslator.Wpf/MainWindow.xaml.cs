@@ -758,16 +758,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 AutoSaveConverters();
             }
         }
-        else if (e.Column.Header.ToString() == "Custom Name")
-        {
-            var textBox = e.EditingElement as TextBox;
-            if (textBox != null)
-            {
-                team.customName = textBox.Text.Trim();
-
-                AutoSaveConverters();
-            }
-        }
     }
 
     private void ConferencesDataGrid_CellEditEnding(object? sender, DataGridCellEditEndingEventArgs e)
@@ -853,7 +843,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         aTimer?.Stop();
         aTimer?.Dispose();
-        _conversionGate.Dispose();
         base.OnClosed(e);
     }
 }

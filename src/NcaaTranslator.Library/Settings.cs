@@ -166,9 +166,39 @@ namespace NcaaTranslator.Library
     {
         private bool _enabled = true;
         private GameDisplayMode _gameDisplayMode = GameDisplayMode.Live;
+        private string _sportName = "";
+        private string _sportShortName = "";
+        private string? _conferenceName;
+        private string? _sportCode;
+        private int _division;
+        private int? _week;
+        private int? _seasonYear;
 
-        public required string SportName { get; set; } = "";
-        public required string SportShortName { get; set; } = "";
+        public required string SportName
+        {
+            get => _sportName;
+            set
+            {
+                if (_sportName != value)
+                {
+                    _sportName = value;
+                    Raise(nameof(SportName));
+                }
+            }
+        }
+
+        public required string SportShortName
+        {
+            get => _sportShortName;
+            set
+            {
+                if (_sportShortName != value)
+                {
+                    _sportShortName = value;
+                    Raise(nameof(SportShortName));
+                }
+            }
+        }
 
         public bool Enabled
         {
@@ -178,7 +208,7 @@ namespace NcaaTranslator.Library
                 if (_enabled != value)
                 {
                     _enabled = value;
-                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Enabled)));
+                    Raise(nameof(Enabled));
                 }
             }
         }
@@ -191,20 +221,85 @@ namespace NcaaTranslator.Library
                 if (_gameDisplayMode != value)
                 {
                     _gameDisplayMode = value;
-                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(GameDisplayMode)));
+                    Raise(nameof(GameDisplayMode));
                 }
             }
         }
 
-        public string? ConferenceName { get; set; }
-        public string? SportCode { get; set; }
-        public int Division { get; set; }
-        public int? Week { get; set; }
-        public int? SeasonYear { get; set; }
+        public string? ConferenceName
+        {
+            get => _conferenceName;
+            set
+            {
+                if (_conferenceName != value)
+                {
+                    _conferenceName = value;
+                    Raise(nameof(ConferenceName));
+                }
+            }
+        }
+
+        public string? SportCode
+        {
+            get => _sportCode;
+            set
+            {
+                if (_sportCode != value)
+                {
+                    _sportCode = value;
+                    Raise(nameof(SportCode));
+                }
+            }
+        }
+
+        public int Division
+        {
+            get => _division;
+            set
+            {
+                if (_division != value)
+                {
+                    _division = value;
+                    Raise(nameof(Division));
+                }
+            }
+        }
+
+        public int? Week
+        {
+            get => _week;
+            set
+            {
+                if (_week != value)
+                {
+                    _week = value;
+                    Raise(nameof(Week));
+                }
+            }
+        }
+
+        public int? SeasonYear
+        {
+            get => _seasonYear;
+            set
+            {
+                if (_seasonYear != value)
+                {
+                    _seasonYear = value;
+                    Raise(nameof(SeasonYear));
+                }
+            }
+        }
+
         public OosUpdater OosUpdater { get; set; } = new OosUpdater();
         public ListsNeeded ListsNeeded { get; set; } = new ListsNeeded();
 
         public event PropertyChangedEventHandler? PropertyChanged;
+
+        private void Raise(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
     }
 
     public class Settings
