@@ -51,18 +51,34 @@ namespace NcaaTranslator.Library
             return NameList?.conferences ?? new List<Conferences>();
         }
 
-        public static void Load()
+        public static void Load(string? path = null)
         {
+            if (path != null)
+                FilePath = path;
+
             string jsonString = File.ReadAllText(FilePath);
             NameList = JsonSerializer.Deserialize<NameConverter>(jsonString)!;
-            // Use name6Char as the key
-            TeamDict = NameList!.teams.ToDictionary(x => x.name6Char!, x => x);
-            ConfDict = NameList!.conferences.ToDictionary(x => x.conferenceSeo!, x => x);
+            TeamDict = ToLastWinsDictionary(NameList!.teams, x => x.name6Char);
+            ConfDict = ToLastWinsDictionary(NameList!.conferences, x => x.conferenceSeo);
         }
+
+        private static Dictionary<string, T> ToLastWinsDictionary<T>(List<T> items, Func<T, string?> keySelector)
+        {
+            var dict = new Dictionary<string, T>();
+            foreach (var item in items)
+            {
+                var key = keySelector(item);
+                if (string.IsNullOrEmpty(key))
+                    continue;
+                dict[key] = item;
+            }
+            return dict;
+        }
+
         public static void Reload()
         {
-            NameList!.teams.OrderBy(x => x.name6Char);
-            NameList!.conferences.OrderBy(x => x.customConferenceName);
+            NameList!.teams = NameList.teams.OrderBy(x => x.name6Char).ToList();
+            NameList!.conferences = NameList.conferences.OrderBy(x => x.customConferenceName).ToList();
             File.WriteAllText(FilePath, JsonSerializer.Serialize(NameList));
             Load();
         }
@@ -73,8 +89,7 @@ namespace NcaaTranslator.Library
             var name = new Team();
             if (TeamDict.TryGetValue(lookupNames.name6Char, out name))
             {
-                // Return customName if available, otherwise nameShort
-                return name.customName;
+                return name.customName ?? "";
             }
             return AddNewTeam(lookupNames);
         }
@@ -84,7 +99,7 @@ namespace NcaaTranslator.Library
             var newTeam = new Team(names);
             NameList!.teams.Add(newTeam);
             Reload();
-            return "";
+            return newTeam.customName ?? "";
         }
 
         public static string LookupConf(Conference lookupNames)
@@ -92,7 +107,7 @@ namespace NcaaTranslator.Library
             if (lookupNames.conferenceSeo == null) return "";
             var name = new Conferences();
 
-            return ConfDict.TryGetValue(lookupNames.conferenceSeo!, out name) ? name.customConferenceName! : AddNewConf(lookupNames);
+            return ConfDict.TryGetValue(lookupNames.conferenceSeo!, out name) ? name.customConferenceName ?? "" : AddNewConf(lookupNames);
         }
         public static string AddNewConf(Conference names)
         {
@@ -100,7 +115,7 @@ namespace NcaaTranslator.Library
             var newConf = new Conferences(names);
             NameList!.conferences.Add(newConf);
             Reload();
-            return "";
+            return newConf.customConferenceName ?? "";
         }
 
     }

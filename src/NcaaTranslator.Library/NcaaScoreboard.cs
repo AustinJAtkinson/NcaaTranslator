@@ -45,16 +45,13 @@ namespace NcaaTranslator.Library
                 try
                 {
                     if (startTime == "TBA" || tba)
-                        return startTime!;
+                        return startTime ?? "";
 
-                    DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
-                    dateTime = dateTime.AddSeconds(startTimeEpoch).ToLocalTime();
-
-                    return dateTime.ToString("HH:mm");
+                    return DateTimeOffset.FromUnixTimeSeconds(startTimeEpoch).ToLocalTime().ToString("HH:mm");
                 }
                 catch
                 {
-                    return startTime!;
+                    return startTime ?? "";
                 }
             }
         }
@@ -65,16 +62,13 @@ namespace NcaaTranslator.Library
                 try
                 {
                     if (startTime == "TBA" || tba)
-                        return startTime!;
+                        return startTime ?? "";
 
-                    DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
-                    dateTime = dateTime.AddSeconds(startTimeEpoch).ToLocalTime();
-
-                    return dateTime.ToString("h:mm tt");
+                    return DateTimeOffset.FromUnixTimeSeconds(startTimeEpoch).ToLocalTime().ToString("h:mm tt");
                 }
                 catch
                 {
-                    return startTime!;
+                    return startTime ?? "";
                 }
             }
         }
@@ -88,10 +82,10 @@ namespace NcaaTranslator.Library
                 }
                 if (gameState == "F")
                 {
-                    return finalMessage!.Replace("2OT", "SO");
+                    return (finalMessage ?? "").Replace("2OT", "SO");
                 }
 
-                return string.Format("{0}     {1}", currentPeriod!.Replace("2OT", "SO"), contestClock!);
+                return string.Format("{0}     {1}", (currentPeriod ?? "").Replace("2OT", "SO"), contestClock ?? "");
             }
         }
         public string displayClockDefault
@@ -104,10 +98,10 @@ namespace NcaaTranslator.Library
                 }
                 if (gameState == "F")
                 {
-                    return finalMessage!;
+                    return finalMessage ?? "";
                 }
 
-                return string.Format("{0}     {1}", currentPeriod!, contestClock!);
+                return string.Format("{0}     {1}", currentPeriod ?? "", contestClock ?? "");
             }
         }
 

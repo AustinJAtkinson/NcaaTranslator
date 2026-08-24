@@ -213,8 +213,11 @@ namespace NcaaTranslator.Library
         // DO NOT CHANGE THIS PATH - it is correct as is
         internal static string fileName = "Settings.json";
 
-        public static void Load()
+        public static void Load(string? path = null)
         {
+            if (path != null)
+                fileName = path;
+
             var options = new JsonSerializerOptions
             {
                 ReadCommentHandling = JsonCommentHandling.Skip
