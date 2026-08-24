@@ -122,4 +122,117 @@ public class GameBucketingTests : IDisposable
         Assert.Equal(0, handler.CallCount);
         Assert.Null(result.data);
     }
+
+    [Fact]
+    public void DisplayTeams_MatchesByNameShort()
+    {
+        TestHelpers.WriteDefaultNames(_workspace.DirectoryPath);
+        TestHelpers.UseSettings(displayTeams: new List<DisplayTeam>
+        {
+            new() { NcaaTeamName = "Virginia" }
+        });
+        var sport = TestHelpers.CreateSport(oosEnabled: false, GameDisplayMode.Display);
+        var scoreboard = TestHelpers.CreateScoreboard(
+            TestHelpers.CreateContest(1, "UVA", "Virginia", "acc", "BAMA", "Alabama", "sec", 100),
+            TestHelpers.CreateContest(2, "BAMA", "Alabama", "sec", "AUB", "Auburn", "sec", 200)
+        );
+
+        NcaaProcessor.CategorizeGames(scoreboard, sport);
+
+        Assert.Single(scoreboard.data!.displayGames!);
+        Assert.Equal(1, scoreboard.data.displayGames![0].contestId);
+    }
+
+    [Fact]
+    public void DisplayTeams_MixedName6CharAndNameShort()
+    {
+        TestHelpers.WriteDefaultNames(_workspace.DirectoryPath);
+        TestHelpers.UseSettings(displayTeams: new List<DisplayTeam>
+        {
+            new() { NcaaTeamName = "UVA" },
+            new() { NcaaTeamName = "Duke" }
+        });
+        var sport = TestHelpers.CreateSport(oosEnabled: false, GameDisplayMode.Display);
+        var scoreboard = TestHelpers.CreateScoreboard(
+            TestHelpers.CreateContest(1, "UVA", "Virginia", "acc", "BAMA", "Alabama", "sec", 100),
+            TestHelpers.CreateContest(2, "BAMA", "Alabama", "sec", "DUKE", "Duke", "acc", 200),
+            TestHelpers.CreateContest(3, "BAMA", "Alabama", "sec", "AUB", "Auburn", "sec", 300)
+        );
+
+        NcaaProcessor.CategorizeGames(scoreboard, sport);
+
+        Assert.Equal(2, scoreboard.data!.displayGames!.Count);
+        Assert.Contains(scoreboard.data.displayGames, g => g.contestId == 1);
+        Assert.Contains(scoreboard.data.displayGames, g => g.contestId == 2);
+        Assert.DoesNotContain(scoreboard.data.displayGames, g => g.contestId == 3);
+    }
+
+    [Fact]
+    public async Task ConvertNcaaScoreboard_NullContests_DoesNotThrow()
+    {
+        TestHelpers.WriteDefaultNames(_workspace.DirectoryPath);
+        TestHelpers.UseSettings();
+
+        var handler = new FakeHttpMessageHandler
+        {
+            Response = """{"data":{"contests":null}}"""
+        };
+        NcaaProcessor.HttpClient = new HttpClient(handler);
+
+        NcaaScoreboard? result = null;
+        var ex = await Record.ExceptionAsync(async () =>
+            result = await NcaaProcessor.ConvertNcaaScoreboard(TestHelpers.CreateSport()));
+
+        Assert.Null(ex);
+        Assert.NotNull(result);
+        Assert.NotNull(result!.data);
+        Assert.Null(result.data!.contests);
+        Assert.False(File.Exists("Football FCS-Games.json"));
+    }
+
+    [Fact]
+    public async Task ConvertNcaaScoreboard_NullData_DoesNotThrow()
+    {
+        TestHelpers.WriteDefaultNames(_workspace.DirectoryPath);
+        TestHelpers.UseSettings();
+
+        var handler = new FakeHttpMessageHandler
+        {
+            Response = """{"data":null}"""
+        };
+        NcaaProcessor.HttpClient = new HttpClient(handler);
+
+        NcaaScoreboard? result = null;
+        var ex = await Record.ExceptionAsync(async () =>
+            result = await NcaaProcessor.ConvertNcaaScoreboard(TestHelpers.CreateSport()));
+
+        Assert.Null(ex);
+        Assert.NotNull(result);
+        Assert.Null(result!.data);
+        Assert.False(File.Exists("Football FCS-Games.json"));
+    }
+
+    [Fact]
+    public async Task ConvertNcaaScoreboard_EmptyContests_DoesNotThrow()
+    {
+        TestHelpers.WriteDefaultNames(_workspace.DirectoryPath);
+        TestHelpers.UseSettings();
+
+        var handler = new FakeHttpMessageHandler
+        {
+            Response = """{"data":{"contests":[]}}"""
+        };
+        NcaaProcessor.HttpClient = new HttpClient(handler);
+
+        NcaaScoreboard? result = null;
+        var ex = await Record.ExceptionAsync(async () =>
+            result = await NcaaProcessor.ConvertNcaaScoreboard(TestHelpers.CreateSport()));
+
+        Assert.Null(ex);
+        Assert.NotNull(result);
+        Assert.NotNull(result!.data);
+        Assert.Null(result.data!.contests);
+        Assert.Empty(result.data.homeGames);
+        Assert.Null(result.data.displayGames);
+    }
 }
