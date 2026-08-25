@@ -2,7 +2,7 @@
 
 Photino desktop app that fetches NCAA scoreboard data, translates team and conference names, and optionally updates Out-of-Score (OOS) XML templates.
 
-Requires .NET 8. The UI is Vite + React in `ui/`, hosted by Photino.NET.
+Requires the **ASP.NET Core 8 runtime** (includes the base .NET 8 runtime). On Windows, **WebView2** is also required. The UI is Vite + React in `ui/`, hosted by Photino.NET. Release zips are framework-dependent (not self-contained).
 
 ## Clone, build, run
 
@@ -32,6 +32,8 @@ dotnet test NcaaTranslator.sln
 ```
 
 A GitHub release zip extracts to `NcaaTranslator.Desktop.exe` (Windows). Config files next to the Desktop exe (`Settings.json`, `NcaaNameConverter.json`) are copied from `config/` at build time.
+
+Upgrading from the old WPF app (`NcaaTranslator.Wpf.exe`) is a **manual** zip install. The WPF updater looks for `NcaaTranslator.Wpf.exe` and will not pick up a Photino release.
 
 ## Layout
 
@@ -128,7 +130,7 @@ Unknown teams/conferences encountered in live data are appended to this file.
 
 ## Troubleshooting
 
-- App will not start: install the .NET 8 runtime; confirm `Settings.json` and `NcaaNameConverter.json` sit next to the exe and are valid JSON.
+- App will not start: install the ASP.NET Core 8 runtime and (on Windows) WebView2; confirm `Settings.json` and `NcaaNameConverter.json` sit next to the exe and are valid JSON.
 - No games: check network access to NCAA APIs, that the sport is `Enabled`, and that the timer is running.
 - Settings not saved: the process needs write permission on the config files.
 - OOS updates fail: `OosFilePath` must exist and the `{OosFileName}{n}.tmp` templates must be writable.

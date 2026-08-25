@@ -13,12 +13,12 @@ Photino desktop app that pulls NCAA scoreboards, translates names, and updates O
 | `Settings` / `Sport` / related | `Settings.cs` | Load/save `Settings.json`; sports, display teams, timer, home team, OOS, XML-to-JSON. |
 | `TeamSelection` | `TeamSelection.cs` | Combo-box team options persist `name6Char`. |
 | `SingleFlightGate` | `SingleFlightGate.cs` | Skip overlapping polls. |
-| `UpdateManager` | `UpdateManager.cs` | Check GitHub releases, prompt, download/install updates, merge config. |
+| `UpdateManager` | `UpdateManager.cs` | Check GitHub releases, download/install, merge config. Photino host prompts with a native Yes/No dialog after the window is created; does not silent-install. |
 | `AppBridge` | `AppBridge.cs` | JSON bridge for the Photino UI (`ping`, settings, names, start/stop, scoreboard). |
 
 ## Desktop (`src/NcaaTranslator.Desktop/`)
 
-Photino.NET host: serves the React UI over HTTP (`Photino.NET.Server`), JSON messages via `Bridge.cs`. Entry point `Program.cs`. Loads settings/converters from the exe directory. File/folder pickers stay in `Bridge.cs` because they need `PhotinoWindow`.
+Photino.NET host: serves the React UI over HTTP (`Photino.NET.Server`), JSON messages via `Bridge.cs`. Entry point `Program.cs`. Loads settings/converters from the exe directory. File/folder pickers stay in `Bridge.cs` because they need `PhotinoWindow`. After the native window exists, checks for updates without blocking `Main`. On Yes: `DownloadAndInstallUpdateAsync`, starts the new `NcaaTranslator.Desktop` exe, then closes. Upgrading from WPF (`NcaaTranslator.Wpf.exe`) is a manual zip install.
 
 ## UI (`ui/`)
 

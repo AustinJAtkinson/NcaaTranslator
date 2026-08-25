@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using NcaaTranslator.Library;
 using Photino.NET;
 using Photino.NET.Server;
@@ -35,6 +36,64 @@ class Program
             })
             .Load($"{baseUrl}/index.html");
 
+        // Do not block Main; prompt only after the native window exists.
+        window.RegisterWindowCreatedHandler((_, _) => _ = CheckForUpdatesAsync(window));
+
         window.WaitForClose();
+    }
+
+    private static async Task CheckForUpdatesAsync(PhotinoWindow window)
+    {
+        GitHubRelease? release;
+        try
+        {
+            release = await UpdateManager.GetAvailableUpdateAsync();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Update check failed: {ex.Message}");
+            return;
+        }
+
+        if (release?.tag_name == null)
+            return;
+
+        var versionText = release.tag_name.TrimStart('v');
+        PhotinoDialogResult result;
+        try
+        {
+            result = window.ShowMessage(
+                "Update Available",
+                $"Update to v{versionText}?",
+                PhotinoDialogButtons.YesNo,
+                PhotinoDialogIcon.Question);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Update prompt failed: {ex.Message}");
+            return;
+        }
+
+        if (result != PhotinoDialogResult.Yes)
+            return;
+
+        try
+        {
+            var newExePath = await UpdateManager.DownloadAndInstallUpdateAsync(release);
+            if (string.IsNullOrEmpty(newExePath))
+                return;
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = newExePath,
+                UseShellExecute = true
+            });
+            window.Close();
+            Environment.Exit(0);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Update install failed: {ex.Message}");
+        }
     }
 }
