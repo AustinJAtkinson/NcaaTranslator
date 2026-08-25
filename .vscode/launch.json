@@ -2,13 +2,13 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": ".NET Core Launch (WPF)",
+            "name": ".NET Core Launch (Desktop)",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/NcaaTranslator.Wpf/bin/Debug/net8.0-windows/NcaaTranslator.Wpf.dll",
+            "program": "${workspaceFolder}/src/NcaaTranslator.Desktop/bin/Debug/net8.0/NcaaTranslator.Desktop.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/src/NcaaTranslator.Wpf/bin/Debug/net8.0-windows",
+            "cwd": "${workspaceFolder}/src/NcaaTranslator.Desktop/bin/Debug/net8.0",
             "console": "internalConsole",
             "stopAtEntry": false
         },

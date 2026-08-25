@@ -133,12 +133,6 @@ public class ConfigPathTests : IDisposable
     }
 
     [Fact]
-    public void WpfCsproj_ConfigCopy_UsesPreserveNewest()
-    {
-        AssertCsprojCopiesConfig(Path.Combine("src", "NcaaTranslator.Wpf", "NcaaTranslator.Wpf.csproj"));
-    }
-
-    [Fact]
     public void DesktopCsproj_ConfigCopy_UsesPreserveNewest()
     {
         AssertCsprojCopiesConfig(Path.Combine("src", "NcaaTranslator.Desktop", "NcaaTranslator.Desktop.csproj"));

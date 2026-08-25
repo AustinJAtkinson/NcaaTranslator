@@ -61,6 +61,13 @@ namespace NcaaTranslator.Library
             return assembly.GetName().Version ?? new Version(1, 0, 0);
         }
 
+        internal static string GetInstalledExeFileName()
+        {
+            var name = (Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly()).GetName().Name
+                       ?? "NcaaTranslator.Desktop";
+            return OperatingSystem.IsWindows() ? name + ".exe" : name;
+        }
+
         private static async Task<GitHubRelease?> GetLatestReleaseAsync()
         {
             var response = await _httpClient.GetAsync(ApiUrl);
@@ -313,7 +320,7 @@ namespace NcaaTranslator.Library
                 // If merge fails, keep the new files
             }
 
-            var newExePath = Path.Combine(newVersionDir, "NcaaTranslator.Wpf.exe");
+            var newExePath = Path.Combine(newVersionDir, GetInstalledExeFileName());
             return File.Exists(newExePath) ? newExePath : null;
         }
 

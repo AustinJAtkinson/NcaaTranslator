@@ -1,6 +1,6 @@
 # NcaaTranslator components
 
-WPF desktop app that pulls NCAA scoreboards, translates names, and updates OOS XML templates.
+Photino desktop app that pulls NCAA scoreboards, translates names, and updates OOS XML templates.
 
 ## Library (`src/NcaaTranslator.Library/`)
 
@@ -14,17 +14,22 @@ WPF desktop app that pulls NCAA scoreboards, translates names, and updates OOS X
 | `TeamSelection` | `TeamSelection.cs` | Combo-box team options persist `name6Char`. |
 | `SingleFlightGate` | `SingleFlightGate.cs` | Skip overlapping polls. |
 | `UpdateManager` | `UpdateManager.cs` | Check GitHub releases, prompt, download/install updates, merge config. |
+| `AppBridge` | `AppBridge.cs` | JSON bridge for the Photino UI (`ping`, settings, names, start/stop, scoreboard). |
 
-## App (`src/NcaaTranslator.Wpf/`)
+## Desktop (`src/NcaaTranslator.Desktop/`)
 
-WPF UI: start/stop polling, settings, display teams, name converters. Entry point `App.xaml` / `MainWindow.xaml`. Theme follows the Windows light/dark setting. Loads settings/converters once at startup and updates sport expanders in place.
+Photino.NET host: serves the React UI over HTTP (`Photino.NET.Server`), JSON messages via `Bridge.cs`. Entry point `Program.cs`. Loads settings/converters from the exe directory. File/folder pickers stay in `Bridge.cs` because they need `PhotinoWindow`.
+
+## UI (`ui/`)
+
+Vite + React + TypeScript: Main (start/stop polling, scoreboard), Settings, Names. Built into `src/NcaaTranslator.Desktop/wwwroot`. Solution / test builds skip the Vite pipeline (`SkipUiBuild` defaults to true).
 
 ## Config
 
 - `config/Settings.json` — timer, home team, sports, display teams, XML-to-JSON.
 - `config/NcaaNameConverter.json` — team and conference name maps.
 
-Copied next to the WPF exe at build time (`PreserveNewest`).
+Copied next to the Desktop exe at build time (`PreserveNewest`).
 
 ## Flow
 

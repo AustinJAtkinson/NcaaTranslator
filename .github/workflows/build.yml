@@ -66,7 +66,7 @@ jobs:
       run: dotnet build NcaaTranslator.sln --configuration Release --no-restore /p:Version=${{ steps.gitversion.outputs.semVer }}
 
     - name: Publish
-      run: dotnet publish src/NcaaTranslator.Wpf/NcaaTranslator.Wpf.csproj --configuration Release --output ./artifacts /p:Version=${{ steps.gitversion.outputs.semVer }}
+      run: dotnet publish src/NcaaTranslator.Desktop/NcaaTranslator.Desktop.csproj --configuration Release --output ./artifacts /p:Version=${{ steps.gitversion.outputs.semVer }}
 
     - name: Create ZIP
       run: |

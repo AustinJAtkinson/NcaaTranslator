@@ -1,8 +1,8 @@
 # NCAA Translator
 
-Windows WPF app that fetches NCAA scoreboard data, translates team and conference names, and optionally updates Out-of-Score (OOS) XML templates.
+Photino desktop app that fetches NCAA scoreboard data, translates team and conference names, and optionally updates Out-of-Score (OOS) XML templates.
 
-Requires Windows 10 or later and the .NET 8 desktop runtime.
+Requires .NET 8. The UI is Vite + React in `ui/`, hosted by Photino.NET.
 
 ## Clone, build, run
 
@@ -12,10 +12,18 @@ cd NcaaTranslator
 
 dotnet restore
 dotnet build NcaaTranslator.sln
-dotnet run --project src/NcaaTranslator.Wpf/NcaaTranslator.Wpf.csproj
+dotnet run --project src/NcaaTranslator.Desktop
 ```
 
-On a non-Windows host, pass `/p:EnableWindowsTargeting=true` to `dotnet restore`, `dotnet build`, and `dotnet test`. The WPF app itself only runs on Windows.
+Rebuild the React UI when you change `ui/`:
+
+```bash
+cd ui
+npm ci
+npm run build
+```
+
+Then copy `ui/dist` over `src/NcaaTranslator.Desktop/wwwroot` if you want to commit the new shell. `dotnet run --project src/NcaaTranslator.Desktop -p:SkipUiBuild=false` also rebuilds the UI when Node.js is available.
 
 Tests:
 
@@ -23,11 +31,12 @@ Tests:
 dotnet test NcaaTranslator.sln
 ```
 
-A GitHub release zip extracts to `NcaaTranslator.Wpf.exe`. Config files next to the exe (`Settings.json`, `NcaaNameConverter.json`) are copied from `config/` at build time.
+A GitHub release zip extracts to `NcaaTranslator.Desktop.exe` (Windows). Config files next to the Desktop exe (`Settings.json`, `NcaaNameConverter.json`) are copied from `config/` at build time.
 
 ## Layout
 
-- `src/NcaaTranslator.Wpf/` — WPF UI
+- `src/NcaaTranslator.Desktop/` — Photino.NET host
+- `ui/` — Vite + React UI
 - `src/NcaaTranslator.Library/` — fetch, translate, categorize, OOS/XML
 - `tests/NcaaTranslator.Library.Tests/` — library tests
 - `config/` — `Settings.json` and `NcaaNameConverter.json`
@@ -119,7 +128,7 @@ Unknown teams/conferences encountered in live data are appended to this file.
 
 ## Troubleshooting
 
-- App will not start: install the .NET 8 desktop runtime; confirm `Settings.json` and `NcaaNameConverter.json` sit next to the exe and are valid JSON.
+- App will not start: install the .NET 8 runtime; confirm `Settings.json` and `NcaaNameConverter.json` sit next to the exe and are valid JSON.
 - No games: check network access to NCAA APIs, that the sport is `Enabled`, and that the timer is running.
 - Settings not saved: the process needs write permission on the config files.
 - OOS updates fail: `OosFilePath` must exist and the `{OosFileName}{n}.tmp` templates must be writable.
