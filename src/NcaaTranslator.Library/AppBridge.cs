@@ -30,6 +30,96 @@ namespace NcaaTranslator.Library
         public int Timer { get; set; }
         [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
         public string? HomeTeam { get; set; }
+        public List<SportSnapshot> Sports { get; set; } = new();
+        public List<DisplayTeamSnapshot> DisplayTeams { get; set; } = new();
+        public XmlToJsonSnapshot XmlToJson { get; set; } = new();
+    }
+
+    public class SportSnapshot
+    {
+        public string Name { get; set; } = "";
+        public string Short { get; set; } = "";
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public string? Code { get; set; }
+        public bool Enabled { get; set; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public string? ConferenceName { get; set; }
+        public int Division { get; set; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public int? Week { get; set; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public int? SeasonYear { get; set; }
+        public string GameDisplayMode { get; set; } = "Live";
+        public ListsNeededSnapshot ListsNeeded { get; set; } = new();
+        public OosUpdaterSnapshot OosUpdater { get; set; } = new();
+    }
+
+    public class ListsNeededSnapshot
+    {
+        public bool ConferenceGames { get; set; }
+        public bool NonConferenceGames { get; set; }
+        public bool Top25Games { get; set; }
+    }
+
+    public class OosUpdaterSnapshot
+    {
+        public bool Enabled { get; set; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public string? OosFilePath { get; set; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public string? OosFileName { get; set; }
+        public int NumberOfOutScores { get; set; }
+        public int NumberOfTeamsPer { get; set; }
+    }
+
+    public class DisplayTeamSnapshot
+    {
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public string? NcaaTeamName { get; set; }
+    }
+
+    public class XmlToJsonSnapshot
+    {
+        public bool Enabled { get; set; }
+        public List<string> FilePaths { get; set; } = new();
+    }
+
+    public class TeamNameSnapshot
+    {
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public string? Name6Char { get; set; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public string? CustomName { get; set; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public string? Seoname { get; set; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public string? NameShort { get; set; }
+    }
+
+    public class ConferenceNameSnapshot
+    {
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public string? ConferenceSeo { get; set; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public string? CustomConferenceName { get; set; }
+    }
+
+    public class TeamCustomNameParams
+    {
+        public string? Name6Char { get; set; }
+        public string? CustomName { get; set; }
+    }
+
+    public class ConferenceCustomNameParams
+    {
+        public string? ConferenceSeo { get; set; }
+        public string? CustomConferenceName { get; set; }
+    }
+
+    public class PickPathResult
+    {
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public string? Path { get; set; }
     }
 
     public class StatusResult
@@ -115,6 +205,13 @@ namespace NcaaTranslator.Library
                 {
                     "ping" => new PingResult { Ok = true },
                     "getSettings" => GetSettings(),
+                    "saveSettings" => SaveSettings(request.Params),
+                    "getTeams" => GetTeams(),
+                    "saveTeamCustomName" => SaveTeamCustomName(request.Params),
+                    "getConferences" => GetConferences(),
+                    "saveConferenceCustomName" => SaveConferenceCustomName(request.Params),
+                    "pickFolder" => throw new InvalidOperationException("pickFolder requires the desktop host."),
+                    "pickFile" => throw new InvalidOperationException("pickFile requires the desktop host."),
                     "start" => Start(),
                     "stop" => Stop(),
                     "status" => GetStatus(),
@@ -169,8 +266,240 @@ namespace NcaaTranslator.Library
             return new SettingsSnapshot
             {
                 Timer = settings.Timer,
-                HomeTeam = settings.HomeTeam
+                HomeTeam = settings.HomeTeam,
+                Sports = (settings.Sports ?? new List<Sport>()).Select(ToSportSnapshot).ToList(),
+                DisplayTeams = (settings.DisplayTeams ?? new List<DisplayTeam>())
+                    .Select(d => new DisplayTeamSnapshot { NcaaTeamName = d.NcaaTeamName })
+                    .ToList(),
+                XmlToJson = new XmlToJsonSnapshot
+                {
+                    Enabled = settings.XmlToJson?.Enabled ?? false,
+                    FilePaths = settings.XmlToJson?.FilePaths?
+                        .Select(f => f.Path ?? "")
+                        .ToList() ?? new List<string>()
+                }
             };
+        }
+
+        private static SettingsSnapshot SaveSettings(JsonElement? paramsElement)
+        {
+            EnsureSettings();
+            if (paramsElement is not { } el || el.ValueKind != JsonValueKind.Object)
+                throw new InvalidOperationException("Settings payload is required.");
+
+            var settings = Settings.SettingsList
+                ?? throw new InvalidDataException("Settings were not loaded.");
+
+            if (el.TryGetProperty("timer", out var timerEl) && timerEl.ValueKind == JsonValueKind.Number)
+                settings.Timer = timerEl.GetInt32();
+
+            if (el.TryGetProperty("homeTeam", out var homeEl))
+                settings.HomeTeam = ResolveTeamCode(homeEl.ValueKind == JsonValueKind.String ? homeEl.GetString() : null);
+
+            if (el.TryGetProperty("sports", out var sportsEl) && sportsEl.ValueKind == JsonValueKind.Array)
+            {
+                var sports = sportsEl.Deserialize<List<SportSnapshot>>(JsonOptions) ?? new List<SportSnapshot>();
+                settings.Sports = sports.Select(ToSport).ToList();
+            }
+
+            if (el.TryGetProperty("displayTeams", out var displayEl) && displayEl.ValueKind == JsonValueKind.Array)
+            {
+                var display = displayEl.Deserialize<List<DisplayTeamSnapshot>>(JsonOptions) ?? new List<DisplayTeamSnapshot>();
+                settings.DisplayTeams = display.Select(d => new DisplayTeam
+                {
+                    NcaaTeamName = ResolveTeamCode(d.NcaaTeamName) ?? d.NcaaTeamName
+                }).ToList();
+            }
+
+            if (el.TryGetProperty("xmlToJson", out var xmlEl) && xmlEl.ValueKind == JsonValueKind.Object)
+            {
+                var xml = xmlEl.Deserialize<XmlToJsonSnapshot>(JsonOptions) ?? new XmlToJsonSnapshot();
+                settings.XmlToJson = new XmlToJson
+                {
+                    Enabled = xml.Enabled,
+                    FilePaths = xml.FilePaths.Select(p => new FilePath { Path = p }).ToList()
+                };
+            }
+
+            Settings.Save();
+
+            lock (StateLock)
+            {
+                if (_timer != null)
+                    _timer.Interval = Math.Max(1, Settings.Timer);
+            }
+
+            return GetSettings();
+        }
+
+        private static List<TeamNameSnapshot> GetTeams()
+        {
+            EnsureNameConverters();
+            return NameConverters.GetTeams().Select(ToTeamSnapshot).ToList();
+        }
+
+        private static TeamNameSnapshot SaveTeamCustomName(JsonElement? paramsElement)
+        {
+            EnsureNameConverters();
+            var incoming = ReadRequiredParams<TeamCustomNameParams>(paramsElement);
+            if (string.IsNullOrWhiteSpace(incoming.Name6Char))
+                throw new InvalidOperationException("name6Char is required.");
+            if (string.IsNullOrWhiteSpace(incoming.CustomName))
+                throw new InvalidOperationException("customName cannot be empty.");
+
+            if (!NameConverters.TeamDict.TryGetValue(incoming.Name6Char, out var team))
+                throw new InvalidOperationException($"Team '{incoming.Name6Char}' was not found.");
+
+            team.customName = incoming.CustomName.Trim();
+            NameConverters.Reload();
+
+            if (!NameConverters.TeamDict.TryGetValue(incoming.Name6Char, out var saved))
+                throw new InvalidDataException($"Team '{incoming.Name6Char}' was not found after save.");
+
+            return ToTeamSnapshot(saved);
+        }
+
+        private static List<ConferenceNameSnapshot> GetConferences()
+        {
+            EnsureNameConverters();
+            return NameConverters.GetConferences().Select(ToConferenceSnapshot).ToList();
+        }
+
+        private static ConferenceNameSnapshot SaveConferenceCustomName(JsonElement? paramsElement)
+        {
+            EnsureNameConverters();
+            var incoming = ReadRequiredParams<ConferenceCustomNameParams>(paramsElement);
+            if (string.IsNullOrWhiteSpace(incoming.ConferenceSeo))
+                throw new InvalidOperationException("conferenceSeo is required.");
+            if (string.IsNullOrWhiteSpace(incoming.CustomConferenceName))
+                throw new InvalidOperationException("customConferenceName cannot be empty.");
+
+            if (!NameConverters.ConfDict.TryGetValue(incoming.ConferenceSeo, out var conference))
+                throw new InvalidOperationException($"Conference '{incoming.ConferenceSeo}' was not found.");
+
+            conference.customConferenceName = incoming.CustomConferenceName.Trim();
+            NameConverters.Reload();
+
+            if (!NameConverters.ConfDict.TryGetValue(incoming.ConferenceSeo, out var saved))
+                throw new InvalidDataException($"Conference '{incoming.ConferenceSeo}' was not found after save.");
+
+            return ToConferenceSnapshot(saved);
+        }
+
+        private static SportSnapshot ToSportSnapshot(Sport sport)
+        {
+            var lists = sport.ListsNeeded ?? new ListsNeeded();
+            var oos = sport.OosUpdater ?? new OosUpdater();
+            return new SportSnapshot
+            {
+                Name = sport.SportName,
+                Short = sport.SportShortName,
+                Code = sport.SportCode,
+                Enabled = sport.Enabled,
+                ConferenceName = sport.ConferenceName,
+                Division = sport.Division,
+                Week = sport.Week,
+                SeasonYear = sport.SeasonYear,
+                GameDisplayMode = sport.GameDisplayMode.ToString(),
+                ListsNeeded = new ListsNeededSnapshot
+                {
+                    ConferenceGames = lists.conferenceGames,
+                    NonConferenceGames = lists.nonConferenceGames,
+                    Top25Games = lists.top25Games
+                },
+                OosUpdater = new OosUpdaterSnapshot
+                {
+                    Enabled = oos.Enabled,
+                    OosFilePath = oos.OosFilePath,
+                    OosFileName = oos.OosFileName,
+                    NumberOfOutScores = oos.NumberOfOutScores,
+                    NumberOfTeamsPer = oos.NumberOfTeamsPer
+                }
+            };
+        }
+
+        private static Sport ToSport(SportSnapshot snapshot)
+        {
+            if (!Enum.TryParse<GameDisplayMode>(snapshot.GameDisplayMode, ignoreCase: true, out var mode))
+                mode = GameDisplayMode.Live;
+
+            var lists = snapshot.ListsNeeded ?? new ListsNeededSnapshot();
+            var oos = snapshot.OosUpdater ?? new OosUpdaterSnapshot();
+            return new Sport
+            {
+                SportName = snapshot.Name ?? "",
+                SportShortName = snapshot.Short ?? "",
+                SportCode = snapshot.Code,
+                Enabled = snapshot.Enabled,
+                ConferenceName = snapshot.ConferenceName,
+                Division = snapshot.Division,
+                Week = snapshot.Week,
+                SeasonYear = snapshot.SeasonYear,
+                GameDisplayMode = mode,
+                ListsNeeded = new ListsNeeded
+                {
+                    conferenceGames = lists.ConferenceGames,
+                    nonConferenceGames = lists.NonConferenceGames,
+                    top25Games = lists.Top25Games
+                },
+                OosUpdater = new OosUpdater
+                {
+                    Enabled = oos.Enabled,
+                    OosFilePath = oos.OosFilePath,
+                    OosFileName = oos.OosFileName,
+                    NumberOfOutScores = oos.NumberOfOutScores,
+                    NumberOfTeamsPer = oos.NumberOfTeamsPer
+                }
+            };
+        }
+
+        private static TeamNameSnapshot ToTeamSnapshot(Team team) =>
+            new()
+            {
+                Name6Char = team.name6Char,
+                CustomName = team.customName,
+                Seoname = team.seoname,
+                NameShort = team.nameShort
+            };
+
+        private static ConferenceNameSnapshot ToConferenceSnapshot(Conferences conference) =>
+            new()
+            {
+                ConferenceSeo = conference.conferenceSeo,
+                CustomConferenceName = conference.customConferenceName
+            };
+
+        private static string? ResolveTeamCode(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return value;
+
+            try
+            {
+                EnsureNameConverters();
+            }
+            catch (FileNotFoundException)
+            {
+                return value.Trim();
+            }
+            catch (InvalidDataException)
+            {
+                return value.Trim();
+            }
+
+            var options = TeamSelection.CreateOptions(NameConverters.GetTeams());
+            return TeamSelection.ResolveName6Char(value, value, options) ?? value.Trim();
+        }
+
+        private static T ReadRequiredParams<T>(JsonElement? paramsElement)
+        {
+            if (paramsElement is not { } el || el.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+                throw new InvalidOperationException("Request params are required.");
+
+            var value = el.Deserialize<T>(JsonOptions);
+            if (value is null)
+                throw new InvalidOperationException("Request params are invalid.");
+            return value;
         }
 
         private static StatusResult Start()

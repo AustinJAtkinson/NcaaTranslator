@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { sendMessage } from "./bridge";
+import NamesTab from "./NamesTab";
+import SettingsTab from "./SettingsTab";
 import type { ScoreboardSnapshot, SportScoreboardSnapshot, StatusResult } from "./types";
 
-type Tab = "main" | "settings";
+type Tab = "main" | "settings" | "names";
 
 const emptyBoard: ScoreboardSnapshot = { sports: [] };
 const idleStatus: StatusResult = { running: false, lastUpdate: null };
@@ -92,6 +94,13 @@ export default function App() {
           >
             Settings
           </button>
+          <button
+            type="button"
+            className={tab === "names" ? "tab active" : "tab"}
+            onClick={() => setTab("names")}
+          >
+            Names
+          </button>
         </nav>
       </header>
 
@@ -104,11 +113,10 @@ export default function App() {
           onStart={onStart}
           onStop={onStop}
         />
+      ) : tab === "settings" ? (
+        <SettingsTab />
       ) : (
-        <section className="placeholder">
-          <h2>Settings</h2>
-          <p>Settings and Name Converter screens will be added in a later update.</p>
-        </section>
+        <NamesTab />
       )}
     </main>
   );

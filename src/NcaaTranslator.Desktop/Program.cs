@@ -24,12 +24,12 @@ class Program
         var window = new PhotinoWindow()
             .SetTitle("NCAA Translator")
             .SetUseOsDefaultSize(false)
-            .SetSize(1000, 600)
+            .SetSize(1100, 720)
             .Center()
             .RegisterWebMessageReceivedHandler((sender, message) =>
             {
                 var photino = (PhotinoWindow)sender!;
-                photino.SendWebMessage(Bridge.Handle(message));
+                photino.SendWebMessage(Bridge.Handle(photino, message));
             })
             .Load($"{baseUrl}/index.html");
 

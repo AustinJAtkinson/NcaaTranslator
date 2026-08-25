@@ -1,6 +1,6 @@
 # NCAA Translator Desktop (Photino)
 
-Photino.NET host with a Vite + React + TypeScript UI. Talks over a JSON bridge (`ping`, `getSettings`, `start`, `stop`, `status`, `getScoreboard`). The Settings tab is a placeholder (forms come later).
+Photino.NET host with a Vite + React + TypeScript UI. Talks over a JSON bridge (`ping`, `getSettings`, `saveSettings`, `getTeams`, `saveTeamCustomName`, `getConferences`, `saveConferenceCustomName`, `pickFolder`, `pickFile`, `start`, `stop`, `status`, `getScoreboard`). Settings and Names tabs edit `Settings.json` and `NcaaNameConverter.json`. File/folder pickers are handled in `Bridge.cs` because they need `PhotinoWindow`.
 
 UI is served over HTTP via `Photino.NET.Server` (not `file://`) so Vite `type="module"` scripts load on WebView2.
 

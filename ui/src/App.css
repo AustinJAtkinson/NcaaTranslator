@@ -17,7 +17,7 @@ body {
 }
 
 .shell {
-  max-width: 64rem;
+  max-width: 90rem;
   margin: 0 auto;
   padding: 1.25rem 1.5rem 2rem;
 }
@@ -159,4 +159,84 @@ td.score {
 td.clock {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.75rem 1.25rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.field span {
+  opacity: 0.8;
+}
+
+input,
+select {
+  font: inherit;
+  padding: 0.3rem 0.45rem;
+  color: inherit;
+  background: Canvas;
+  border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas);
+  border-radius: 4px;
+}
+
+input.narrow {
+  width: 5.5rem;
+}
+
+input.num {
+  width: 4.5rem;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.path-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.path-row input {
+  flex: 1;
+  min-width: 8rem;
+}
+
+.table-wrap {
+  overflow: auto;
+  max-height: 28rem;
+  border: 1px solid color-mix(in srgb, CanvasText 14%, Canvas);
+  border-radius: 8px;
+}
+
+.settings-table {
+  min-width: 84rem;
+}
+
+.settings-table input,
+.settings-table select {
+  width: 100%;
+  min-width: 3.5rem;
+  box-sizing: border-box;
+}
+
+.settings-table td {
+  vertical-align: middle;
 }
