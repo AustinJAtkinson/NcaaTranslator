@@ -2,15 +2,23 @@
 
 Photino.NET host with a Vite + React + TypeScript UI. Talks over a JSON bridge (`ping`, `getSettings`).
 
+UI is served over HTTP via `Photino.NET.Server` (not `file://`) so Vite `type="module"` scripts load on WebView2.
+
 ## Run
 
 ```bash
 dotnet run --project src/NcaaTranslator.Desktop
 ```
 
-The csproj runs `npm ci` / `npm run build` in `ui/` when Node.js is on PATH, then copies `ui/dist` to output `wwwroot`. A prebuilt `wwwroot/` is committed so `dotnet run` still works without Node.
+Uses the committed `wwwroot/` copy next to the exe (`AppContext.BaseDirectory`). Solution / test builds skip the Vite pipeline (`SkipUiBuild` defaults to true).
 
-To rebuild the UI yourself:
+Rebuild the UI into output:
+
+```bash
+dotnet run --project src/NcaaTranslator.Desktop -p:SkipUiBuild=false
+```
+
+Or by hand:
 
 ```bash
 cd ui
@@ -18,4 +26,4 @@ npm ci
 npm run build
 ```
 
-Vite `base` is `./` so relative `wwwroot` / `file://` loads work.
+Then copy `ui/dist` over `src/NcaaTranslator.Desktop/wwwroot` if you want to commit the new shell.

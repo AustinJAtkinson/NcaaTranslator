@@ -1,5 +1,6 @@
 using NcaaTranslator.Library;
 using Photino.NET;
+using Photino.NET.Server;
 
 namespace NcaaTranslator.Desktop;
 
@@ -12,6 +13,14 @@ class Program
         Settings.BaseDirectory = appDir;
         NameConverters.BaseDirectory = appDir;
 
+        // PhotinoServer resolves "wwwroot" against CWD. Pin to the exe dir so
+        // `dotnet run` serves output wwwroot, not the project-tree copy.
+        Directory.SetCurrentDirectory(appDir);
+
+        PhotinoServer
+            .CreateStaticFileServer(args, out var baseUrl)
+            .RunAsync();
+
         var window = new PhotinoWindow()
             .SetTitle("NCAA Translator")
             .SetUseOsDefaultSize(false)
@@ -22,7 +31,7 @@ class Program
                 var photino = (PhotinoWindow)sender!;
                 photino.SendWebMessage(Bridge.Handle(message));
             })
-            .Load("wwwroot/index.html");
+            .Load($"{baseUrl}/index.html");
 
         window.WaitForClose();
     }

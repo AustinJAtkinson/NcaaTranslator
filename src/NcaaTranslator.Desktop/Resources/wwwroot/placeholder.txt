@@ -1,0 +1,2 @@
+Photino.NET.Server looks up Resources/wwwroot in the embedded file manifest.
+Physical output wwwroot is served first.

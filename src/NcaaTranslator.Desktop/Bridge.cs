@@ -3,7 +3,8 @@ using NcaaTranslator.Library;
 namespace NcaaTranslator.Desktop;
 
 /// <summary>
-/// Photino-free dispatcher. Handler core lives in <see cref="AppBridge"/>.
+/// Photino-free dispatcher. Request/response DTOs and Handle live in
+/// <see cref="AppBridge"/> so tests do not need Photino.Native.
 /// </summary>
 public static class Bridge
 {
