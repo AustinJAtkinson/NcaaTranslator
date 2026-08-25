@@ -83,6 +83,9 @@ namespace NcaaTranslator.Library
         private static readonly Dictionary<string, NcaaScoreboard> Scoreboards = new();
         private static Timer? _timer;
         private static bool _running;
+        private static bool _rerunAfter;
+        private static bool _pollLoopRunning;
+        private static Task _inFlight = Task.CompletedTask;
         private static string? _lastUpdate;
 
         public static string Handle(string json)
@@ -127,6 +130,12 @@ namespace NcaaTranslator.Library
             }
         }
 
+        internal static Task WaitForPollAsync()
+        {
+            lock (StateLock)
+                return _inFlight;
+        }
+
         internal static void ResetForTests()
         {
             Timer? timer;
@@ -135,8 +144,11 @@ namespace NcaaTranslator.Library
                 timer = _timer;
                 _timer = null;
                 _running = false;
+                _rerunAfter = false;
+                _pollLoopRunning = false;
                 _lastUpdate = null;
                 Scoreboards.Clear();
+                _inFlight = Task.CompletedTask;
             }
 
             if (timer == null)
@@ -168,22 +180,13 @@ namespace NcaaTranslator.Library
 
             lock (StateLock)
             {
-                if (_running)
-                    return SnapshotStatus();
-
                 _running = true;
                 EnsureTimer();
                 _timer!.Interval = Math.Max(1, Settings.Timer);
+                _timer.Enabled = true;
             }
 
-            RunPollBlocking();
-
-            lock (StateLock)
-            {
-                if (_running && _timer != null)
-                    _timer.Enabled = true;
-            }
-
+            QueuePoll(force: true);
             return GetStatus();
         }
 
@@ -223,7 +226,9 @@ namespace NcaaTranslator.Library
                 if (!sport.Enabled || string.IsNullOrEmpty(sport.SportName))
                     continue;
 
-                snapshot.TryGetValue(sport.SportName, out var scoreboard);
+                if (!snapshot.TryGetValue(sport.SportName, out var scoreboard) || scoreboard.data == null)
+                    continue;
+
                 result.Sports.Add(ToSportSnapshot(sport, scoreboard));
             }
 
@@ -304,16 +309,69 @@ namespace NcaaTranslator.Library
 
         private static void OnTimerElapsed(object? sender, ElapsedEventArgs e)
         {
-            _ = ConversionGate.RunAsync(PerformConversion);
+            QueuePoll(force: false);
         }
 
-        private static void RunPollBlocking()
+        private static void QueuePoll(bool force)
         {
-            ConversionGate.RunAsync(PerformConversion).GetAwaiter().GetResult();
+            lock (StateLock)
+            {
+                if (_pollLoopRunning)
+                {
+                    if (force)
+                        _rerunAfter = true;
+                    return;
+                }
+
+                _pollLoopRunning = true;
+                _rerunAfter = false;
+                _inFlight = Task.Run(RunPollThenMaybeRerun);
+            }
+        }
+
+        private static async Task RunPollThenMaybeRerun()
+        {
+            try
+            {
+                while (true)
+                {
+                    await ConversionGate.RunAsync(PerformConversion).ConfigureAwait(false);
+
+                    lock (StateLock)
+                    {
+                        if (!_rerunAfter || !_running)
+                        {
+                            _rerunAfter = false;
+                            _pollLoopRunning = false;
+                            return;
+                        }
+
+                        _rerunAfter = false;
+                    }
+                }
+            }
+            catch
+            {
+                lock (StateLock)
+                {
+                    _pollLoopRunning = false;
+                    _rerunAfter = false;
+                }
+                throw;
+            }
+        }
+
+        private static bool IsRunning()
+        {
+            lock (StateLock)
+                return _running;
         }
 
         private static async Task PerformConversion()
         {
+            if (!IsRunning())
+                return;
+
             lock (StateLock)
                 _lastUpdate = DateTime.Now.ToString("HH:mm:ss.fff");
 
@@ -323,20 +381,32 @@ namespace NcaaTranslator.Library
 
             foreach (var sport in sportsList)
             {
+                if (!IsRunning())
+                    return;
+
                 try
                 {
                     var result = await NcaaProcessor.ConvertNcaaScoreboard(sport).ConfigureAwait(false);
+                    if (!IsRunning())
+                        return;
                     if (string.IsNullOrEmpty(sport.SportName))
                         continue;
 
                     lock (StateLock)
+                    {
+                        if (!_running)
+                            return;
                         Scoreboards[sport.SportName] = result;
+                    }
                 }
                 catch (Exception ex)
                 {
                     Debug.WriteLine($"Sport '{sport.SportName}' failed: {ex.Message}");
                 }
             }
+
+            if (!IsRunning())
+                return;
 
             if (Settings.XmlToJson?.Enabled == true)
             {

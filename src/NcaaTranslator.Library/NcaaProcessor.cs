@@ -78,7 +78,7 @@ namespace NcaaTranslator.Library
         {
             try
             {
-                return await HttpClient.GetStringAsync(url);
+                return await HttpClient.GetStringAsync(url).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

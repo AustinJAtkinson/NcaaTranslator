@@ -23,7 +23,7 @@ internal static class TestHelpers
         Settings.SettingsList = null;
         Settings.fileName = "Settings.json";
         Settings.BaseDirectory = AppContext.BaseDirectory;
-        NcaaProcessor.HttpClient = NcaaProcessor.CreateHttpClient();
+        NcaaProcessor.HttpClient = new HttpClient(new ThrowingHttpMessageHandler());
         AppBridge.ResetForTests();
     }
 
@@ -129,25 +129,38 @@ internal static class TestHelpers
     }
 }
 
+internal sealed class ThrowingHttpMessageHandler : HttpMessageHandler
+{
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        throw new InvalidOperationException("Tests must install FakeHttpMessageHandler; live NCAA is disabled.");
+    }
+}
+
 internal sealed class FakeHttpMessageHandler : HttpMessageHandler
 {
     public string Response { get; set; } = "";
     public HttpStatusCode StatusCode { get; set; } = HttpStatusCode.OK;
     public Exception? ExceptionToThrow { get; set; }
-    public int CallCount { get; private set; }
+    public Task? Block { get; set; }
     public Uri? LastRequestUri { get; private set; }
 
-    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    private int _callCount;
+    public int CallCount => _callCount;
+
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        CallCount++;
+        Interlocked.Increment(ref _callCount);
         LastRequestUri = request.RequestUri;
+        if (Block != null)
+            await Block.ConfigureAwait(false);
         if (ExceptionToThrow != null)
             throw ExceptionToThrow;
 
-        return Task.FromResult(new HttpResponseMessage(StatusCode)
+        return new HttpResponseMessage(StatusCode)
         {
             Content = new StringContent(Response, Encoding.UTF8, "application/json")
-        });
+        };
     }
 }
 

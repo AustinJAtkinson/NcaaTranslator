@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { sendMessage } from "./bridge";
 import type { ScoreboardSnapshot, SportScoreboardSnapshot, StatusResult } from "./types";
 
@@ -13,16 +13,24 @@ export default function App() {
   const [board, setBoard] = useState<ScoreboardSnapshot>(emptyBoard);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const refreshInFlight = useRef(false);
 
   const refresh = useCallback(async () => {
+    if (busyRef.current || refreshInFlight.current) return;
+    refreshInFlight.current = true;
     try {
       const nextStatus = await sendMessage<StatusResult>("status");
-      const nextBoard = await sendMessage<ScoreboardSnapshot>("getScoreboard");
       setStatus(nextStatus);
-      setBoard(nextBoard);
+      if (nextStatus.running) {
+        const nextBoard = await sendMessage<ScoreboardSnapshot>("getScoreboard");
+        setBoard(nextBoard);
+      }
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      refreshInFlight.current = false;
     }
   }, []);
 
@@ -35,21 +43,23 @@ export default function App() {
   }, [refresh]);
 
   async function onStart() {
+    busyRef.current = true;
     setBusy(true);
     try {
       const next = await sendMessage<StatusResult>("start");
       setStatus(next);
-      const nextBoard = await sendMessage<ScoreboardSnapshot>("getScoreboard");
-      setBoard(nextBoard);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
+    void refresh();
   }
 
   async function onStop() {
+    busyRef.current = true;
     setBusy(true);
     try {
       const next = await sendMessage<StatusResult>("stop");
@@ -58,6 +68,7 @@ export default function App() {
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }
@@ -130,7 +141,9 @@ function MainTab(props: {
       {error !== null && <p className="error">{error}</p>}
       <div className="sports">
         {board.sports.length === 0 ? (
-          <p className="empty">No enabled sports to display. Press Start to poll scores.</p>
+          <p className="empty">
+            {status.running ? "No games to display." : "Press Start to poll scores."}
+          </p>
         ) : (
           board.sports.map((sport) => <SportSection key={sport.sportName} sport={sport} />)
         )}

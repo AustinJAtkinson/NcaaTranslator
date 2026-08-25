@@ -1,6 +1,6 @@
 # NCAA Translator Desktop (Photino)
 
-Photino.NET host with a Vite + React + TypeScript UI. Talks over a JSON bridge (`ping`, `getSettings`).
+Photino.NET host with a Vite + React + TypeScript UI. Talks over a JSON bridge (`ping`, `getSettings`, `start`, `stop`, `status`, `getScoreboard`). The Settings tab is a placeholder (forms come later).
 
 UI is served over HTTP via `Photino.NET.Server` (not `file://`) so Vite `type="module"` scripts load on WebView2.
 
