@@ -24,6 +24,7 @@ internal static class TestHelpers
         Settings.fileName = "Settings.json";
         Settings.BaseDirectory = AppContext.BaseDirectory;
         NcaaProcessor.HttpClient = NcaaProcessor.CreateHttpClient();
+        AppBridge.ResetForTests();
     }
 
     public static void WriteNameConverter(string path, string json)

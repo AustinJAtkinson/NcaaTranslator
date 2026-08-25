@@ -19,6 +19,33 @@ export type SettingsSnapshot = {
   homeTeam: string | null;
 };
 
+export type StatusResult = {
+  running: boolean;
+  lastUpdate: string | null;
+};
+
+export type GameSnapshot = {
+  home: string | null;
+  homeScore: number | null;
+  away: string | null;
+  awayScore: number | null;
+  displayClock: string | null;
+};
+
+export type SportScoreboardSnapshot = {
+  sportName: string;
+  gameDisplayMode: string;
+  confGamesCount: number;
+  nonConfGamesCount: number;
+  displayGamesCount: number;
+  homeGamesCount: number;
+  games: GameSnapshot[];
+};
+
+export type ScoreboardSnapshot = {
+  sports: SportScoreboardSnapshot[];
+};
+
 export type PhotinoExternal = {
   sendMessage: (message: string) => void;
   receiveMessage: (callback: (message: string) => void) => void;

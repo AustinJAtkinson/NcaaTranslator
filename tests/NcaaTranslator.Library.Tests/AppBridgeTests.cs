@@ -88,12 +88,12 @@ public class AppBridgeTests
     {
         using var workspace = new TempWorkspace();
 
-        using var doc = Handle("""{"id":"x","method":"start"}""");
+        using var doc = Handle("""{"id":"x","method":"nope"}""");
 
         Assert.Equal("x", Id(doc));
         Assert.False(doc.RootElement.TryGetProperty("result", out _));
         Assert.Contains("Unknown method", Error(doc));
-        Assert.Contains("start", Error(doc));
+        Assert.Contains("nope", Error(doc));
     }
 
     [Fact]
