@@ -50,8 +50,8 @@ namespace NcaaTranslator.Library
         [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
         public int? SeasonYear { get; set; }
         public string GameDisplayMode { get; set; } = "Live";
-        public ListsNeededSnapshot ListsNeeded { get; set; } = new();
-        public OosUpdaterSnapshot OosUpdater { get; set; } = new();
+        public ListsNeededSnapshot? ListsNeeded { get; set; }
+        public OosUpdaterSnapshot? OosUpdater { get; set; }
     }
 
     public class ListsNeededSnapshot
@@ -423,8 +423,24 @@ namespace NcaaTranslator.Library
             if (!Enum.TryParse<GameDisplayMode>(snapshot.GameDisplayMode, ignoreCase: true, out var mode))
                 mode = GameDisplayMode.Live;
 
-            var lists = snapshot.ListsNeeded ?? new ListsNeededSnapshot();
-            var oos = snapshot.OosUpdater ?? new OosUpdaterSnapshot();
+            var lists = snapshot.ListsNeeded == null
+                ? new ListsNeeded()
+                : new ListsNeeded
+                {
+                    conferenceGames = snapshot.ListsNeeded.ConferenceGames,
+                    nonConferenceGames = snapshot.ListsNeeded.NonConferenceGames,
+                    top25Games = snapshot.ListsNeeded.Top25Games
+                };
+            var oos = snapshot.OosUpdater == null
+                ? new OosUpdater()
+                : new OosUpdater
+                {
+                    Enabled = snapshot.OosUpdater.Enabled,
+                    OosFilePath = snapshot.OosUpdater.OosFilePath,
+                    OosFileName = snapshot.OosUpdater.OosFileName,
+                    NumberOfOutScores = snapshot.OosUpdater.NumberOfOutScores,
+                    NumberOfTeamsPer = snapshot.OosUpdater.NumberOfTeamsPer
+                };
             return new Sport
             {
                 SportName = snapshot.Name ?? "",
@@ -436,20 +452,8 @@ namespace NcaaTranslator.Library
                 Week = snapshot.Week,
                 SeasonYear = snapshot.SeasonYear,
                 GameDisplayMode = mode,
-                ListsNeeded = new ListsNeeded
-                {
-                    conferenceGames = lists.ConferenceGames,
-                    nonConferenceGames = lists.NonConferenceGames,
-                    top25Games = lists.Top25Games
-                },
-                OosUpdater = new OosUpdater
-                {
-                    Enabled = oos.Enabled,
-                    OosFilePath = oos.OosFilePath,
-                    OosFileName = oos.OosFileName,
-                    NumberOfOutScores = oos.NumberOfOutScores,
-                    NumberOfTeamsPer = oos.NumberOfTeamsPer
-                }
+                ListsNeeded = lists,
+                OosUpdater = oos
             };
         }
 

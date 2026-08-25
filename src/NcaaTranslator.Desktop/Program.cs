@@ -29,7 +29,9 @@ class Program
             .RegisterWebMessageReceivedHandler((sender, message) =>
             {
                 var photino = (PhotinoWindow)sender!;
-                photino.SendWebMessage(Bridge.Handle(photino, message));
+                var response = Bridge.Handle(photino, message);
+                if (response != null)
+                    photino.SendWebMessage(response);
             })
             .Load($"{baseUrl}/index.html");
 

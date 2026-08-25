@@ -54,9 +54,19 @@ export default function NamesTab() {
     );
   }, [conferences, query]);
 
-  async function saveTeam(name6Char: string, customName: string, previous: string | null) {
+  function restoreEmpty(input: HTMLInputElement, previous: string | null, message: string) {
+    input.value = previous ?? "";
+    setError(message);
+    setStatus(null);
+  }
+
+  async function saveTeam(name6Char: string, customName: string, previous: string | null, input: HTMLInputElement) {
     const next = customName.trim();
-    if (!next || next === (previous ?? "").trim()) return;
+    if (!next) {
+      restoreEmpty(input, previous, "Display name cannot be empty.");
+      return;
+    }
+    if (next === (previous ?? "").trim()) return;
     try {
       const saved = await sendMessage<TeamNameSnapshot>("saveTeamCustomName", {
         name6Char,
@@ -73,9 +83,18 @@ export default function NamesTab() {
     }
   }
 
-  async function saveConference(conferenceSeo: string, customConferenceName: string, previous: string | null) {
+  async function saveConference(
+    conferenceSeo: string,
+    customConferenceName: string,
+    previous: string | null,
+    input: HTMLInputElement
+  ) {
     const next = customConferenceName.trim();
-    if (!next || next === (previous ?? "").trim()) return;
+    if (!next) {
+      restoreEmpty(input, previous, "Custom name cannot be empty.");
+      return;
+    }
+    if (next === (previous ?? "").trim()) return;
     try {
       const saved = await sendMessage<ConferenceNameSnapshot>("saveConferenceCustomName", {
         conferenceSeo,
@@ -149,7 +168,7 @@ export default function NamesTab() {
                         key={`${team.name6Char}-${team.customName}`}
                         onBlur={(e) => {
                           if (team.name6Char)
-                            void saveTeam(team.name6Char, e.target.value, team.customName);
+                            void saveTeam(team.name6Char, e.target.value, team.customName, e.target);
                         }}
                       />
                     </td>
@@ -185,7 +204,8 @@ export default function NamesTab() {
                           void saveConference(
                             conference.conferenceSeo,
                             e.target.value,
-                            conference.customConferenceName
+                            conference.customConferenceName,
+                            e.target
                           );
                       }}
                     />

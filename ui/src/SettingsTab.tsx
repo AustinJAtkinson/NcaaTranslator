@@ -45,6 +45,7 @@ export default function SettingsTab() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [picking, setPicking] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -157,6 +158,7 @@ export default function SettingsTab() {
 
   async function pickOosFolder(index: number) {
     const sport = settings.sports[index];
+    setPicking(true);
     try {
       const picked = await sendMessage<PickPathResult>("pickFolder", {
         title: "OOS folder",
@@ -165,10 +167,13 @@ export default function SettingsTab() {
       if (picked.path) patchSportOos(index, { oosFilePath: picked.path });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPicking(false);
     }
   }
 
   async function pickXmlFile(index: number) {
+    setPicking(true);
     try {
       const picked = await sendMessage<PickPathResult>("pickFile", {
         title: "XML file",
@@ -179,7 +184,36 @@ export default function SettingsTab() {
       patch({ xmlToJson: { ...settings.xmlToJson, filePaths } });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPicking(false);
     }
+  }
+
+  function addSport() {
+    patch({
+      sports: [
+        ...settings.sports,
+        {
+          name: "New Sport",
+          short: "NS",
+          code: null,
+          enabled: true,
+          conferenceName: null,
+          division: 1,
+          week: 1,
+          seasonYear: null,
+          gameDisplayMode: "Live",
+          listsNeeded: emptyLists(),
+          oosUpdater: emptyOos(),
+        },
+      ],
+    });
+  }
+
+  function removeSport(index: number) {
+    const name = settings.sports[index]?.name || "this sport";
+    if (!window.confirm(`Are you sure you want to remove the sport '${name}'?`)) return;
+    patch({ sports: settings.sports.filter((_, i) => i !== index) });
   }
 
   function addDisplayTeam() {
@@ -217,9 +251,10 @@ export default function SettingsTab() {
   return (
     <section className="panel">
       <div className="toolbar">
-        <button type="button" onClick={() => void onSave()} disabled={busy || !loaded}>
+        <button type="button" onClick={() => void onSave()} disabled={busy || picking || !loaded}>
           Save
         </button>
+        {picking ? <span className="status muted">Choosing a file…</span> : null}
         {status !== null && <span className="status muted">{status}</span>}
       </div>
       {error !== null && <p className="error">{error}</p>}
@@ -257,7 +292,12 @@ export default function SettingsTab() {
         </label>
       </div>
 
-      <h2>Sports</h2>
+      <div className="toolbar">
+        <h2>Sports</h2>
+        <button type="button" onClick={addSport} disabled={picking}>
+          Add sport
+        </button>
+      </div>
       <div className="table-wrap">
         <table className="settings-table">
           <thead>
@@ -279,12 +319,13 @@ export default function SettingsTab() {
               <th>OOS File</th>
               <th>Scores</th>
               <th>Teams</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             {settings.sports.length === 0 ? (
               <tr>
-                <td colSpan={17} className="empty">
+                <td colSpan={18} className="empty">
                   No sports configured.
                 </td>
               </tr>
@@ -401,7 +442,7 @@ export default function SettingsTab() {
                         value={sport.oosUpdater?.oosFilePath ?? ""}
                         onChange={(e) => patchSportOos(index, { oosFilePath: e.target.value || null })}
                       />
-                      <button type="button" onClick={() => void pickOosFolder(index)}>
+                      <button type="button" onClick={() => void pickOosFolder(index)} disabled={picking}>
                         Browse
                       </button>
                     </div>
@@ -431,6 +472,11 @@ export default function SettingsTab() {
                         patchSportOos(index, { numberOfTeamsPer: Number(e.target.value) })
                       }
                     />
+                  </td>
+                  <td>
+                    <button type="button" onClick={() => removeSport(index)} disabled={picking}>
+                      X
+                    </button>
                   </td>
                 </tr>
               ))
@@ -504,7 +550,7 @@ export default function SettingsTab() {
               patch({ xmlToJson: { ...settings.xmlToJson, filePaths } });
             }}
           />
-          <button type="button" onClick={() => void pickXmlFile(index)}>
+          <button type="button" onClick={() => void pickXmlFile(index)} disabled={picking}>
             Browse
           </button>
           <button type="button" onClick={() => removeXmlPath(index)}>

@@ -144,6 +144,95 @@ public class AppBridgeTests
     }
 
     [Fact]
+    public void Handle_SaveSettings_PersistsSportDisplayTeamAndXmlPaths()
+    {
+        using var workspace = new TempWorkspace();
+        TestHelpers.WriteDefaultNames(workspace.DirectoryPath);
+        TestHelpers.UseSettings("NDSU");
+
+        using var doc = Handle("""
+            {"id":"sv","method":"saveSettings","params":{
+              "timer":20,
+              "homeTeam":"NO DAK",
+              "sports":[{"name":"Hockey","short":"HKY","code":"MIH","enabled":true,"conferenceName":"NCHC","division":1,"week":null,"seasonYear":2024,"gameDisplayMode":"All"}],
+              "displayTeams":[{"ncaaTeamName":"UND"}],
+              "xmlToJson":{"enabled":true,"filePaths":["/tmp/a.xml","/tmp/b.xml"]}
+            }}
+            """);
+
+        Assert.Equal("sv", Id(doc));
+        Assert.False(doc.RootElement.TryGetProperty("error", out _));
+
+        var sports = Settings.SettingsList!.Sports!;
+        Assert.Single(sports);
+        var sport = sports[0];
+        Assert.Equal("Hockey", sport.SportName);
+        Assert.Equal("HKY", sport.SportShortName);
+        Assert.Equal("MIH", sport.SportCode);
+        Assert.True(sport.Enabled);
+        Assert.Equal("NCHC", sport.ConferenceName);
+        Assert.Equal(1, sport.Division);
+        Assert.Null(sport.Week);
+        Assert.Equal(2024, sport.SeasonYear);
+        Assert.Equal(GameDisplayMode.All, sport.GameDisplayMode);
+        Assert.True(sport.ListsNeeded.conferenceGames);
+        Assert.True(sport.ListsNeeded.nonConferenceGames);
+        Assert.True(sport.ListsNeeded.top25Games);
+
+        var displayTeams = Settings.SettingsList.DisplayTeams!;
+        Assert.Single(displayTeams);
+        Assert.Equal("NO DAK", displayTeams[0].NcaaTeamName);
+
+        Assert.True(Settings.SettingsList.XmlToJson!.Enabled);
+        Assert.Equal(new[] { "/tmp/a.xml", "/tmp/b.xml" }, Settings.SettingsList.XmlToJson.FilePaths!.Select(p => p.Path));
+
+        var result = Result(doc);
+        Assert.Equal("NO DAK", result.GetProperty("displayTeams")[0].GetProperty("ncaaTeamName").GetString());
+        Assert.Equal("Hockey", result.GetProperty("sports")[0].GetProperty("name").GetString());
+        Assert.True(result.GetProperty("xmlToJson").GetProperty("enabled").GetBoolean());
+        Assert.Equal(2, result.GetProperty("xmlToJson").GetProperty("filePaths").GetArrayLength());
+
+        Settings.SettingsList = null;
+        Settings.Load();
+        Assert.Equal("Hockey", Settings.SettingsList!.Sports![0].SportName);
+        Assert.True(Settings.SettingsList.Sports[0].ListsNeeded.conferenceGames);
+        Assert.True(Settings.SettingsList.Sports[0].ListsNeeded.nonConferenceGames);
+        Assert.True(Settings.SettingsList.Sports[0].ListsNeeded.top25Games);
+        Assert.Equal("NO DAK", Settings.SettingsList.DisplayTeams![0].NcaaTeamName);
+        Assert.True(Settings.SettingsList.XmlToJson!.Enabled);
+        Assert.Equal("/tmp/a.xml", Settings.SettingsList.XmlToJson.FilePaths![0].Path);
+        Assert.Equal("/tmp/b.xml", Settings.SettingsList.XmlToJson.FilePaths[1].Path);
+    }
+
+    [Fact]
+    public void Handle_PickFolder_ReturnsErrorWithoutThrowing()
+    {
+        using var workspace = new TempWorkspace();
+
+        using var doc = Handle("""{"id":"p","method":"pickFolder"}""");
+
+        Assert.Equal("p", Id(doc));
+        Assert.False(doc.RootElement.TryGetProperty("result", out _));
+        var error = Error(doc);
+        Assert.Contains("desktop host", error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("pickFolder", error);
+    }
+
+    [Fact]
+    public void Handle_PickFile_ReturnsErrorWithoutThrowing()
+    {
+        using var workspace = new TempWorkspace();
+
+        using var doc = Handle("""{"id":"p","method":"pickFile"}""");
+
+        Assert.Equal("p", Id(doc));
+        Assert.False(doc.RootElement.TryGetProperty("result", out _));
+        var error = Error(doc);
+        Assert.Contains("desktop host", error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("pickFile", error);
+    }
+
+    [Fact]
     public void Handle_SaveTeamCustomName_RoundTrips()
     {
         using var workspace = new TempWorkspace();

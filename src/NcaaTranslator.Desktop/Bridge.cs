@@ -8,6 +8,7 @@ namespace NcaaTranslator.Desktop;
 /// <summary>
 /// Photino dispatcher. File/folder pickers need <see cref="PhotinoWindow"/>;
 /// all other methods live in <see cref="AppBridge"/> so tests do not need Photino.Native.
+/// Pick dialogs run asynchronously so the web-message thread is not blocked.
 /// </summary>
 public static class Bridge
 {
@@ -26,7 +27,12 @@ public static class Bridge
 
     public static string Handle(string json) => AppBridge.Handle(json);
 
-    public static string Handle(PhotinoWindow window, string json)
+    /// <summary>
+    /// Dispatches a bridge request. Returns a JSON response immediately, or
+    /// <c>null</c> when a native file/folder dialog is in flight and the reply
+    /// will be sent later via <see cref="PhotinoWindow.SendWebMessage"/>.
+    /// </summary>
+    public static string? Handle(PhotinoWindow window, string json)
     {
         if (string.IsNullOrWhiteSpace(json))
             return AppBridge.Handle(json);
@@ -45,24 +51,32 @@ public static class Bridge
         if (method is not ("pickFolder" or "pickFile"))
             return AppBridge.Handle(json);
 
+        _ = PickAsync(window, request!, method);
+        return null;
+    }
+
+    private static async Task PickAsync(PhotinoWindow window, BridgeRequest request, string method)
+    {
         try
         {
-            var title = ParamString(request!.Params, "title");
+            var title = ParamString(request.Params, "title");
             var defaultPath = ParamString(request.Params, "defaultPath");
             var paths = method == "pickFolder"
-                ? window.ShowOpenFolder(string.IsNullOrWhiteSpace(title) ? "Select folder" : title, defaultPath)
-                : window.ShowOpenFile(string.IsNullOrWhiteSpace(title) ? "Choose file" : title, defaultPath, false, XmlFilters);
+                ? await window.ShowOpenFolderAsync(string.IsNullOrWhiteSpace(title) ? "Select folder" : title, defaultPath).ConfigureAwait(false)
+                : await window.ShowOpenFileAsync(string.IsNullOrWhiteSpace(title) ? "Choose file" : title, defaultPath, false, XmlFilters).ConfigureAwait(false);
             var path = paths is { Length: > 0 } && !string.IsNullOrWhiteSpace(paths[0]) ? paths[0] : null;
-            return JsonSerializer.Serialize(
-                new BridgeResponse { Id = request.Id, Result = new PickPathResult { Path = path } },
-                JsonOptions);
+            Reply(window, request.Id, new PickPathResult { Path = path }, error: null);
         }
         catch (Exception ex)
         {
-            return JsonSerializer.Serialize(
-                new BridgeResponse { Id = request!.Id, Error = ex.Message },
-                JsonOptions);
+            Reply(window, request.Id, result: null, error: ex.Message);
         }
+    }
+
+    private static void Reply(PhotinoWindow window, string? id, object? result, string? error)
+    {
+        var json = JsonSerializer.Serialize(new BridgeResponse { Id = id, Result = result, Error = error }, JsonOptions);
+        window.Invoke(() => window.SendWebMessage(json));
     }
 
     private static string? ParamString(JsonElement? parameters, string name)

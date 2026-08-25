@@ -105,6 +105,10 @@ button:disabled {
   opacity: 0.75;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 .sports {
   display: flex;
   flex-direction: column;

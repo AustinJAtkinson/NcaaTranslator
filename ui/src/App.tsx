@@ -104,7 +104,7 @@ export default function App() {
         </nav>
       </header>
 
-      {tab === "main" ? (
+      <div hidden={tab !== "main"}>
         <MainTab
           status={status}
           board={board}
@@ -113,11 +113,13 @@ export default function App() {
           onStart={onStart}
           onStop={onStop}
         />
-      ) : tab === "settings" ? (
+      </div>
+      <div hidden={tab !== "settings"}>
         <SettingsTab />
-      ) : (
+      </div>
+      <div hidden={tab !== "names"}>
         <NamesTab />
-      )}
+      </div>
     </main>
   );
 }
