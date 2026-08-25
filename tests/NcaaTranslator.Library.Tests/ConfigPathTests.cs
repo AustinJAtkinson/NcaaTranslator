@@ -135,12 +135,13 @@ public class ConfigPathTests : IDisposable
     [Fact]
     public void WpfCsproj_ConfigCopy_UsesPreserveNewest()
     {
-        var csproj = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "NcaaTranslator.Wpf", "NcaaTranslator.Wpf.csproj"));
+        AssertCsprojCopiesConfig(Path.Combine("src", "NcaaTranslator.Wpf", "NcaaTranslator.Wpf.csproj"));
+    }
 
-        Assert.Contains("<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>", csproj);
-        Assert.DoesNotContain("<CopyToOutputDirectory>Always</CopyToOutputDirectory>", csproj);
-        Assert.Contains("Settings.json", csproj);
-        Assert.Contains("NcaaNameConverter.json", csproj);
+    [Fact]
+    public void DesktopCsproj_ConfigCopy_UsesPreserveNewest()
+    {
+        AssertCsprojCopiesConfig(Path.Combine("src", "NcaaTranslator.Desktop", "NcaaTranslator.Desktop.csproj"));
     }
 
     private void WriteSettings(string json)
@@ -159,6 +160,16 @@ public class ConfigPathTests : IDisposable
 
     private string ExpectedPath(string fileName) =>
         Path.GetFullPath(Path.Combine(_workspace.DirectoryPath, fileName));
+
+    private static void AssertCsprojCopiesConfig(string relativeCsproj)
+    {
+        var csproj = File.ReadAllText(Path.Combine(FindRepoRoot(), relativeCsproj));
+
+        Assert.Contains("<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>", csproj);
+        Assert.DoesNotContain("<CopyToOutputDirectory>Always</CopyToOutputDirectory>", csproj);
+        Assert.Contains("Settings.json", csproj);
+        Assert.Contains("NcaaNameConverter.json", csproj);
+    }
 
     private static string FindRepoRoot()
     {

@@ -28,3 +28,7 @@ artifacts/
 packages/
 
 .vs/
+
+# Node / Vite
+node_modules/
+ui/dist/

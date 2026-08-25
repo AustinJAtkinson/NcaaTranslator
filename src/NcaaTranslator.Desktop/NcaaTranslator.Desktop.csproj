@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <VersionPrefix>4.0.0</VersionPrefix>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UiDir>$(MSBuildThisFileDirectory)../../ui</UiDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NcaaTranslator.Library\NcaaTranslator.Library.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Photino.NET" Version="4.0.16" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- PreserveNewest so rebuilds do not clobber user Settings.json / NcaaNameConverter.json in bin/ -->
+    <Content Include="..\..\config\Settings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\..\config\NcaaNameConverter.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="wwwroot\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- When Node is on PATH, rebuild the Vite UI and overlay dist onto output wwwroot. -->
+  <Target Name="BuildUi" BeforeTargets="BeforeBuild" Condition="'$(SkipUiBuild)' != 'true'">
+    <Exec Command="node -v" IgnoreExitCode="true" StandardOutputImportance="Low" StandardErrorImportance="Low">
+      <Output TaskParameter="ExitCode" PropertyName="_NodeExitCode" />
+    </Exec>
+    <PropertyGroup>
+      <_HasNode Condition="'$(_NodeExitCode)' == '0'">true</_HasNode>
+    </PropertyGroup>
+    <Message Importance="high" Text="Node.js not found; using prebuilt wwwroot." Condition="'$(_HasNode)' != 'true'" />
+    <Exec Command="npm ci" WorkingDirectory="$(UiDir)" Condition="'$(_HasNode)' == 'true' AND !Exists('$(UiDir)/node_modules')" />
+    <Exec Command="npm run build" WorkingDirectory="$(UiDir)" Condition="'$(_HasNode)' == 'true'" />
+  </Target>
+
+  <Target Name="CopyUiDistToOutput" AfterTargets="CopyFilesToOutputDirectory" Condition="Exists('$(UiDir)/dist/index.html')">
+    <ItemGroup>
+      <_UiDist Include="$(UiDir)/dist/**/*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_UiDist)"
+          DestinationFiles="@(_UiDist->'$(OutputPath)wwwroot/%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>
