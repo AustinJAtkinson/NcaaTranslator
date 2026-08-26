@@ -181,8 +181,11 @@ function SportSection({
 }) {
   const [saving, setSaving] = useState(false);
   const [expanded, setExpanded] = useState(true);
+  const savingRef = useRef(false);
 
   async function onModeChange(gameDisplayMode: string) {
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       const next = await sendMessage<ScoreboardSnapshot>("setGameDisplayMode", {
@@ -191,12 +194,16 @@ function SportSection({
       });
       onBoard(next);
       onError(null);
+      const applied =
+        next.sports.find((item) => item.sportName === sport.sportName)?.gameDisplayMode ??
+        gameDisplayMode;
       window.dispatchEvent(
-        new CustomEvent("sport-mode", { detail: { sportName: sport.sportName, gameDisplayMode } })
+        new CustomEvent("sport-mode", { detail: { sportName: sport.sportName, gameDisplayMode: applied } })
       );
     } catch (err) {
       onError(err instanceof Error ? err.message : String(err));
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -221,8 +228,8 @@ function SportSection({
         </button>
         <button
           type="button"
-          className="mode"
-          disabled={saving}
+          className={saving ? "mode is-saving" : "mode"}
+          aria-busy={saving}
           title="Click to cycle Live, All, Display"
           onClick={cycleMode}
         >

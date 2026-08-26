@@ -123,16 +123,16 @@ button:disabled {
 }
 
 .sport-header {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem 1rem;
+  column-gap: 0.75rem;
   padding: 0.4rem 0;
 }
 
 .sport-title {
-  flex: 1 1 auto;
+  min-width: 0;
+  justify-self: stretch;
   text-align: left;
   font: inherit;
   font-weight: 600;
@@ -144,10 +144,20 @@ button:disabled {
 }
 
 .mode {
+  box-sizing: border-box;
+  min-width: 32px;
+  min-height: 32px;
+  margin: 0;
+  padding: 0 0.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: end;
+  position: relative;
+  z-index: 1;
   font: inherit;
   font-size: 0.9rem;
   font-weight: 700;
-  padding: 0.15rem 0.45rem;
   border: none;
   background: transparent;
   color: inherit;
@@ -156,7 +166,7 @@ button:disabled {
   text-underline-offset: 0.15em;
 }
 
-.mode:disabled {
+.mode.is-saving {
   opacity: 0.6;
   cursor: wait;
 }
