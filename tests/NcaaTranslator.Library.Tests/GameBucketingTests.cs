@@ -66,6 +66,17 @@ public class GameBucketingTests : IDisposable
     }
 
     [Fact]
+    public void DisplayGamesAreFilled_WhenLiveModeWithoutOos()
+    {
+        var scoreboard = Bucket(GameDisplayMode.Live, oosEnabled: false);
+        var display = scoreboard.data!.displayGames!;
+
+        Assert.Equal(1, display[0].contestId);
+        Assert.Contains(display, g => g.contestId == 2);
+        Assert.Contains(display, g => g.contestId == 3 || g.contestId == 4);
+    }
+
+    [Fact]
     public async Task ConvertNcaaScoreboard_UsesFixtureHttp_AndDoesNotCallLiveNcaa()
     {
         TestHelpers.WriteDefaultNames(_workspace.DirectoryPath);

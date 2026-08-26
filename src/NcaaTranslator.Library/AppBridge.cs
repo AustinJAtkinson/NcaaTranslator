@@ -116,6 +116,12 @@ namespace NcaaTranslator.Library
         public string? CustomConferenceName { get; set; }
     }
 
+    public class GameDisplayModeParams
+    {
+        public string? SportName { get; set; }
+        public string? GameDisplayMode { get; set; }
+    }
+
     public class PickPathResult
     {
         [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
@@ -216,6 +222,7 @@ namespace NcaaTranslator.Library
                     "stop" => Stop(),
                     "status" => GetStatus(),
                     "getScoreboard" => GetScoreboard(),
+                    "setGameDisplayMode" => SetGameDisplayMode(request.Params),
                     _ => throw new InvalidOperationException($"Unknown method '{request.Method}'")
                 };
 
@@ -543,6 +550,25 @@ namespace NcaaTranslator.Library
 
         private static StatusResult SnapshotStatus() =>
             new() { Running = _running, LastUpdate = _lastUpdate };
+
+        private static ScoreboardSnapshot SetGameDisplayMode(JsonElement? paramsElement)
+        {
+            EnsureSettings();
+            var incoming = ReadRequiredParams<GameDisplayModeParams>(paramsElement);
+            if (string.IsNullOrWhiteSpace(incoming.SportName))
+                throw new InvalidOperationException("sportName is required.");
+            if (!Enum.TryParse<GameDisplayMode>(incoming.GameDisplayMode, ignoreCase: true, out var mode))
+                throw new InvalidOperationException($"Unknown gameDisplayMode '{incoming.GameDisplayMode}'.");
+
+            var sport = (Settings.GetSports() ?? new List<Sport>())
+                .FirstOrDefault(s => string.Equals(s.SportName, incoming.SportName, StringComparison.OrdinalIgnoreCase));
+            if (sport == null)
+                throw new InvalidOperationException($"Sport '{incoming.SportName}' was not found.");
+
+            sport.GameDisplayMode = mode;
+            Settings.Save();
+            return GetScoreboard();
+        }
 
         private static ScoreboardSnapshot GetScoreboard()
         {

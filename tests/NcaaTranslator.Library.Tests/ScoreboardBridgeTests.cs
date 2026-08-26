@@ -226,6 +226,61 @@ public class ScoreboardBridgeTests
     }
 
     [Fact]
+    public async Task Handle_SetGameDisplayMode_ReFiltersCachedScoreboardAndPersists()
+    {
+        using var workspace = new TempWorkspace();
+        TestHelpers.WriteDefaultNames(workspace.DirectoryPath);
+        TestHelpers.UseSettings();
+        Settings.SettingsList!.Sports!.Add(TestHelpers.CreateSport(mode: GameDisplayMode.Live));
+        Settings.SettingsList.Timer = 60;
+
+        var live = TestHelpers.CreateContest(1, "NO DAK", "North Dakota", "mvc", "S DAK", "South Dakota", "mvc",
+            homeScore: 14, awayScore: 7, gameState: "I");
+        live.currentPeriod = "1st";
+        live.contestClock = "8:00";
+        var pregame = TestHelpers.CreateContest(2, "NDSU", "North Dakota St.", "mvc", "SDSU", "South Dakota St.", "mvc",
+            startTimeEpoch: 1725000100, gameState: "P");
+
+        var handler = new FakeHttpMessageHandler
+        {
+            Response = TestHelpers.ToScoreboardJson(live, pregame)
+        };
+        NcaaProcessor.HttpClient = new HttpClient(handler);
+
+        Handle("""{"id":"s","method":"start"}""");
+        await AppBridge.WaitForPollAsync();
+
+        using var liveDoc = Handle("""{"id":"g","method":"getScoreboard"}""");
+        Assert.Equal(1, Result(liveDoc).GetProperty("sports")[0].GetProperty("games").GetArrayLength());
+
+        using var allDoc = Handle("""{"id":"m","method":"setGameDisplayMode","params":{"sportName":"Football FCS","gameDisplayMode":"All"}}""");
+        Assert.Equal("m", Id(allDoc));
+        var allSport = Result(allDoc).GetProperty("sports")[0];
+        Assert.Equal("All", allSport.GetProperty("gameDisplayMode").GetString());
+        Assert.Equal(2, allSport.GetProperty("games").GetArrayLength());
+        Assert.Equal(GameDisplayMode.All, Settings.SettingsList.Sports[0].GameDisplayMode);
+
+        using var displayDoc = Handle("""{"id":"d","method":"setGameDisplayMode","params":{"sportName":"Football FCS","gameDisplayMode":"Display"}}""");
+        var displaySport = Result(displayDoc).GetProperty("sports")[0];
+        Assert.Equal("Display", displaySport.GetProperty("gameDisplayMode").GetString());
+        Assert.True(displaySport.GetProperty("games").GetArrayLength() >= 1);
+
+        Handle("""{"id":"x","method":"stop"}""");
+    }
+
+    [Fact]
+    public void Handle_SetGameDisplayMode_UnknownSport_ReturnsError()
+    {
+        using var workspace = new TempWorkspace();
+        TestHelpers.UseSettings();
+
+        using var doc = Handle("""{"id":"e","method":"setGameDisplayMode","params":{"sportName":"No Such Sport","gameDisplayMode":"All"}}""");
+        Assert.Equal("e", Id(doc));
+        Assert.False(doc.RootElement.TryGetProperty("result", out _));
+        Assert.Contains("No Such Sport", doc.RootElement.GetProperty("error").GetString());
+    }
+
+    [Fact]
     public async Task Handle_GetScoreboard_LiveMode_OnlyInProgressGames()
     {
         using var workspace = new TempWorkspace();

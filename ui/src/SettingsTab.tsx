@@ -49,6 +49,21 @@ export default function SettingsTab() {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
+    function onSportMode(event: Event) {
+      const detail = (event as CustomEvent<{ sportName: string; gameDisplayMode: string }>).detail;
+      if (!detail?.sportName) return;
+      setSettings((prev) => ({
+        ...prev,
+        sports: prev.sports.map((sport) =>
+          sport.name === detail.sportName ? { ...sport, gameDisplayMode: detail.gameDisplayMode } : sport
+        ),
+      }));
+    }
+    window.addEventListener("sport-mode", onSportMode);
+    return () => window.removeEventListener("sport-mode", onSportMode);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     async function load() {
       try {

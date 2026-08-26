@@ -135,6 +135,12 @@ button:disabled {
 
 .mode {
   font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.mode select {
+  font: inherit;
+  font-weight: 600;
 }
 
 table {

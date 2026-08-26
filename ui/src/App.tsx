@@ -112,6 +112,8 @@ export default function App() {
           busy={busy}
           onStart={onStart}
           onStop={onStop}
+          onBoard={setBoard}
+          onError={setError}
         />
       </div>
       <div hidden={tab !== "settings"}>
@@ -131,8 +133,10 @@ function MainTab(props: {
   busy: boolean;
   onStart: () => void;
   onStop: () => void;
+  onBoard: (board: ScoreboardSnapshot) => void;
+  onError: (message: string | null) => void;
 }) {
-  const { status, board, error, busy, onStart, onStop } = props;
+  const { status, board, error, busy, onStart, onStop, onBoard, onError } = props;
 
   return (
     <>
@@ -155,14 +159,47 @@ function MainTab(props: {
             {status.running ? "No games to display." : "Press Start to poll scores."}
           </p>
         ) : (
-          board.sports.map((sport) => <SportSection key={sport.sportName} sport={sport} />)
+          board.sports.map((sport) => (
+            <SportSection key={sport.sportName} sport={sport} onBoard={onBoard} onError={onError} />
+          ))
         )}
       </div>
     </>
   );
 }
 
-function SportSection({ sport }: { sport: SportScoreboardSnapshot }) {
+const DISPLAY_MODES = ["Live", "All", "Display"];
+
+function SportSection({
+  sport,
+  onBoard,
+  onError,
+}: {
+  sport: SportScoreboardSnapshot;
+  onBoard: (board: ScoreboardSnapshot) => void;
+  onError: (message: string | null) => void;
+}) {
+  const [saving, setSaving] = useState(false);
+
+  async function onModeChange(gameDisplayMode: string) {
+    setSaving(true);
+    try {
+      const next = await sendMessage<ScoreboardSnapshot>("setGameDisplayMode", {
+        sportName: sport.sportName,
+        gameDisplayMode,
+      });
+      onBoard(next);
+      onError(null);
+      window.dispatchEvent(
+        new CustomEvent("sport-mode", { detail: { sportName: sport.sportName, gameDisplayMode } })
+      );
+    } catch (err) {
+      onError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <details className="sport" open>
       <summary>
@@ -170,7 +207,20 @@ function SportSection({ sport }: { sport: SportScoreboardSnapshot }) {
           {sport.sportName} (Conf: {sport.confGamesCount}, Non-Conf: {sport.nonConfGamesCount},
           Display: {sport.displayGamesCount}, Home: {sport.homeGamesCount})
         </span>
-        <span className="mode">{sport.gameDisplayMode}</span>
+        <label className="mode" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+          <select
+            value={sport.gameDisplayMode}
+            disabled={saving}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => void onModeChange(e.target.value)}
+          >
+            {DISPLAY_MODES.map((mode) => (
+              <option key={mode} value={mode}>
+                {mode}
+              </option>
+            ))}
+          </select>
+        </label>
       </summary>
       {sport.games.length === 0 ? (
         <p className="empty">No games</p>

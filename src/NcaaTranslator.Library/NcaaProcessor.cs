@@ -165,7 +165,8 @@ namespace NcaaTranslator.Library
         internal static void CategorizeGames(NcaaScoreboard ncaaGames, Sport sport)
         {
             var displayList = Settings.GetDisplayTeams();
-            var includeInDisplay = sport.OosUpdater.Enabled || sport.GameDisplayMode == GameDisplayMode.Display;
+            // Always fill displayGames so the Main-tab Live/All/Display toggle can
+            // re-filter a cached scoreboard without another NCAA fetch.
             ncaaGames.data!.conferenceGames ??= new List<Contest>();
             ncaaGames.data.nonConferenceGames ??= new List<Contest>();
             ncaaGames.data.displayGames ??= new List<Contest>();
@@ -198,20 +199,15 @@ namespace NcaaTranslator.Library
                     else
                     {
                         ncaaGames.data!.conferenceGames.Add(gameData);
-
-                        if (includeInDisplay)
-                            ncaaGames.data!.displayGames!.Add(gameData);
+                        ncaaGames.data!.displayGames!.Add(gameData);
                     }
                 }
                 else
                 {
                     ncaaGames.data!.nonConferenceGames.Add(gameData);
-                    if (includeInDisplay)
-                    {
-                        if (displayList != null && displayList.Any(x => x.NcaaTeamName == homeTeamObj?.name6Char || x.NcaaTeamName == awayTeamObj?.name6Char
-                                                                        || x.NcaaTeamName == homeTeamObj?.nameShort || x.NcaaTeamName == awayTeamObj?.nameShort))
-                            ncaaGames.data!.displayGames!.Add(gameData);
-                    }
+                    if (displayList != null && displayList.Any(x => x.NcaaTeamName == homeTeamObj?.name6Char || x.NcaaTeamName == awayTeamObj?.name6Char
+                                                                    || x.NcaaTeamName == homeTeamObj?.nameShort || x.NcaaTeamName == awayTeamObj?.nameShort))
+                        ncaaGames.data!.displayGames!.Add(gameData);
                 }
 
                 var homeRank = homeTeamObj?.teamRank;
@@ -228,13 +224,10 @@ namespace NcaaTranslator.Library
                 .ThenBy(g => g.startTimeEpoch)
                 .ToList();
 
-            if (includeInDisplay)
-            {
-                ncaaGames.data!.displayGames ??= new List<Contest>();
-                ncaaGames.data.displayGames = ncaaGames.data.homeGames
-                    .Concat(ncaaGames.data.displayGames)
-                    .ToList();
-            }
+            ncaaGames.data!.displayGames ??= new List<Contest>();
+            ncaaGames.data.displayGames = ncaaGames.data.homeGames
+                .Concat(ncaaGames.data.displayGames)
+                .ToList();
 
             ncaaGames.data!.contests!.Clear();
             ncaaGames.data.contests = null;
