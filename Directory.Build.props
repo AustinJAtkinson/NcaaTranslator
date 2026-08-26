@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <!-- Stay on 8.0.x. Do not roll forward to .NET 9/10. -->
-    <RollForward>LatestPatch</RollForward>
+    <!-- Target net8.0; if 8 is missing, use a newer shared runtime (9/10) so the app still launches. -->
+    <RollForward>LatestMajor</RollForward>
   </PropertyGroup>
 </Project>

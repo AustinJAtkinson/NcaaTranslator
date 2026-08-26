@@ -10,6 +10,19 @@ class Program
     [STAThread]
     static void Main(string[] args)
     {
+        try
+        {
+            Run(args);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(ex);
+            throw;
+        }
+    }
+
+    static void Run(string[] args)
+    {
         var appDir = AppContext.BaseDirectory;
         Settings.BaseDirectory = appDir;
         NameConverters.BaseDirectory = appDir;
