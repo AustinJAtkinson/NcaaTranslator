@@ -2,7 +2,7 @@
 
 Photino desktop app that fetches NCAA scoreboard data, translates team and conference names, and optionally updates Out-of-Score (OOS) XML templates.
 
-Requires the **ASP.NET Core 8 runtime** (includes the base .NET 8 runtime). On Windows, **WebView2** is also required. The UI is Vite + React in `ui/`, hosted by Photino.NET. Release zips are framework-dependent (not self-contained).
+Requires the **.NET 8 SDK** to build and the **ASP.NET Core 8 runtime** to run (includes the base .NET 8 runtime). `.NET 9/10` are not used; `global.json` pins the SDK to 8.0.x. On Windows, **WebView2** is also required. The UI is Vite + React in `ui/`, hosted by Photino.NET. Release zips are framework-dependent (not self-contained).
 
 ## Clone, build, run
 
