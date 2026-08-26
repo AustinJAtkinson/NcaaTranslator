@@ -180,6 +180,7 @@ function SportSection({
   onError: (message: string | null) => void;
 }) {
   const [saving, setSaving] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   async function onModeChange(gameDisplayMode: string) {
     setSaving(true);
@@ -200,56 +201,61 @@ function SportSection({
     }
   }
 
+  function cycleMode() {
+    const current = DISPLAY_MODES.indexOf(sport.gameDisplayMode);
+    const next = DISPLAY_MODES[(current < 0 ? 0 : current + 1) % DISPLAY_MODES.length];
+    void onModeChange(next);
+  }
+
   return (
-    <details className="sport" open>
-      <summary>
-        <span>
+    <section className="sport">
+      <div className="sport-header">
+        <button
+          type="button"
+          className="sport-title"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((open) => !open)}
+        >
           {sport.sportName} (Conf: {sport.confGamesCount}, Non-Conf: {sport.nonConfGamesCount},
           Display: {sport.displayGamesCount}, Home: {sport.homeGamesCount})
-        </span>
+        </button>
         <button
           type="button"
           className="mode"
           disabled={saving}
           title="Click to cycle Live, All, Display"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const current = DISPLAY_MODES.indexOf(sport.gameDisplayMode);
-            const next = DISPLAY_MODES[(current + 1) % DISPLAY_MODES.length];
-            void onModeChange(next);
-          }}
-          onMouseDown={(e) => e.stopPropagation()}
+          onClick={cycleMode}
         >
           {sport.gameDisplayMode}
         </button>
-      </summary>
-      {sport.games.length === 0 ? (
-        <p className="empty">No games</p>
-      ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Home</th>
-              <th>HomeScore</th>
-              <th>Away</th>
-              <th>AwayScore</th>
-              <th>Clock</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sport.games.map((game, index) => (
-              <tr key={`${sport.sportName}-${index}`}>
-                <td>{game.home ?? ""}</td>
-                <td className="score">{game.homeScore ?? ""}</td>
-                <td>{game.away ?? ""}</td>
-                <td className="score">{game.awayScore ?? ""}</td>
-                <td className="clock">{game.displayClock ?? ""}</td>
+      </div>
+      {expanded &&
+        (sport.games.length === 0 ? (
+          <p className="empty">No games</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Home</th>
+                <th>HomeScore</th>
+                <th>Away</th>
+                <th>AwayScore</th>
+                <th>Clock</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </details>
+            </thead>
+            <tbody>
+              {sport.games.map((game, index) => (
+                <tr key={`${sport.sportName}-${index}`}>
+                  <td>{game.home ?? ""}</td>
+                  <td className="score">{game.homeScore ?? ""}</td>
+                  <td>{game.away ?? ""}</td>
+                  <td className="score">{game.awayScore ?? ""}</td>
+                  <td className="clock">{game.displayClock ?? ""}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ))}
+    </section>
   );
 }

@@ -122,15 +122,25 @@ button:disabled {
   background: color-mix(in srgb, CanvasText 4%, Canvas);
 }
 
-.sport summary {
+.sport-header {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem 1rem;
-  cursor: pointer;
   padding: 0.4rem 0;
+}
+
+.sport-title {
+  flex: 1 1 auto;
+  text-align: left;
+  font: inherit;
   font-weight: 600;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
 }
 
 .mode {
