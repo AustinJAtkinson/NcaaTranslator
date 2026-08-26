@@ -134,13 +134,21 @@ button:disabled {
 }
 
 .mode {
+  font: inherit;
   font-size: 0.9rem;
-  font-weight: 600;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
 }
 
-.mode select {
-  font: inherit;
-  font-weight: 600;
+.mode:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 table {

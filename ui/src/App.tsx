@@ -207,20 +207,22 @@ function SportSection({
           {sport.sportName} (Conf: {sport.confGamesCount}, Non-Conf: {sport.nonConfGamesCount},
           Display: {sport.displayGamesCount}, Home: {sport.homeGamesCount})
         </span>
-        <label className="mode" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
-          <select
-            value={sport.gameDisplayMode}
-            disabled={saving}
-            onClick={(e) => e.stopPropagation()}
-            onChange={(e) => void onModeChange(e.target.value)}
-          >
-            {DISPLAY_MODES.map((mode) => (
-              <option key={mode} value={mode}>
-                {mode}
-              </option>
-            ))}
-          </select>
-        </label>
+        <button
+          type="button"
+          className="mode"
+          disabled={saving}
+          title="Click to cycle Live, All, Display"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const current = DISPLAY_MODES.indexOf(sport.gameDisplayMode);
+            const next = DISPLAY_MODES[(current + 1) % DISPLAY_MODES.length];
+            void onModeChange(next);
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          {sport.gameDisplayMode}
+        </button>
       </summary>
       {sport.games.length === 0 ? (
         <p className="empty">No games</p>
