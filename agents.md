@@ -40,6 +40,7 @@ The NcaaTranslator is a .NET application designed to process and translate NCAA-
   - Defines structures for contests (games), teams, and data collections.
   - Includes properties for game state, scores, periods, clocks, and start times.
   - Provides computed properties for display clocks (e.g., handling pre-game, final, and in-progress states).
+  - Pre-game clocks include an abbreviated weekday when the game is not on the current local day (e.g. `Fri. 5:00 PM`).
   - Supports serialization with JSON ignore conditions for null collections.
   - Represents various game lists: non-conference, conference, home, display, and top-25 games.
 

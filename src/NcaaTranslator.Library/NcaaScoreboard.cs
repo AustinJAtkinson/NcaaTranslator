@@ -84,7 +84,7 @@ namespace NcaaTranslator.Library
             {
                 if (gameState == "P")
                 {
-                    return ctStateTime;
+                    return GetPreGameDisplayClock();
                 }
                 if (gameState == "F")
                 {
@@ -100,7 +100,7 @@ namespace NcaaTranslator.Library
             {
                 if (gameState == "P")
                 {
-                    return ctStateTime;
+                    return GetPreGameDisplayClock();
                 }
                 if (gameState == "F")
                 {
@@ -108,6 +108,29 @@ namespace NcaaTranslator.Library
                 }
 
                 return string.Format("{0}     {1}", currentPeriod!, contestClock!);
+            }
+        }
+
+        private string GetPreGameDisplayClock()
+        {
+            var time = ctStateTime;
+            if (startTime == "TBA" || tba)
+                return time;
+
+            try
+            {
+                DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+                dateTime = dateTime.AddSeconds(startTimeEpoch).ToLocalTime();
+
+                if (dateTime.Date == DateTime.Today)
+                    return time;
+
+                var day = dateTime.ToString("ddd").TrimEnd('.');
+                return $"{day}. {time}";
+            }
+            catch
+            {
+                return time;
             }
         }
 
