@@ -179,6 +179,44 @@ public class GameBucketingTests : IDisposable
     }
 
     [Fact]
+    public void BlankConferenceNames_AreNotTreatedAsConferenceGames()
+    {
+        TestHelpers.WriteDefaultNames(_workspace.DirectoryPath);
+        TestHelpers.UseSettings();
+        var sport = TestHelpers.CreateSport(oosEnabled: false, GameDisplayMode.All);
+        var contest = TestHelpers.CreateContest(9, "", "Ark. Baptist", "", "BAMA", "Alabama", "sec", 100);
+        contest.teams![0].name6Char = "";
+        contest.teams[0].seoname = "ark-baptist";
+        contest.teams[0].conferenceSeo = "";
+
+        var scoreboard = TestHelpers.CreateScoreboard(contest);
+        NcaaProcessor.CategorizeGames(scoreboard, sport);
+
+        Assert.Empty(scoreboard.data!.conferenceGames!);
+        Assert.Single(scoreboard.data.nonConferenceGames!);
+        Assert.Null(scoreboard.data.displayGames);
+    }
+
+    [Fact]
+    public void BlankDisplayTeamName_DoesNotMatchEmptyName6Char()
+    {
+        TestHelpers.WriteDefaultNames(_workspace.DirectoryPath);
+        TestHelpers.UseSettings(displayTeams: new List<DisplayTeam>
+        {
+            new() { NcaaTeamName = "" },
+            new() { NcaaTeamName = null }
+        });
+        var sport = TestHelpers.CreateSport(oosEnabled: false, GameDisplayMode.Display);
+        var contest = TestHelpers.CreateContest(9, "", "Ark. Baptist", "acc", "BAMA", "Alabama", "sec", 100);
+        contest.teams![0].name6Char = "";
+
+        var scoreboard = TestHelpers.CreateScoreboard(contest);
+        NcaaProcessor.CategorizeGames(scoreboard, sport);
+
+        Assert.Null(scoreboard.data!.displayGames);
+    }
+
+    [Fact]
     public async Task ConvertNcaaScoreboard_NullContests_DoesNotThrow()
     {
         TestHelpers.WriteDefaultNames(_workspace.DirectoryPath);

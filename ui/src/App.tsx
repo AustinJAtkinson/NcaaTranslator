@@ -1,268 +1,133 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { sendMessage } from "./bridge";
+import Tabs from "./components/Tabs";
+import { SCOREBOARD_REFRESH } from "./events";
+import MainTab from "./MainTab";
 import NamesTab from "./NamesTab";
 import SettingsTab from "./SettingsTab";
-import type { ScoreboardSnapshot, SportScoreboardSnapshot, StatusResult } from "./types";
+import type { ScoreboardSnapshot, StatusResult } from "./types";
 
-type Tab = "main" | "settings" | "names";
+type TopTab = "main" | "settings" | "names";
 
 const emptyBoard: ScoreboardSnapshot = { sports: [] };
-const idleStatus: StatusResult = { running: false, lastUpdate: null };
+const idleStatus: StatusResult = { running: true, lastUpdate: null };
+
+const TOP_TABS = [
+  { id: "main", label: "Main" },
+  { id: "settings", label: "Settings" },
+  { id: "names", label: "Name Converters" },
+];
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>("main");
+  const [tab, setTab] = useState<TopTab>("main");
+  const [visitedSettings, setVisitedSettings] = useState(false);
+  const [visitedNames, setVisitedNames] = useState(false);
   const [status, setStatus] = useState<StatusResult>(idleStatus);
   const [board, setBoard] = useState<ScoreboardSnapshot>(emptyBoard);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const busyRef = useRef(false);
-  const refreshInFlight = useRef(false);
+  const lastUpdateRef = useRef<string | null>(null);
+  const runningRef = useRef(false);
 
-  const refresh = useCallback(async () => {
-    if (busyRef.current || refreshInFlight.current) return;
-    refreshInFlight.current = true;
+  const refreshBoard = useCallback(async () => {
     try {
-      const nextStatus = await sendMessage<StatusResult>("status");
-      setStatus(nextStatus);
-      if (nextStatus.running) {
-        const nextBoard = await sendMessage<ScoreboardSnapshot>("getScoreboard");
-        setBoard(nextBoard);
-      }
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      refreshInFlight.current = false;
+      const nextBoard = await sendMessage<ScoreboardSnapshot>("getScoreboard");
+      setBoard(nextBoard);
+    } catch {
+      /* HTTP / conversion failures are silent */
     }
   }, []);
 
+  const refreshStatus = useCallback(async () => {
+    try {
+      const next = await sendMessage<StatusResult>("status");
+      setStatus(next);
+      const updateChanged = next.lastUpdate !== lastUpdateRef.current;
+      lastUpdateRef.current = next.lastUpdate;
+      runningRef.current = next.running;
+      if (next.running || updateChanged) await refreshBoard();
+    } catch {
+      /* silent */
+    }
+  }, [refreshBoard]);
+
   useEffect(() => {
-    void refresh();
+    void sendMessage<StatusResult>("start")
+      .then((next) => {
+        setStatus(next);
+        runningRef.current = next.running;
+        lastUpdateRef.current = next.lastUpdate;
+        return refreshBoard();
+      })
+      .catch(() => {
+        setStatus({ running: false, lastUpdate: null });
+        runningRef.current = false;
+      });
+  }, [refreshBoard]);
+
+  useEffect(() => {
     const id = window.setInterval(() => {
-      void refresh();
+      void refreshStatus();
     }, 1000);
     return () => window.clearInterval(id);
-  }, [refresh]);
+  }, [refreshStatus]);
 
-  async function onStart() {
-    busyRef.current = true;
-    setBusy(true);
+  useEffect(() => {
+    function onRefresh(): void {
+      void refreshBoard();
+    }
+    window.addEventListener(SCOREBOARD_REFRESH, onRefresh);
+    return () => window.removeEventListener(SCOREBOARD_REFRESH, onRefresh);
+  }, [refreshBoard]);
+
+  function selectTab(id: string): void {
+    const next = id as TopTab;
+    setTab(next);
+    if (next === "settings") setVisitedSettings(true);
+    if (next === "names") setVisitedNames(true);
+  }
+
+  async function onStart(): Promise<void> {
+    setStatus((prev) => ({ ...prev, running: true }));
+    runningRef.current = true;
     try {
       const next = await sendMessage<StatusResult>("start");
       setStatus(next);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      busyRef.current = false;
-      setBusy(false);
+      runningRef.current = next.running;
+      lastUpdateRef.current = next.lastUpdate;
+      await refreshBoard();
+    } catch {
+      setStatus((prev) => ({ ...prev, running: false }));
+      runningRef.current = false;
     }
-    void refresh();
   }
 
-  async function onStop() {
-    busyRef.current = true;
-    setBusy(true);
+  async function onStop(): Promise<void> {
     try {
       const next = await sendMessage<StatusResult>("stop");
       setStatus(next);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      busyRef.current = false;
-      setBusy(false);
+      runningRef.current = next.running;
+    } catch {
+      /* silent */
     }
   }
 
   return (
-    <main className="shell">
-      <header className="app-header">
-        <h1>NCAA Translator</h1>
-        <nav className="tabs" aria-label="App sections">
-          <button
-            type="button"
-            className={tab === "main" ? "tab active" : "tab"}
-            onClick={() => setTab("main")}
-          >
-            Main
-          </button>
-          <button
-            type="button"
-            className={tab === "settings" ? "tab active" : "tab"}
-            onClick={() => setTab("settings")}
-          >
-            Settings
-          </button>
-          <button
-            type="button"
-            className={tab === "names" ? "tab active" : "tab"}
-            onClick={() => setTab("names")}
-          >
-            Names
-          </button>
-        </nav>
-      </header>
-
-      <div hidden={tab !== "main"}>
-        <MainTab
-          status={status}
-          board={board}
-          error={error}
-          busy={busy}
-          onStart={onStart}
-          onStop={onStop}
-          onBoard={setBoard}
-          onError={setError}
-        />
-      </div>
-      <div hidden={tab !== "settings"}>
-        <SettingsTab />
-      </div>
-      <div hidden={tab !== "names"}>
-        <NamesTab />
-      </div>
-    </main>
-  );
-}
-
-function MainTab(props: {
-  status: StatusResult;
-  board: ScoreboardSnapshot;
-  error: string | null;
-  busy: boolean;
-  onStart: () => void;
-  onStop: () => void;
-  onBoard: (board: ScoreboardSnapshot) => void;
-  onError: (message: string | null) => void;
-}) {
-  const { status, board, error, busy, onStart, onStop, onBoard, onError } = props;
-
-  return (
-    <>
-      <div className="toolbar">
-        <button type="button" onClick={onStart} disabled={busy || status.running}>
-          Start
-        </button>
-        <button type="button" onClick={onStop} disabled={busy || !status.running}>
-          Stop
-        </button>
-        <span className="status">Status: {status.running ? "Running" : "Stopped"}</span>
-        <span className="status muted">
-          Last Update: {status.lastUpdate ?? "Never"}
-        </span>
-      </div>
-      {error !== null && <p className="error">{error}</p>}
-      <div className="sports">
-        {board.sports.length === 0 ? (
-          <p className="empty">
-            {status.running ? "No games to display." : "Press Start to poll scores."}
-          </p>
-        ) : (
-          board.sports.map((sport) => (
-            <SportSection key={sport.sportName} sport={sport} onBoard={onBoard} onError={onError} />
-          ))
+    <div className="shell">
+      <Tabs items={TOP_TABS} value={tab} onChange={selectTab} ariaLabel="App sections" />
+      <div className="tab-host">
+        <div className="tab-page" hidden={tab !== "main"}>
+          <MainTab status={status} board={board} onStart={() => void onStart()} onStop={() => void onStop()} />
+        </div>
+        {visitedSettings && (
+          <div className="tab-page" hidden={tab !== "settings"}>
+            <SettingsTab />
+          </div>
+        )}
+        {visitedNames && (
+          <div className="tab-page" hidden={tab !== "names"}>
+            <NamesTab />
+          </div>
         )}
       </div>
-    </>
-  );
-}
-
-const DISPLAY_MODES = ["Live", "All", "Display"];
-
-function SportSection({
-  sport,
-  onBoard,
-  onError,
-}: {
-  sport: SportScoreboardSnapshot;
-  onBoard: (board: ScoreboardSnapshot) => void;
-  onError: (message: string | null) => void;
-}) {
-  const [saving, setSaving] = useState(false);
-  const [expanded, setExpanded] = useState(true);
-  const savingRef = useRef(false);
-
-  async function onModeChange(gameDisplayMode: string) {
-    if (savingRef.current) return;
-    savingRef.current = true;
-    setSaving(true);
-    try {
-      const next = await sendMessage<ScoreboardSnapshot>("setGameDisplayMode", {
-        sportName: sport.sportName,
-        gameDisplayMode,
-      });
-      onBoard(next);
-      onError(null);
-      const applied =
-        next.sports.find((item) => item.sportName === sport.sportName)?.gameDisplayMode ??
-        gameDisplayMode;
-      window.dispatchEvent(
-        new CustomEvent("sport-mode", { detail: { sportName: sport.sportName, gameDisplayMode: applied } })
-      );
-    } catch (err) {
-      onError(err instanceof Error ? err.message : String(err));
-    } finally {
-      savingRef.current = false;
-      setSaving(false);
-    }
-  }
-
-  function cycleMode() {
-    const current = DISPLAY_MODES.indexOf(sport.gameDisplayMode);
-    const next = DISPLAY_MODES[(current < 0 ? 0 : current + 1) % DISPLAY_MODES.length];
-    void onModeChange(next);
-  }
-
-  return (
-    <section className="sport">
-      <div className="sport-header">
-        <button
-          type="button"
-          className="sport-title"
-          aria-expanded={expanded}
-          onClick={() => setExpanded((open) => !open)}
-        >
-          {sport.sportName} (Conf: {sport.confGamesCount}, Non-Conf: {sport.nonConfGamesCount},
-          Display: {sport.displayGamesCount}, Home: {sport.homeGamesCount})
-        </button>
-        <button
-          type="button"
-          className={saving ? "mode is-saving" : "mode"}
-          aria-busy={saving}
-          title="Click to cycle Live, All, Display"
-          onClick={cycleMode}
-        >
-          {sport.gameDisplayMode}
-        </button>
-      </div>
-      {expanded &&
-        (sport.games.length === 0 ? (
-          <p className="empty">No games</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Home</th>
-                <th>HomeScore</th>
-                <th>Away</th>
-                <th>AwayScore</th>
-                <th>Clock</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sport.games.map((game, index) => (
-                <tr key={`${sport.sportName}-${index}`}>
-                  <td>{game.home ?? ""}</td>
-                  <td className="score">{game.homeScore ?? ""}</td>
-                  <td>{game.away ?? ""}</td>
-                  <td className="score">{game.awayScore ?? ""}</td>
-                  <td className="clock">{game.displayClock ?? ""}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ))}
-    </section>
+    </div>
   );
 }

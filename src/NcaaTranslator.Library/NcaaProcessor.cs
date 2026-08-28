@@ -180,7 +180,7 @@ namespace NcaaTranslator.Library
                 var homeTeamObj = gameData.HomeTeam;
                 var awayTeamObj = gameData.AwayTeam;
 
-                if (string.Equals(homeTeamObj?.customConferenceName, awayTeamObj?.customConferenceName, StringComparison.OrdinalIgnoreCase))
+                if (SameNonEmpty(homeTeamObj?.customConferenceName, awayTeamObj?.customConferenceName))
                 {
                     gameData.conferenceDisplayName = homeTeamObj?.customConferenceName;
                 }
@@ -189,8 +189,8 @@ namespace NcaaTranslator.Library
                     gameData.conferenceDisplayName = sport.SportShortName;
                 }
 
-                if (string.Equals(homeTeamObj?.customConferenceName, sport.ConferenceName, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(awayTeamObj?.customConferenceName, sport.ConferenceName, StringComparison.OrdinalIgnoreCase))
+                if (SameNonEmpty(homeTeamObj?.customConferenceName, sport.ConferenceName) ||
+                    SameNonEmpty(awayTeamObj?.customConferenceName, sport.ConferenceName))
                 {
                     if (homeTeamObj?.name6Char == Settings.homeTeam || awayTeamObj?.name6Char == Settings.homeTeam)
                     {
@@ -205,8 +205,7 @@ namespace NcaaTranslator.Library
                 else
                 {
                     ncaaGames.data!.nonConferenceGames.Add(gameData);
-                    if (displayList != null && displayList.Any(x => x.NcaaTeamName == homeTeamObj?.name6Char || x.NcaaTeamName == awayTeamObj?.name6Char
-                                                                    || x.NcaaTeamName == homeTeamObj?.nameShort || x.NcaaTeamName == awayTeamObj?.nameShort))
+                    if (displayList != null && displayList.Any(x => IsDisplayTeam(x, homeTeamObj) || IsDisplayTeam(x, awayTeamObj)))
                         ncaaGames.data!.displayGames!.Add(gameData);
                 }
 
@@ -234,6 +233,20 @@ namespace NcaaTranslator.Library
 
             if ((ncaaGames.data.displayGames?.Count ?? 0) == 0) ncaaGames.data.displayGames = null;
             if ((ncaaGames.data.top25Games?.Count ?? 0) == 0) ncaaGames.data.top25Games = null;
+        }
+
+        private static bool SameNonEmpty(string? left, string? right) =>
+            !string.IsNullOrWhiteSpace(left) &&
+            string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+
+        private static bool IsDisplayTeam(DisplayTeam displayTeam, ContestTeam? team)
+        {
+            if (team == null || string.IsNullOrWhiteSpace(displayTeam.NcaaTeamName))
+                return false;
+
+            var wanted = displayTeam.NcaaTeamName;
+            return string.Equals(wanted, team.name6Char, StringComparison.Ordinal) ||
+                   string.Equals(wanted, team.nameShort, StringComparison.Ordinal);
         }
 
         public static async Task<NcaaScoreboard> ConvertNcaaScoreboard(Sport sport)

@@ -72,8 +72,55 @@ namespace NcaaTranslator.Library
                 throw new InvalidDataException($"Name converter file is empty or invalid: {resolved}");
             NameList.teams ??= new List<Team>();
             NameList.conferences ??= new List<Conferences>();
+            if (DedupeUnkeyedEntries(NameList))
+                File.WriteAllText(resolved, JsonSerializer.Serialize(NameList));
             TeamDict = ToLastWinsDictionary(NameList.teams, x => x.name6Char);
             ConfDict = ToLastWinsDictionary(NameList.conferences, x => x.conferenceSeo);
+        }
+
+        /// <summary>
+        /// NCAA omits name6Char / conferenceSeo for some schools. Those rows never
+        /// enter the lookup dictionaries, so every poll used to append another copy.
+        /// Keep at most one unkeyed team per seoname; drop blank conferences.
+        /// </summary>
+        internal static bool DedupeUnkeyedEntries(NameConverter list)
+        {
+            var teamsChanged = false;
+            var keptTeams = new List<Team>(list.teams.Count);
+            var seenSeo = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var team in list.teams)
+            {
+                if (!string.IsNullOrWhiteSpace(team.name6Char))
+                {
+                    keptTeams.Add(team);
+                    if (!string.IsNullOrWhiteSpace(team.seoname))
+                        seenSeo.Add(team.seoname);
+                    continue;
+                }
+
+                teamsChanged = true;
+                if (string.IsNullOrWhiteSpace(team.seoname))
+                    continue;
+                if (!seenSeo.Add(team.seoname))
+                    continue;
+                keptTeams.Add(team);
+            }
+
+            var keptConfs = new List<Conferences>(list.conferences.Count);
+            var confsChanged = false;
+            foreach (var conference in list.conferences)
+            {
+                if (string.IsNullOrWhiteSpace(conference.conferenceSeo))
+                {
+                    confsChanged = true;
+                    continue;
+                }
+                keptConfs.Add(conference);
+            }
+
+            list.teams = keptTeams;
+            list.conferences = keptConfs;
+            return teamsChanged || confsChanged;
         }
 
         private static Dictionary<string, T> ToLastWinsDictionary<T>(List<T> items, Func<T, string?> keySelector)
@@ -99,16 +146,22 @@ namespace NcaaTranslator.Library
 
         public static string LookupTeam(Names lookupNames)
         {
-            if (lookupNames.name6Char == null) return "";
-            var name = new Team();
-            if (TeamDict.TryGetValue(lookupNames.name6Char, out name))
-            {
-                return name.customName ?? "";
-            }
+            if (TryFindTeam(lookupNames, out var existing) && existing != null)
+                return existing.customName ?? "";
+
+            if (string.IsNullOrWhiteSpace(lookupNames.name6Char) && string.IsNullOrWhiteSpace(lookupNames.seoname))
+                return lookupNames.nameShort ?? lookupNames.customName ?? "";
+
             return AddNewTeam(lookupNames);
         }
         public static string AddNewTeam(Names names)
         {
+            if (TryFindTeam(names, out var existing) && existing != null)
+                return existing.customName ?? "";
+
+            if (string.IsNullOrWhiteSpace(names.name6Char) && string.IsNullOrWhiteSpace(names.seoname))
+                return names.nameShort ?? names.customName ?? "";
+
             names.customName ??= names.nameShort;
             var newTeam = new Team(names);
             NameList!.teams.Add(newTeam);
@@ -118,18 +171,41 @@ namespace NcaaTranslator.Library
 
         public static string LookupConf(Conference lookupNames)
         {
-            if (lookupNames.conferenceSeo == null) return "";
-            var name = new Conferences();
+            if (string.IsNullOrWhiteSpace(lookupNames.conferenceSeo))
+                return "";
 
-            return ConfDict.TryGetValue(lookupNames.conferenceSeo!, out name) ? name.customConferenceName ?? "" : AddNewConf(lookupNames);
+            return ConfDict.TryGetValue(lookupNames.conferenceSeo, out var name)
+                ? name.customConferenceName ?? ""
+                : AddNewConf(lookupNames);
         }
         public static string AddNewConf(Conference names)
         {
+            if (string.IsNullOrWhiteSpace(names.conferenceSeo))
+                return names.customConferenceName ?? "";
+
+            if (ConfDict.TryGetValue(names.conferenceSeo, out var existing))
+                return existing.customConferenceName ?? "";
+
             names.customConferenceName ??= names.conferenceSeo;
             var newConf = new Conferences(names);
             NameList!.conferences.Add(newConf);
             Reload();
             return newConf.customConferenceName ?? "";
+        }
+
+        private static bool TryFindTeam(Names lookupNames, out Team? team)
+        {
+            team = null;
+            if (!string.IsNullOrWhiteSpace(lookupNames.name6Char) &&
+                TeamDict.TryGetValue(lookupNames.name6Char, out team))
+                return true;
+
+            if (string.IsNullOrWhiteSpace(lookupNames.seoname) || NameList?.teams == null)
+                return false;
+
+            team = NameList.teams.FirstOrDefault(t =>
+                string.Equals(t.seoname, lookupNames.seoname, StringComparison.OrdinalIgnoreCase));
+            return team != null;
         }
 
     }

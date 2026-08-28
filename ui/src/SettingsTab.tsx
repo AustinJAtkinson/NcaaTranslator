@@ -1,5 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { sendMessage } from "./bridge";
+import ComboBox, { type ComboOption } from "./components/ComboBox";
+import EditableCell from "./components/EditableCell";
+import Tabs from "./components/Tabs";
+import { requestScoreboardRefresh } from "./events";
 import type {
   ConferenceNameSnapshot,
   PickPathResult,
@@ -9,7 +13,18 @@ import type {
 } from "./types";
 
 const TIMER_OPTIONS = [5, 10, 15, 20, 30, 60, 120, 300];
-const DISPLAY_MODES = ["Live", "All", "Display"];
+const DISPLAY_MODES: ComboOption[] = [
+  { display: "Live", value: "Live" },
+  { display: "All", value: "All" },
+  { display: "Display", value: "Display" },
+];
+
+const SETTINGS_TABS = [
+  { id: "general", label: "General" },
+  { id: "sports", label: "Sports" },
+  { id: "display-teams", label: "Display Teams" },
+  { id: "xml", label: "XML to JSON" },
+];
 
 const emptySettings: SettingsSnapshot = {
   timer: 20,
@@ -33,35 +48,52 @@ function emptyLists() {
   return { conferenceGames: true, nonConferenceGames: true, top25Games: true };
 }
 
-function teamLabel(team: TeamNameSnapshot): string {
-  return team.customName || team.nameShort || team.name6Char || "";
+function newSport(): SportSnapshot {
+  return {
+    name: "New Sport",
+    short: "NS",
+    code: null,
+    enabled: true,
+    conferenceName: null,
+    division: 1,
+    week: 1,
+    seasonYear: null,
+    gameDisplayMode: "Live",
+    listsNeeded: emptyLists(),
+    oosUpdater: emptyOos(),
+  };
+}
+
+function teamDisplay(team: TeamNameSnapshot): string {
+  return team.customName ?? team.nameShort ?? team.name6Char ?? "";
+}
+
+function addTeamValue(team: TeamNameSnapshot): string {
+  return team.nameShort ?? team.name6Char ?? "";
+}
+
+function containsIgnoreCase(hay: string | null | undefined, needle: string): boolean {
+  return (hay ?? "").toUpperCase().includes(needle.toUpperCase());
+}
+
+function saveErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
 export default function SettingsTab() {
+  const [subTab, setSubTab] = useState("general");
   const [settings, setSettings] = useState<SettingsSnapshot>(emptySettings);
   const [teams, setTeams] = useState<TeamNameSnapshot[]>([]);
-  const [conferences, setConferences] = useState<ConferenceNameSnapshot[]>([]);
-  const [addTeam, setAddTeam] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [picking, setPicking] = useState(false);
+  const [conferenceNames, setConferenceNames] = useState<string[]>([]);
+  const [sportsQuery, setSportsQuery] = useState("");
+  const [addSelected, setAddSelected] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    function onSportMode(event: Event) {
-      const detail = (event as CustomEvent<{ sportName: string; gameDisplayMode: string }>).detail;
-      if (!detail?.sportName) return;
-      setSettings((prev) => ({
-        ...prev,
-        sports: prev.sports.map((sport) =>
-          sport.name === detail.sportName ? { ...sport, gameDisplayMode: detail.gameDisplayMode } : sport
-        ),
-      }));
-    }
-    window.addEventListener("sport-mode", onSportMode);
-    return () => window.removeEventListener("sport-mode", onSportMode);
-  }, []);
+  const [sort, setSort] = useState<{ key: string; dir: 1 | -1 } | null>(null);
+  const [selectedSport, setSelectedSport] = useState<number | null>(null);
+  const [selectedDisplay, setSelectedDisplay] = useState<number | null>(null);
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+  const saveSeq = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,18 +105,22 @@ export default function SettingsTab() {
           sendMessage<ConferenceNameSnapshot[]>("getConferences"),
         ]);
         if (cancelled) return;
-        setSettings({
-          ...nextSettings,
-          sports: nextSettings.sports ?? [],
-          displayTeams: nextSettings.displayTeams ?? [],
-          xmlToJson: nextSettings.xmlToJson ?? { enabled: false, filePaths: [] },
-        });
+        const normalized = normalizeSettings(nextSettings);
+        setSettings(normalized);
+        settingsRef.current = normalized;
         setTeams(nextTeams ?? []);
-        setConferences(nextConferences ?? []);
-        setError(null);
+        const names: string[] = [];
+        const seen = new Set<string>();
+        for (const conference of nextConferences ?? []) {
+          const name = conference.customConferenceName;
+          if (!name || seen.has(name)) continue;
+          seen.add(name);
+          names.push(name);
+        }
+        setConferenceNames(names);
         setLoaded(true);
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+      } catch {
+        /* load errors swallowed */
       }
     }
     void load();
@@ -93,489 +129,537 @@ export default function SettingsTab() {
     };
   }, []);
 
-  const teamOptions = useMemo(
+  async function persist(next: SettingsSnapshot, refreshScoreboard = false): Promise<void> {
+    settingsRef.current = next;
+    setSettings(next);
+    if (!loaded) return;
+    const seq = ++saveSeq.current;
+    try {
+      const saved = await sendMessage<SettingsSnapshot>("saveSettings", next);
+      if (seq !== saveSeq.current) return;
+      if (saved.homeTeam !== next.homeTeam) {
+        const merged = { ...settingsRef.current, homeTeam: saved.homeTeam };
+        settingsRef.current = merged;
+        setSettings(merged);
+      }
+      if (refreshScoreboard) requestScoreboardRefresh();
+    } catch (err) {
+      window.alert(`Error saving settings: ${saveErrorMessage(err)}`);
+    }
+  }
+
+  const homeOptions: ComboOption[] = useMemo(
     () =>
       [...teams]
-        .filter((t) => t.name6Char)
-        .sort((a, b) => teamLabel(a).localeCompare(teamLabel(b), undefined, { sensitivity: "base" })),
+        .filter((team) => team.name6Char)
+        .sort((a, b) => teamDisplay(a).localeCompare(teamDisplay(b), undefined, { sensitivity: "base" }))
+        .map((team) => ({ display: teamDisplay(team), value: team.name6Char! })),
     [teams]
   );
 
-  const conferenceNames = useMemo(
+  const addOptions: ComboOption[] = useMemo(
     () =>
-      [...new Set(conferences.map((c) => c.customConferenceName).filter((n): n is string => !!n))].sort(
-        (a, b) => a.localeCompare(b, undefined, { sensitivity: "base" })
-      ),
-    [conferences]
+      [...teams]
+        .filter((team) => team.name6Char)
+        .sort((a, b) => teamDisplay(a).localeCompare(teamDisplay(b), undefined, { sensitivity: "base" }))
+        .map((team) => ({ display: teamDisplay(team), value: addTeamValue(team) })),
+    [teams]
   );
 
-  const displayCodes = new Set(
-    settings.displayTeams.map((d) => d.ncaaTeamName).filter((n): n is string => !!n)
+  const conferenceOptions: ComboOption[] = useMemo(
+    () => conferenceNames.map((name) => ({ display: name, value: name })),
+    [conferenceNames]
   );
-  const addableTeams = teamOptions.filter((t) => t.name6Char && !displayCodes.has(t.name6Char));
 
-  function patch(partial: Partial<SettingsSnapshot>) {
-    setSettings((prev) => ({ ...prev, ...partial }));
-    setStatus(null);
-  }
+  const timerOptions: ComboOption[] = TIMER_OPTIONS.map((value) => ({
+    display: String(value),
+    value: String(value),
+  }));
 
-  function patchSport(index: number, partial: Partial<SportSnapshot>) {
-    setSettings((prev) => {
-      const sports = prev.sports.map((sport, i) => (i === index ? { ...sport, ...partial } : sport));
-      return { ...prev, sports };
+  const oosColumnsVisible = settings.sports.some((sport) => sport.oosUpdater?.enabled);
+
+  const filteredSports = useMemo(() => {
+    const query = sportsQuery.trim();
+    const withIndex = settings.sports.map((sport, index) => ({ sport, index }));
+    if (!query) return withIndex;
+    return withIndex.filter(
+      ({ sport }) =>
+        containsIgnoreCase(sport.name, query) ||
+        containsIgnoreCase(sport.short, query) ||
+        containsIgnoreCase(sport.conferenceName, query)
+    );
+  }, [settings.sports, sportsQuery]);
+
+  const sortedSports = useMemo(() => {
+    if (!sort) return filteredSports;
+    return [...filteredSports].sort((a, b) => compareSport(a.sport, b.sport, sort.key) * sort.dir);
+  }, [filteredSports, sort]);
+
+  function toggleSort(key: string): void {
+    setSort((prev) => {
+      if (!prev || prev.key !== key) return { key, dir: 1 };
+      return { key, dir: prev.dir === 1 ? -1 : 1 };
     });
-    setStatus(null);
   }
 
-  function patchSportLists(index: number, key: keyof SportSnapshot["listsNeeded"], value: boolean) {
-    setSettings((prev) => {
-      const sports = prev.sports.map((sport, i) =>
-        i === index
-          ? { ...sport, listsNeeded: { ...(sport.listsNeeded ?? emptyLists()), [key]: value } }
-          : sport
-      );
-      return { ...prev, sports };
+  function patchSport(index: number, partial: Partial<SportSnapshot>, refreshScoreboard = false): void {
+    const next = {
+      ...settingsRef.current,
+      sports: settingsRef.current.sports.map((sport, i) => (i === index ? { ...sport, ...partial } : sport)),
+    };
+    void persist(next, refreshScoreboard);
+  }
+
+  function patchLists(index: number, key: keyof SportSnapshot["listsNeeded"], value: boolean): void {
+    const sport = settingsRef.current.sports[index];
+    patchSport(index, { listsNeeded: { ...(sport.listsNeeded ?? emptyLists()), [key]: value } });
+  }
+
+  function patchOos(index: number, partial: Partial<SportSnapshot["oosUpdater"]>): void {
+    const sport = settingsRef.current.sports[index];
+    patchSport(index, { oosUpdater: { ...(sport.oosUpdater ?? emptyOos()), ...partial } });
+  }
+
+  function addSport(): void {
+    void persist({ ...settingsRef.current, sports: [...settingsRef.current.sports, newSport()] });
+  }
+
+  function removeSport(index: number): void {
+    const name = settingsRef.current.sports[index]?.name ?? "";
+    if (!window.confirm(`Are you sure you want to remove the sport '${name}'?`)) return;
+    const first = settingsRef.current.sports.findIndex((sport) => sport.name === name);
+    const removeAt = first >= 0 ? first : index;
+    void persist({
+      ...settingsRef.current,
+      sports: settingsRef.current.sports.filter((_, i) => i !== removeAt),
     });
-    setStatus(null);
   }
 
-  function patchSportOos(index: number, partial: Partial<SportSnapshot["oosUpdater"]>) {
-    setSettings((prev) => {
-      const sports = prev.sports.map((sport, i) =>
-        i === index
-          ? { ...sport, oosUpdater: { ...(sport.oosUpdater ?? emptyOos()), ...partial } }
-          : sport
-      );
-      return { ...prev, sports };
+  function addDisplayTeam(): void {
+    if (!addSelected) return;
+    const exists = settingsRef.current.displayTeams.some((team) => team.ncaaTeamName === addSelected);
+    if (exists) return;
+    void persist({
+      ...settingsRef.current,
+      displayTeams: [...settingsRef.current.displayTeams, { ncaaTeamName: addSelected }],
     });
-    setStatus(null);
   }
 
-  async function onSave() {
-    setBusy(true);
-    try {
-      const next = await sendMessage<SettingsSnapshot>("saveSettings", settings);
-      setSettings({
-        ...next,
-        sports: next.sports ?? [],
-        displayTeams: next.displayTeams ?? [],
-        xmlToJson: next.xmlToJson ?? { enabled: false, filePaths: [] },
-      });
-      setError(null);
-      setStatus("Saved.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      setStatus(null);
-    } finally {
-      setBusy(false);
-    }
+  function removeDisplayTeam(index: number): void {
+    void persist({
+      ...settingsRef.current,
+      displayTeams: settingsRef.current.displayTeams.filter((_, i) => i !== index),
+    });
   }
 
-  async function pickOosFolder(index: number) {
-    const sport = settings.sports[index];
-    setPicking(true);
+  async function pickOosFolder(index: number): Promise<void> {
     try {
       const picked = await sendMessage<PickPathResult>("pickFolder", {
         title: "OOS folder",
-        defaultPath: sport.oosUpdater?.oosFilePath,
+        defaultPath: settingsRef.current.sports[index]?.oosUpdater?.oosFilePath,
       });
-      if (picked.path) patchSportOos(index, { oosFilePath: picked.path });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setPicking(false);
+      if (picked.path) patchOos(index, { oosFilePath: picked.path });
+    } catch {
+      /* silent */
     }
   }
 
-  async function pickXmlFile(index: number) {
-    setPicking(true);
+  async function pickXmlFile(index: number): Promise<void> {
     try {
       const picked = await sendMessage<PickPathResult>("pickFile", {
         title: "XML file",
-        defaultPath: settings.xmlToJson.filePaths[index],
+        defaultPath: settingsRef.current.xmlToJson.filePaths[index],
       });
       if (!picked.path) return;
-      const filePaths = settings.xmlToJson.filePaths.map((path, i) => (i === index ? picked.path! : path));
-      patch({ xmlToJson: { ...settings.xmlToJson, filePaths } });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setPicking(false);
+      const filePaths = settingsRef.current.xmlToJson.filePaths.map((path, i) => (i === index ? picked.path! : path));
+      void persist({ ...settingsRef.current, xmlToJson: { ...settingsRef.current.xmlToJson, filePaths } });
+    } catch {
+      /* silent */
     }
   }
 
-  function addSport() {
-    patch({
-      sports: [
-        ...settings.sports,
-        {
-          name: "New Sport",
-          short: "NS",
-          code: null,
-          enabled: true,
-          conferenceName: null,
-          division: 1,
-          week: 1,
-          seasonYear: null,
-          gameDisplayMode: "Live",
-          listsNeeded: emptyLists(),
-          oosUpdater: emptyOos(),
-        },
-      ],
-    });
-  }
-
-  function removeSport(index: number) {
-    const name = settings.sports[index]?.name || "this sport";
-    if (!window.confirm(`Are you sure you want to remove the sport '${name}'?`)) return;
-    patch({ sports: settings.sports.filter((_, i) => i !== index) });
-  }
-
-  function addDisplayTeam() {
-    if (!addTeam) return;
-    if (displayCodes.has(addTeam)) return;
-    patch({
-      displayTeams: [...settings.displayTeams, { ncaaTeamName: addTeam }],
-    });
-    setAddTeam("");
-  }
-
-  function removeDisplayTeam(index: number) {
-    patch({ displayTeams: settings.displayTeams.filter((_, i) => i !== index) });
-  }
-
-  function addXmlPath() {
-    patch({ xmlToJson: { ...settings.xmlToJson, filePaths: [...settings.xmlToJson.filePaths, ""] } });
-  }
-
-  function removeXmlPath(index: number) {
-    patch({
-      xmlToJson: {
-        ...settings.xmlToJson,
-        filePaths: settings.xmlToJson.filePaths.filter((_, i) => i !== index),
-      },
-    });
-  }
-
-  const timerOptions = TIMER_OPTIONS.includes(settings.timer)
-    ? TIMER_OPTIONS
-    : [...TIMER_OPTIONS, settings.timer].sort((a, b) => a - b);
-
-  const homeInList = teamOptions.some((t) => t.name6Char === settings.homeTeam);
+  if (!loaded) return <div className="nested-tabs" />;
 
   return (
-    <section className="panel">
-      <div className="toolbar">
-        <button type="button" onClick={() => void onSave()} disabled={busy || picking || !loaded}>
-          Save
-        </button>
-        {picking ? <span className="status muted">Choosing a file…</span> : null}
-        {status !== null && <span className="status muted">{status}</span>}
-      </div>
-      {error !== null && <p className="error">{error}</p>}
+    <div className="nested-tabs">
+      <Tabs items={SETTINGS_TABS} value={subTab} onChange={setSubTab} nested ariaLabel="Settings sections" />
+      <div className="nested-body">
+        {subTab === "general" && (
+          <div className="general-panel">
+            <div className="field-row">
+              <span className="field-label">Timer (seconds): </span>
+              <ComboBox
+                value={String(settings.timer)}
+                options={timerOptions}
+                width={100}
+                onSelect={(value) => {
+                  const parsed = Number.parseInt(value, 10);
+                  if (!Number.isNaN(parsed)) void persist({ ...settingsRef.current, timer: parsed });
+                }}
+                onBlurText={(text) => {
+                  const parsed = Number.parseInt(text, 10);
+                  if (!Number.isNaN(parsed)) void persist({ ...settingsRef.current, timer: parsed });
+                }}
+              />
+            </div>
+            <div className="field-row">
+              <span className="field-label">Home Team: </span>
+              <ComboBox
+                value={homeOptions.some((option) => option.value === settings.homeTeam) ? settings.homeTeam : ""}
+                options={homeOptions}
+                width={200}
+                onSelect={(value) => void persist({ ...settingsRef.current, homeTeam: value || null })}
+                onBlurText={(text) => void persist({ ...settingsRef.current, homeTeam: text })}
+              />
+            </div>
+          </div>
+        )}
 
-      <div className="form-grid">
-        <label className="field">
-          <span>Timer (seconds)</span>
-          <select
-            value={settings.timer}
-            onChange={(e) => patch({ timer: Number(e.target.value) })}
-          >
-            {timerOptions.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          <span>Home team</span>
-          <select
-            value={settings.homeTeam ?? ""}
-            onChange={(e) => patch({ homeTeam: e.target.value || null })}
-          >
-            <option value="">Select a team</option>
-            {!homeInList && settings.homeTeam ? (
-              <option value={settings.homeTeam}>{settings.homeTeam}</option>
-            ) : null}
-            {teamOptions.map((team) => (
-              <option key={team.name6Char} value={team.name6Char ?? ""}>
-                {teamLabel(team)}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      <div className="toolbar">
-        <h2>Sports</h2>
-        <button type="button" onClick={addSport} disabled={picking}>
-          Add sport
-        </button>
-      </div>
-      <div className="table-wrap">
-        <table className="settings-table">
-          <thead>
-            <tr>
-              <th>Enabled</th>
-              <th>Name</th>
-              <th>Short</th>
-              <th>Code</th>
-              <th>Conference</th>
-              <th>Mode</th>
-              <th>Div</th>
-              <th>Week</th>
-              <th>Season</th>
-              <th>Conf</th>
-              <th>Non-Conf</th>
-              <th>Top 25</th>
-              <th>OOS</th>
-              <th>OOS Path</th>
-              <th>OOS File</th>
-              <th>Scores</th>
-              <th>Teams</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {settings.sports.length === 0 ? (
-              <tr>
-                <td colSpan={18} className="empty">
-                  No sports configured.
-                </td>
-              </tr>
-            ) : (
-              settings.sports.map((sport, index) => (
-                <tr key={`${sport.name}-${index}`}>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={sport.enabled}
-                      onChange={(e) => patchSport(index, { enabled: e.target.checked })}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      value={sport.name}
-                      onChange={(e) => patchSport(index, { name: e.target.value })}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="narrow"
-                      value={sport.short}
-                      onChange={(e) => patchSport(index, { short: e.target.value })}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="narrow"
-                      value={sport.code ?? ""}
-                      onChange={(e) => patchSport(index, { code: e.target.value || null })}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      list="conference-names"
-                      value={sport.conferenceName ?? ""}
-                      onChange={(e) => patchSport(index, { conferenceName: e.target.value || null })}
-                    />
-                  </td>
-                  <td>
-                    <select
-                      value={sport.gameDisplayMode}
-                      onChange={(e) => patchSport(index, { gameDisplayMode: e.target.value })}
+        {subTab === "sports" && (
+          <div className="sports-layout">
+            <div className="search-row">
+              <span className="search-label">Search Sports:</span>
+              <input
+                className="text-input search-input"
+                value={sportsQuery}
+                onChange={(event) => setSportsQuery(event.target.value)}
+              />
+              <button type="button" className="btn btn-add-sport" onClick={addSport}>
+                Add Sport
+              </button>
+            </div>
+            <div className="grid-wrap">
+              <table className="data-grid">
+                <thead>
+                  <tr>
+                    <SportHeader label="Name" column="name" sort={sort} onSort={toggleSort} />
+                    <SportHeader label="Short" column="short" sort={sort} onSort={toggleSort} />
+                    <SportHeader label="Code" column="code" sort={sort} onSort={toggleSort} />
+                    <SportHeader label="Enabled" column="enabled" sort={sort} onSort={toggleSort} />
+                    <SportHeader label="Conference" column="conferenceName" sort={sort} onSort={toggleSort} className="min-conference" />
+                    <SportHeader label="Display Mode" column="gameDisplayMode" sort={sort} onSort={toggleSort} />
+                    <SportHeader label="Division" column="division" sort={sort} onSort={toggleSort} />
+                    <SportHeader label="Week" column="week" sort={sort} onSort={toggleSort} />
+                    <SportHeader label="Season Year" column="seasonYear" sort={sort} onSort={toggleSort} />
+                    <SportHeader label="Conf" column="conferenceGames" sort={sort} onSort={toggleSort} />
+                    <SportHeader label="Non-Conf" column="nonConferenceGames" sort={sort} onSort={toggleSort} />
+                    <SportHeader label="Top 25" column="top25Games" sort={sort} onSort={toggleSort} />
+                    <SportHeader label="OOS" column="oos" sort={sort} onSort={toggleSort} />
+                    {oosColumnsVisible && (
+                      <>
+                        <SportHeader label="OOS Path" column="oosFilePath" sort={sort} onSort={toggleSort} />
+                        <SportHeader label="OOS File" column="oosFileName" sort={sort} onSort={toggleSort} />
+                        <SportHeader label="OOS Scores" column="numberOfOutScores" sort={sort} onSort={toggleSort} />
+                        <SportHeader label="OOS Teams" column="numberOfTeamsPer" sort={sort} onSort={toggleSort} />
+                      </>
+                    )}
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedSports.map(({ sport, index }) => (
+                    <tr
+                      key={`${sport.name}-${index}`}
+                      className={selectedSport === index ? "selected" : undefined}
+                      onClick={() => setSelectedSport(index)}
                     >
-                      {DISPLAY_MODES.map((mode) => (
-                        <option key={mode} value={mode}>
-                          {mode}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <input
-                      className="num"
-                      type="number"
-                      value={sport.division}
-                      onChange={(e) => patchSport(index, { division: Number(e.target.value) })}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="num"
-                      type="number"
-                      value={sport.week ?? ""}
-                      onChange={(e) =>
-                        patchSport(index, { week: e.target.value === "" ? null : Number(e.target.value) })
-                      }
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="num"
-                      type="number"
-                      value={sport.seasonYear ?? ""}
-                      onChange={(e) =>
-                        patchSport(index, {
-                          seasonYear: e.target.value === "" ? null : Number(e.target.value),
-                        })
-                      }
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={sport.listsNeeded?.conferenceGames ?? true}
-                      onChange={(e) => patchSportLists(index, "conferenceGames", e.target.checked)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={sport.listsNeeded?.nonConferenceGames ?? true}
-                      onChange={(e) => patchSportLists(index, "nonConferenceGames", e.target.checked)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={sport.listsNeeded?.top25Games ?? true}
-                      onChange={(e) => patchSportLists(index, "top25Games", e.target.checked)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={sport.oosUpdater?.enabled ?? false}
-                      onChange={(e) => patchSportOos(index, { enabled: e.target.checked })}
-                    />
-                  </td>
-                  <td>
-                    <div className="path-row">
-                      <input
-                        value={sport.oosUpdater?.oosFilePath ?? ""}
-                        onChange={(e) => patchSportOos(index, { oosFilePath: e.target.value || null })}
+                      <EditableCell value={sport.name} onCommit={(value) => patchSport(index, { name: value })} />
+                      <EditableCell value={sport.short} onCommit={(value) => patchSport(index, { short: value })} />
+                      <EditableCell
+                        value={sport.code ?? ""}
+                        onCommit={(value) => patchSport(index, { code: value || null })}
                       />
-                      <button type="button" onClick={() => void pickOosFolder(index)} disabled={picking}>
-                        Browse
-                      </button>
-                    </div>
-                  </td>
-                  <td>
-                    <input
-                      value={sport.oosUpdater?.oosFileName ?? ""}
-                      onChange={(e) => patchSportOos(index, { oosFileName: e.target.value || null })}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="num"
-                      type="number"
-                      value={sport.oosUpdater?.numberOfOutScores ?? 0}
-                      onChange={(e) =>
-                        patchSportOos(index, { numberOfOutScores: Number(e.target.value) })
-                      }
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="num"
-                      type="number"
-                      value={sport.oosUpdater?.numberOfTeamsPer ?? 0}
-                      onChange={(e) =>
-                        patchSportOos(index, { numberOfTeamsPer: Number(e.target.value) })
-                      }
-                    />
-                  </td>
-                  <td>
-                    <button type="button" onClick={() => removeSport(index)} disabled={picking}>
-                      X
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-      <datalist id="conference-names">
-        {conferenceNames.map((name) => (
-          <option key={name} value={name} />
-        ))}
-      </datalist>
+                      <td className="cell check-cell">
+                        <input
+                          type="checkbox"
+                          className="check center"
+                          checked={sport.enabled}
+                          onChange={(event) => patchSport(index, { enabled: event.target.checked })}
+                        />
+                      </td>
+                      <EditableCell
+                        value={sport.conferenceName ?? ""}
+                        options={conferenceOptions}
+                        onCommit={(value) => patchSport(index, { conferenceName: value || null })}
+                      />
+                      <EditableCell
+                        value={sport.gameDisplayMode}
+                        options={DISPLAY_MODES}
+                        onCommit={(value) => patchSport(index, { gameDisplayMode: value }, true)}
+                      />
+                      <EditableCell
+                        value={String(sport.division)}
+                        onCommit={(value) => {
+                          const parsed = Number.parseInt(value, 10);
+                          if (!Number.isNaN(parsed)) patchSport(index, { division: parsed });
+                        }}
+                      />
+                      <EditableCell
+                        value={sport.week == null ? "" : String(sport.week)}
+                        onCommit={(value) => {
+                          const parsed = Number.parseInt(value, 10);
+                          if (!Number.isNaN(parsed)) patchSport(index, { week: parsed });
+                        }}
+                      />
+                      <EditableCell
+                        value={sport.seasonYear == null ? "" : String(sport.seasonYear)}
+                        onCommit={(value) => {
+                          if (value.trim() === "") {
+                            patchSport(index, { seasonYear: null });
+                            return;
+                          }
+                          const parsed = Number.parseInt(value, 10);
+                          if (!Number.isNaN(parsed)) patchSport(index, { seasonYear: parsed });
+                        }}
+                      />
+                      <td className="cell check-cell">
+                        <input
+                          type="checkbox"
+                          className="check center"
+                          checked={sport.listsNeeded?.conferenceGames ?? true}
+                          onChange={(event) => patchLists(index, "conferenceGames", event.target.checked)}
+                        />
+                      </td>
+                      <td className="cell check-cell">
+                        <input
+                          type="checkbox"
+                          className="check center"
+                          checked={sport.listsNeeded?.nonConferenceGames ?? true}
+                          onChange={(event) => patchLists(index, "nonConferenceGames", event.target.checked)}
+                        />
+                      </td>
+                      <td className="cell check-cell">
+                        <input
+                          type="checkbox"
+                          className="check center"
+                          checked={sport.listsNeeded?.top25Games ?? true}
+                          onChange={(event) => patchLists(index, "top25Games", event.target.checked)}
+                        />
+                      </td>
+                      <td className="cell check-cell">
+                        <input
+                          type="checkbox"
+                          className="check center"
+                          checked={sport.oosUpdater?.enabled ?? false}
+                          onChange={(event) => patchOos(index, { enabled: event.target.checked })}
+                        />
+                      </td>
+                      {oosColumnsVisible && (
+                        <>
+                          <td className="cell editing oos-path-cell">
+                            <div className="path-row">
+                              <input
+                                className="text-input"
+                                defaultValue={sport.oosUpdater?.oosFilePath ?? ""}
+                                key={`path-${index}-${sport.oosUpdater?.oosFilePath ?? ""}`}
+                                onBlur={(event) =>
+                                  patchOos(index, { oosFilePath: event.target.value.trim() || null })
+                                }
+                              />
+                              <button type="button" className="btn" onClick={() => void pickOosFolder(index)}>
+                                Browse
+                              </button>
+                            </div>
+                          </td>
+                          <EditableCell
+                            value={sport.oosUpdater?.oosFileName ?? ""}
+                            onCommit={(value) => patchOos(index, { oosFileName: value.trim() || null })}
+                          />
+                          <EditableCell
+                            value={String(sport.oosUpdater?.numberOfOutScores ?? 0)}
+                            onCommit={(value) => {
+                              const parsed = Number.parseInt(value, 10);
+                              if (!Number.isNaN(parsed)) patchOos(index, { numberOfOutScores: parsed });
+                            }}
+                          />
+                          <EditableCell
+                            value={String(sport.oosUpdater?.numberOfTeamsPer ?? 0)}
+                            onCommit={(value) => {
+                              const parsed = Number.parseInt(value, 10);
+                              if (!Number.isNaN(parsed)) patchOos(index, { numberOfTeamsPer: parsed });
+                            }}
+                          />
+                        </>
+                      )}
+                      <td className="cell x-cell">
+                        <button type="button" className="btn btn-x" onClick={() => removeSport(index)}>
+                          X
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="caption">Double-click cells to edit values. Changes are saved automatically.</p>
+          </div>
+        )}
 
-      <h2>Display teams</h2>
-      <div className="toolbar">
-        <select value={addTeam} onChange={(e) => setAddTeam(e.target.value)}>
-          <option value="">Add team</option>
-          {addableTeams.map((team) => (
-            <option key={team.name6Char} value={team.name6Char ?? ""}>
-              {teamLabel(team)}
-            </option>
-          ))}
-        </select>
-        <button type="button" onClick={addDisplayTeam} disabled={!addTeam}>
-          Add
-        </button>
-      </div>
-      {settings.displayTeams.length === 0 ? (
-        <p className="empty">No display teams.</p>
-      ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Team</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {settings.displayTeams.map((team, index) => {
-              const match = teamOptions.find((t) => t.name6Char === team.ncaaTeamName);
-              return (
-                <tr key={`${team.ncaaTeamName}-${index}`}>
-                  <td>{match ? teamLabel(match) : team.ncaaTeamName}</td>
-                  <td>
-                    <button type="button" onClick={() => removeDisplayTeam(index)}>
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
+        {subTab === "display-teams" && (
+          <div className="display-layout">
+            <div className="add-team-row">
+              <span className="search-label">Add Team:</span>
+              <ComboBox
+                value={addSelected}
+                options={addOptions}
+                filterOnType
+                onSelect={(value) => setAddSelected(value)}
+                onSelectedValueChange={setAddSelected}
+              />
+              <button type="button" className="btn btn-add-team" onClick={addDisplayTeam}>
+                Add
+              </button>
+            </div>
+            <div className="grid-wrap">
+              <table className="data-grid">
+                <thead>
+                  <tr>
+                    <th>Team Name</th>
+                    <th className="col-remove" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {settings.displayTeams.map((team, index) => (
+                    <tr
+                      key={`${team.ncaaTeamName}-${index}`}
+                      className={selectedDisplay === index ? "selected" : undefined}
+                      onClick={() => setSelectedDisplay(index)}
+                    >
+                      <td className="cell col-team-name">{team.ncaaTeamName ?? ""}</td>
+                      <td className="cell col-remove">
+                        <button type="button" className="btn btn-remove" onClick={() => removeDisplayTeam(index)}>
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
-      <h2>XML to JSON</h2>
-      <label className="check-row">
-        <input
-          type="checkbox"
-          checked={settings.xmlToJson.enabled}
-          onChange={(e) => patch({ xmlToJson: { ...settings.xmlToJson, enabled: e.target.checked } })}
-        />
-        Enabled
-      </label>
-      {settings.xmlToJson.filePaths.map((path, index) => (
-        <div className="path-row" key={`xml-${index}`}>
-          <input
-            value={path}
-            onChange={(e) => {
-              const filePaths = settings.xmlToJson.filePaths.map((p, i) => (i === index ? e.target.value : p));
-              patch({ xmlToJson: { ...settings.xmlToJson, filePaths } });
-            }}
-          />
-          <button type="button" onClick={() => void pickXmlFile(index)} disabled={picking}>
-            Browse
-          </button>
-          <button type="button" onClick={() => removeXmlPath(index)}>
-            Remove
-          </button>
-        </div>
-      ))}
-      <button type="button" onClick={addXmlPath}>
-        Add path
-      </button>
-    </section>
+        {subTab === "xml" && (
+          <div className="general-panel">
+            <p className="xml-title">XML to JSON:</p>
+            <label className="xml-check">
+              <input
+                type="checkbox"
+                className="check"
+                checked={settings.xmlToJson.enabled}
+                onChange={(event) =>
+                  void persist({
+                    ...settingsRef.current,
+                    xmlToJson: { ...settingsRef.current.xmlToJson, enabled: event.target.checked },
+                  })
+                }
+              />
+              Enabled
+            </label>
+            <div className="xml-paths-label">File Paths:</div>
+            {settings.xmlToJson.filePaths.map((path, index) => (
+              <div className="xml-path-row" key={`xml-${index}`}>
+                <span className="xml-path-label">Path: </span>
+                <input
+                  className="text-input xml-path-input"
+                  value={path}
+                  onChange={(event) => {
+                    const filePaths = settingsRef.current.xmlToJson.filePaths.map((item, i) =>
+                      i === index ? event.target.value : item
+                    );
+                    void persist({
+                      ...settingsRef.current,
+                      xmlToJson: { ...settingsRef.current.xmlToJson, filePaths },
+                    });
+                  }}
+                />
+                <button type="button" className="btn xml-browse" onClick={() => void pickXmlFile(index)}>
+                  Browse
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
+}
+
+function SportHeader({
+  label,
+  column,
+  sort,
+  onSort,
+  className,
+}: {
+  label: string;
+  column: string;
+  sort: { key: string; dir: 1 | -1 } | null;
+  onSort: (column: string) => void;
+  className?: string;
+}) {
+  return (
+    <th className={className} onClick={() => onSort(column)}>
+      {label}
+      {sort?.key === column ? (sort.dir === 1 ? " ▲" : " ▼") : ""}
+    </th>
+  );
+}
+
+function compareSport(a: SportSnapshot, b: SportSnapshot, key: string): number {
+  const av = sportSortValue(a, key);
+  const bv = sportSortValue(b, key);
+  if (typeof av === "boolean" && typeof bv === "boolean") return Number(av) - Number(bv);
+  if (typeof av === "number" && typeof bv === "number") return av - bv;
+  return String(av ?? "").localeCompare(String(bv ?? ""), undefined, { sensitivity: "base" });
+}
+
+function sportSortValue(sport: SportSnapshot, key: string): string | number | boolean | null {
+  switch (key) {
+    case "name":
+      return sport.name;
+    case "short":
+      return sport.short;
+    case "code":
+      return sport.code;
+    case "enabled":
+      return sport.enabled;
+    case "conferenceName":
+      return sport.conferenceName;
+    case "gameDisplayMode":
+      return sport.gameDisplayMode;
+    case "division":
+      return sport.division;
+    case "week":
+      return sport.week;
+    case "seasonYear":
+      return sport.seasonYear;
+    case "conferenceGames":
+      return sport.listsNeeded?.conferenceGames ?? true;
+    case "nonConferenceGames":
+      return sport.listsNeeded?.nonConferenceGames ?? true;
+    case "top25Games":
+      return sport.listsNeeded?.top25Games ?? true;
+    case "oos":
+      return sport.oosUpdater?.enabled ?? false;
+    case "oosFilePath":
+      return sport.oosUpdater?.oosFilePath ?? "";
+    case "oosFileName":
+      return sport.oosUpdater?.oosFileName ?? "";
+    case "numberOfOutScores":
+      return sport.oosUpdater?.numberOfOutScores ?? 0;
+    case "numberOfTeamsPer":
+      return sport.oosUpdater?.numberOfTeamsPer ?? 0;
+    default:
+      return "";
+  }
+}
+
+function normalizeSettings(next: SettingsSnapshot): SettingsSnapshot {
+  return {
+    ...next,
+    sports: next.sports ?? [],
+    displayTeams: next.displayTeams ?? [],
+    xmlToJson: next.xmlToJson ?? { enabled: false, filePaths: [] },
+  };
 }

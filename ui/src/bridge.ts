@@ -1,3 +1,4 @@
+import { mockSend } from "./devMock";
 import type { BridgeResponse, PhotinoExternal } from "./types";
 
 type Pending = {
@@ -40,6 +41,7 @@ export function sendMessage<T>(method: string, params?: unknown): Promise<T> {
   ensureListener();
   const external = getPhotino();
   if (!external) {
+    if (import.meta.env.DEV) return mockSend<T>(method, params);
     return Promise.reject(new Error("Photino bridge is not available"));
   }
 

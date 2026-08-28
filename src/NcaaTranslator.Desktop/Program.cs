@@ -38,7 +38,7 @@ class Program
         var window = new PhotinoWindow()
             .SetTitle("NCAA Translator")
             .SetUseOsDefaultSize(false)
-            .SetSize(1100, 720)
+            .SetSize(1000, 600)
             .Center()
             .RegisterWebMessageReceivedHandler((sender, message) =>
             {
