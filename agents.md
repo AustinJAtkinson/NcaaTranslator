@@ -8,7 +8,7 @@ Photino desktop app that pulls NCAA scoreboards, translates names, and updates O
 | --- | --- | --- |
 | `NameConverters` / `NameConverter` | `NameConverter.cs` | Load/save `NcaaNameConverter.json`; look up and add team/conference display names (6-char team codes). |
 | `NcaaProcessor` | `NcaaProcessor.cs` | Build NCAA API URLs, fetch contests, translate names, categorize games, update OOS XML, convert XML to JSON. `seasonYear` is the academic year (August rollover) unless a sport sets `SeasonYear`. |
-| `NcaaScoreboard` and contest/team models | `NcaaScoreboard.cs` | Scoreboard JSON models, clocks, and game lists (conference, non-conference, home, display, top-25). `HomeTeam` / `AwayTeam` come from `isHome`, not list order. |
+| `NcaaScoreboard` and contest/team models | `NcaaScoreboard.cs` | Scoreboard JSON models, clocks, and game lists (conference, non-conference, home, display, top-25). `HomeTeam` / `AwayTeam` come from `isHome`, not list order. Pre-game clocks include an abbreviated weekday when the game is not on the current local day (e.g. `Fri. 5:00 PM`). |
 | OOS XML models | `OutScore.cs` | GFX template XML serialization used by OOS updates. |
 | `Settings` / `Sport` / related | `Settings.cs` | Load/save `Settings.json`; sports, display teams, timer, home team, OOS, XML-to-JSON. |
 | `TeamSelection` | `TeamSelection.cs` | Combo-box team options persist `name6Char`. |

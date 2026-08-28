@@ -7,7 +7,9 @@ public class ClockTests
     [Fact]
     public void DisplayClock_Pregame_UsesLocalStartTime()
     {
-        const long epoch = 1700000000;
+        var now = DateTimeOffset.Now;
+        var start = now.Subtract(now.TimeOfDay).AddHours(19);
+        var epoch = start.ToUnixTimeSeconds();
         var contest = new Contest
         {
             gameState = "P",
@@ -20,6 +22,27 @@ public class ClockTests
         Assert.Equal(expected, contest.displayClock);
         Assert.Equal(expected, contest.displayClockDefault);
         Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(epoch).ToLocalTime().ToString("HH:mm"), contest.ctStateTime24h);
+    }
+
+    [Fact]
+    public void DisplayClock_Pregame_IncludesWeekdayWhenNotToday()
+    {
+        var now = DateTimeOffset.Now;
+        var start = now.Subtract(now.TimeOfDay).AddDays(2).AddHours(17);
+        var epoch = start.ToUnixTimeSeconds();
+        var contest = new Contest
+        {
+            gameState = "P",
+            startTimeEpoch = epoch,
+            startTime = "5:00 PM ET",
+            tba = false
+        };
+
+        var local = DateTimeOffset.FromUnixTimeSeconds(epoch).ToLocalTime();
+        var day = local.ToString("ddd").TrimEnd('.');
+        var expected = $"{day}. {local.ToString("h:mm tt")}";
+        Assert.Equal(expected, contest.displayClock);
+        Assert.Equal(expected, contest.displayClockDefault);
     }
 
     [Fact]
