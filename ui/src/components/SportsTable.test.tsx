@@ -68,6 +68,80 @@ describe("SportsTable", () => {
     expect(onRemove).toHaveBeenCalledWith(0, "Football");
   });
 
+  it("closes a conference dropdown when another cell is selected", async () => {
+    const user = userEvent.setup();
+    const other: SportSnapshot = { ...sport, name: "Basketball", conferenceName: "Big Ten" };
+    renderWithProviders(
+      <SportsTable
+        rows={[
+          { sport, index: 0 },
+          { sport: other, index: 1 },
+        ]}
+        sort={null}
+        onSort={vi.fn()}
+        focusedIndex={null}
+        onFocus={vi.fn()}
+        conferenceOptions={[
+          { display: "SEC", value: "SEC" },
+          { display: "Big Ten", value: "Big Ten" },
+          { display: "ACC", value: "ACC" },
+        ]}
+        displayModes={displayModes}
+        onPatchSport={vi.fn()}
+        onPatchLists={vi.fn()}
+        onPatchOos={vi.fn()}
+        onRemove={vi.fn()}
+      />,
+    );
+
+    const openButtons = screen.getAllByRole("button", { name: "Open" });
+    await user.click(openButtons[0]);
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+
+    await user.click(screen.getByDisplayValue("Basketball"));
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("closes a display mode dropdown when another cell is selected", async () => {
+    const user = userEvent.setup();
+    const other: SportSnapshot = {
+      ...sport,
+      name: "Basketball",
+      conferenceName: "Big Ten",
+      gameDisplayMode: "All",
+    };
+    renderWithProviders(
+      <SportsTable
+        rows={[
+          { sport, index: 0 },
+          { sport: other, index: 1 },
+        ]}
+        sort={null}
+        onSort={vi.fn()}
+        focusedIndex={null}
+        onFocus={vi.fn()}
+        conferenceOptions={[
+          { display: "SEC", value: "SEC" },
+          { display: "Big Ten", value: "Big Ten" },
+        ]}
+        displayModes={displayModes}
+        onPatchSport={vi.fn()}
+        onPatchLists={vi.fn()}
+        onPatchOos={vi.fn()}
+        onRemove={vi.fn()}
+      />,
+    );
+
+    const combos = screen.getAllByRole("combobox");
+    await user.click(screen.getAllByRole("button", { name: "Open" })[1]);
+    expect(combos[1]).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+
+    await user.click(combos[3]);
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(combos[1]).toHaveAttribute("aria-expanded", "false");
+  });
+
   it("shows a lucide chevron on the active sort column", () => {
     const { container } = renderWithProviders(
       <SportsTable

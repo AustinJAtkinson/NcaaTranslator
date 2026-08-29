@@ -1,4 +1,5 @@
-import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -6,6 +7,20 @@ export type ComboOption = {
   display: string;
   value: string;
 };
+
+let suppressOpen = false;
+
+function beginSuppressOpen(): void {
+  if (suppressOpen) return;
+  suppressOpen = true;
+  const end = () => {
+    suppressOpen = false;
+    document.removeEventListener("pointerup", end, true);
+    document.removeEventListener("pointercancel", end, true);
+  };
+  document.addEventListener("pointerup", end, true);
+  document.addEventListener("pointercancel", end, true);
+}
 
 export default function ComboBox({
   value,
@@ -29,12 +44,50 @@ export default function ComboBox({
   const [open, setOpen] = useState(false);
   const [text, setText] = useState(() => displayFor(value, options));
   const [highlight, setHighlight] = useState(0);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const skipBlur = useRef(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
   const listId = useId();
 
   useEffect(() => {
     setText(displayFor(value, options));
   }, [value, options]);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setMenuPos(null);
+      return;
+    }
+    function updatePos(): void {
+      const el = rootRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      setMenuPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    }
+    updatePos();
+    window.addEventListener("resize", updatePos);
+    window.addEventListener("scroll", updatePos, true);
+    return () => {
+      window.removeEventListener("resize", updatePos);
+      window.removeEventListener("scroll", updatePos, true);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event: Event): void {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (rootRef.current?.contains(target)) return;
+      const option = (event.target as HTMLElement | null)?.closest?.("[role='option']");
+      if (option && listRef.current?.contains(option)) return;
+      beginSuppressOpen();
+      setOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [open]);
 
   const visible = useMemo(() => {
     if (!filterOnType) return options;
@@ -73,6 +126,11 @@ export default function ComboBox({
     onBlurText?.(text);
   }
 
+  function requestOpen(): void {
+    if (suppressOpen) return;
+    setOpen(true);
+  }
+
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>): void {
     if (event.key === "ArrowDown") {
       event.preventDefault();
@@ -95,13 +153,49 @@ export default function ComboBox({
     }
   }
 
+  const menu =
+    open && menuPos ? (
+      <ul
+        ref={listRef}
+        id={listId}
+        data-combo-menu
+        role="listbox"
+        style={{ top: menuPos.top, left: menuPos.left, width: menuPos.width }}
+        className="fixed z-50 max-h-60 min-w-full overflow-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md"
+      >
+        {visible.length === 0 ? (
+          <li className="cursor-default px-2 py-1.5 text-sm text-muted-foreground" aria-disabled="true">
+            No matches
+          </li>
+        ) : (
+          visible.map((option, index) => (
+            <li
+              id={`${listId}-${index}`}
+              key={`${option.value}-${index}`}
+              role="option"
+              aria-selected={index === highlight}
+              className={cn(
+                "cursor-pointer rounded-sm px-2 py-1.5 text-sm text-foreground",
+                index === highlight && "bg-accent/15",
+              )}
+              onMouseEnter={() => setHighlight(index)}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                pick(option);
+              }}
+            >
+              {option.display}
+            </li>
+          ))
+        )}
+      </ul>
+    ) : null;
+
   return (
     <div
+      ref={rootRef}
       className="relative inline-flex h-8 items-stretch rounded-[6px] border border-input bg-card text-sm shadow-xs focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50"
       style={width ? { width } : undefined}
-      onMouseDown={(event) => {
-        if ((event.target as HTMLElement).closest("[data-combo-menu]")) skipBlur.current = true;
-      }}
     >
       <input
         className="h-full min-w-0 flex-1 rounded-l-[6px] border-0 bg-transparent px-2 outline-none"
@@ -113,7 +207,7 @@ export default function ComboBox({
         value={text}
         readOnly={!editable}
         onChange={(event) => handleInput(event.target.value)}
-        onFocus={() => setOpen(true)}
+        onFocus={requestOpen}
         onBlur={handleBlur}
         onKeyDown={onKeyDown}
       />
@@ -124,45 +218,13 @@ export default function ComboBox({
         aria-label="Open"
         onMouseDown={(event) => {
           event.preventDefault();
+          if (suppressOpen) return;
           setOpen((was) => !was);
         }}
       >
         <ChevronDownIcon className="size-4" aria-hidden="true" />
       </button>
-      {open && (
-        <ul
-          id={listId}
-          data-combo-menu
-          role="listbox"
-          className="absolute top-[calc(100%+4px)] right-0 left-0 z-20 max-h-60 min-w-full overflow-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md"
-        >
-          {visible.length === 0 ? (
-            <li className="cursor-default px-2 py-1.5 text-sm text-muted-foreground" aria-disabled="true">
-              No matches
-            </li>
-          ) : (
-            visible.map((option, index) => (
-              <li
-                id={`${listId}-${index}`}
-                key={`${option.value}-${index}`}
-                role="option"
-                aria-selected={index === highlight}
-                className={cn(
-                  "cursor-pointer rounded-sm px-2 py-1.5 text-sm text-foreground",
-                  index === highlight && "bg-accent/15",
-                )}
-                onMouseEnter={() => setHighlight(index)}
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  pick(option);
-                }}
-              >
-                {option.display}
-              </li>
-            ))
-          )}
-        </ul>
-      )}
+      {menu ? createPortal(menu, document.body) : null}
     </div>
   );
 }
