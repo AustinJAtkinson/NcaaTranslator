@@ -6,7 +6,13 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/NcaaTranslator.Desktop/bin/Debug/net8.0/NcaaTranslator.Desktop.dll",
+            "program": "${workspaceFolder}/src/NcaaTranslator.Desktop/bin/Debug/net8.0/NcaaTranslator.Desktop",
+            "windows": {
+                "program": "${workspaceFolder}/src/NcaaTranslator.Desktop/bin/Debug/net8.0/NcaaTranslator.Desktop.exe"
+            },
+            "osx": {
+                "program": "${workspaceFolder}/src/NcaaTranslator.Desktop/bin/Debug/net8.0/NCAA Translator"
+            },
             "args": [],
             "cwd": "${workspaceFolder}/src/NcaaTranslator.Desktop/bin/Debug/net8.0",
             "console": "internalConsole",

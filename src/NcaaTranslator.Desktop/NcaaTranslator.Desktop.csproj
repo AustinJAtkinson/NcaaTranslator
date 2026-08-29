@@ -67,6 +67,21 @@
     <Exec Command="npm run build" WorkingDirectory="$(UiDir)" Condition="'$(_HasNode)' == 'true'" />
   </Target>
 
+  <!-- VS Code F5 launches this copy so macOS Dock/menu bar show "NCAA Translator"
+       instead of "dotnet" (dll) or "NcaaTranslator.Desktop" (apphost). -->
+  <Target Name="CopyMacAppHostDisplayName"
+          AfterTargets="CopyFilesToOutputDirectory"
+          Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <PropertyGroup>
+      <_AppHostPath>$(OutputPath)$(AssemblyName)</_AppHostPath>
+      <_DisplayHostPath>$(OutputPath)NCAA Translator</_DisplayHostPath>
+    </PropertyGroup>
+    <Copy SourceFiles="$(_AppHostPath)"
+          DestinationFiles="$(_DisplayHostPath)"
+          SkipUnchangedFiles="true"
+          Condition="Exists('$(_AppHostPath)')" />
+  </Target>
+
   <Target Name="CopyUiDistToOutput"
           AfterTargets="CopyFilesToOutputDirectory"
           Condition="'$(SkipUiBuild)' != 'true' AND Exists('$(UiDir)/dist/index.html')">
