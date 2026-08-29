@@ -1,30 +1,36 @@
 import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
+import { toast } from "sonner";
 import { sendMessage } from "./bridge";
-import EditableCell from "./components/EditableCell";
-import Tabs from "./components/Tabs";
+import EmptyState from "./components/EmptyState";
+import GhostInput from "./components/GhostInput";
+import SearchField from "./components/SearchField";
+import { cn } from "@/lib/utils";
 import type { ConferenceNameSnapshot, TeamNameSnapshot } from "./types";
 
-type NamesSubTab = "teams" | "conferences";
+export type NamesSection = "teams" | "conferences";
 
-const NAME_TABS = [
-  { id: "teams", label: "Teams" },
-  { id: "conferences", label: "Conferences" },
-];
+type SortState = { key: string; dir: 1 | -1 } | null;
+
+const TEAM_GRID =
+  "grid grid-cols-[6.75rem_minmax(12rem,1.4fr)_minmax(9rem,1fr)_minmax(8rem,1fr)] items-center gap-x-3 px-3";
+const CONFERENCE_GRID =
+  "grid grid-cols-[minmax(10rem,0.9fr)_minmax(12rem,1.2fr)] items-center gap-x-3 px-3";
 
 function containsIgnoreCase(hay: string | null | undefined, needle: string): boolean {
   return (hay ?? "").toUpperCase().includes(needle.toUpperCase());
 }
 
-export default function NamesTab() {
-  const [subTab, setSubTab] = useState<NamesSubTab>("teams");
+export default function NamesTab({ section }: { section?: NamesSection } = {}) {
+  const active = section ?? "teams";
   const [teams, setTeams] = useState<TeamNameSnapshot[]>([]);
   const [conferences, setConferences] = useState<ConferenceNameSnapshot[]>([]);
   const [teamQuery, setTeamQuery] = useState("");
   const [conferenceQuery, setConferenceQuery] = useState("");
-  const [teamSort, setTeamSort] = useState<{ key: string; dir: 1 | -1 } | null>(null);
-  const [confSort, setConfSort] = useState<{ key: string; dir: 1 | -1 } | null>(null);
-  const [selectedTeam, setSelectedTeam] = useState<number | null>(null);
-  const [selectedConference, setSelectedConference] = useState<number | null>(null);
+  const [teamSort, setTeamSort] = useState<SortState>(null);
+  const [confSort, setConfSort] = useState<SortState>(null);
+  const [teamInputKeys, setTeamInputKeys] = useState<Record<string, number>>({});
+  const [conferenceInputKeys, setConferenceInputKeys] = useState<Record<string, number>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -52,8 +58,8 @@ export default function NamesTab() {
     const rows = query
       ? teams.filter((team) =>
           [team.name6Char, team.customName, team.seoname, team.nameShort].some((value) =>
-            containsIgnoreCase(value, query)
-          )
+            containsIgnoreCase(value, query),
+          ),
         )
       : teams;
     if (!teamSort) return rows;
@@ -65,8 +71,8 @@ export default function NamesTab() {
     const rows = query
       ? conferences.filter((conference) =>
           [conference.conferenceSeo, conference.customConferenceName].some((value) =>
-            containsIgnoreCase(value, query)
-          )
+            containsIgnoreCase(value, query),
+          ),
         )
       : conferences;
     if (!confSort) return rows;
@@ -76,9 +82,10 @@ export default function NamesTab() {
   async function saveTeam(name6Char: string, customName: string, previous: string | null): Promise<void> {
     const next = customName.trim();
     if (!next) {
-      window.alert("Display name cannot be empty.");
+      toast.error("Display name cannot be empty.");
+      setTeamInputKeys((prev) => ({ ...prev, [name6Char]: (prev[name6Char] ?? 0) + 1 }));
       setTeams((prev) =>
-        prev.map((team) => (team.name6Char === name6Char ? { ...team, customName: previous } : team))
+        prev.map((team) => (team.name6Char === name6Char ? { ...team, customName: previous } : team)),
       );
       return;
     }
@@ -86,7 +93,7 @@ export default function NamesTab() {
     try {
       const saved = await sendMessage<TeamNameSnapshot>("saveTeamCustomName", { name6Char, customName: next });
       setTeams((prev) =>
-        prev.map((team) => (team.name6Char === name6Char ? { ...team, customName: saved.customName } : team))
+        prev.map((team) => (team.name6Char === name6Char ? { ...team, customName: saved.customName } : team)),
       );
     } catch {
       /* converter save failures are silent */
@@ -96,17 +103,21 @@ export default function NamesTab() {
   async function saveConference(
     conferenceSeo: string,
     customConferenceName: string,
-    previous: string | null
+    previous: string | null,
   ): Promise<void> {
     const next = customConferenceName.trim();
     if (!next) {
-      window.alert("Custom name cannot be empty.");
+      toast.error("Custom name cannot be empty.");
+      setConferenceInputKeys((prev) => ({
+        ...prev,
+        [conferenceSeo]: (prev[conferenceSeo] ?? 0) + 1,
+      }));
       setConferences((prev) =>
         prev.map((conference) =>
           conference.conferenceSeo === conferenceSeo
             ? { ...conference, customConferenceName: previous }
-            : conference
-        )
+            : conference,
+        ),
       );
       return;
     }
@@ -120,118 +131,138 @@ export default function NamesTab() {
         prev.map((conference) =>
           conference.conferenceSeo === conferenceSeo
             ? { ...conference, customConferenceName: saved.customConferenceName }
-            : conference
-        )
+            : conference,
+        ),
       );
     } catch {
       /* silent */
     }
   }
 
+  const isTeams = active === "teams";
+  const query = isTeams ? teamQuery : conferenceQuery;
+  const filteredCount = isTeams ? filteredTeams.length : filteredConferences.length;
+  const totalCount = isTeams ? teams.length : conferences.length;
+
   return (
-    <div className="nested-tabs">
-      <Tabs
-        items={NAME_TABS}
-        value={subTab}
-        onChange={(id) => setSubTab(id as NamesSubTab)}
-        nested
-        ariaLabel="Name converter sections"
-      />
-      <div className="nested-body">
-        {subTab === "teams" ? (
-          <div className="names-layout">
-            <div className="search-row no-button">
-              <span className="search-label">Search Teams:</span>
-              <input
-                className="text-input search-input"
-                value={teamQuery}
-                onChange={(event) => setTeamQuery(event.target.value)}
-              />
+    <div className="flex h-full min-h-0 flex-col gap-3 p-4">
+      <h2 className="text-sm font-semibold tracking-tight">{isTeams ? "Teams" : "Conferences"}</h2>
+
+      <div className="flex items-center gap-3">
+        <SearchField
+          className="max-w-sm"
+          value={query}
+          onChange={isTeams ? setTeamQuery : setConferenceQuery}
+          placeholder={isTeams ? "Search teams…" : "Search conferences…"}
+          aria-label={isTeams ? "Search teams" : "Search conferences"}
+        />
+        {query.trim() ? (
+          <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+            {filteredCount} of {totalCount}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-border bg-card">
+        {isTeams ? (
+          <>
+            <div className={cn(TEAM_GRID, "border-b border-border py-1.5")}>
+              <SortLabel label="Code" column="name6Char" sort={teamSort} onSort={setTeamSort} />
+              <SortLabel label="Display" column="customName" sort={teamSort} onSort={setTeamSort} />
+              <SortLabel label="SEO" column="seoname" sort={teamSort} onSort={setTeamSort} />
+              <SortLabel label="Short" column="nameShort" sort={teamSort} onSort={setTeamSort} />
             </div>
-            <div className="grid-wrap">
-              <table className="data-grid">
-                <thead>
-                  <tr>
-                    <SortTh label="Char6 Code" column="name6Char" sort={teamSort} onSort={setTeamSort} />
-                    <SortTh label="Display Name" column="customName" sort={teamSort} onSort={setTeamSort} />
-                    <SortTh label="SEO Name" column="seoname" sort={teamSort} onSort={setTeamSort} />
-                    <SortTh label="Short Name" column="nameShort" sort={teamSort} onSort={setTeamSort} />
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredTeams.map((team, index) => (
-                    <tr
-                      key={team.name6Char ?? team.seoname ?? String(index)}
-                      className={selectedTeam === index ? "selected" : undefined}
-                      onClick={() => setSelectedTeam(index)}
-                    >
-                      <EditableCell value={team.name6Char ?? ""} readOnly onCommit={() => undefined} />
-                      <EditableCell
-                        value={team.customName ?? ""}
-                        onCommit={(value) => {
-                          if (team.name6Char) void saveTeam(team.name6Char, value, team.customName);
-                        }}
-                      />
-                      <EditableCell value={team.seoname ?? ""} readOnly onCommit={() => undefined} />
-                      <EditableCell value={team.nameShort ?? ""} readOnly onCommit={() => undefined} />
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="min-h-0 flex-1 overflow-auto">
+              {filteredTeams.length === 0 ? (
+                <EmptyState title="No teams match." />
+              ) : (
+                <ul role="list" aria-label="Teams" className="m-0 list-none p-0">
+                  {filteredTeams.map((team, index) => {
+                    const id = team.name6Char ?? team.seoname ?? String(index);
+                    return (
+                      <li
+                        key={id}
+                        className={cn(TEAM_GRID, "min-h-9 border-b border-border py-1 last:border-b-0 hover:bg-muted/40")}
+                      >
+                        <span className="inline-flex h-5 max-w-full items-center truncate rounded bg-muted px-1.5 font-mono text-[11px] text-muted-foreground">
+                          {team.name6Char ?? ""}
+                        </span>
+                        <GhostInput
+                          key={`${id}-${teamInputKeys[id] ?? 0}`}
+                          value={team.customName ?? ""}
+                          aria-label={`Display name for ${team.name6Char ?? team.seoname ?? "team"}`}
+                          className="min-w-0 w-full"
+                          onCommit={(value) => {
+                            if (team.name6Char) void saveTeam(team.name6Char, value, team.customName);
+                          }}
+                        />
+                        <span className="min-w-0 truncate text-xs text-muted-foreground">
+                          {team.seoname ?? ""}
+                        </span>
+                        <span className="min-w-0 truncate text-xs text-muted-foreground">
+                          {team.nameShort ?? ""}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
-            <p className="caption">Double-click cells to edit display names. Changes are saved automatically.</p>
-          </div>
+          </>
         ) : (
-          <div className="names-layout">
-            <div className="search-row no-button">
-              <span className="search-label">Search Conferences:</span>
-              <input
-                className="text-input search-input"
-                value={conferenceQuery}
-                onChange={(event) => setConferenceQuery(event.target.value)}
-              />
+          <>
+            <div className={cn(CONFERENCE_GRID, "border-b border-border py-1.5")}>
+              <SortLabel label="SEO" column="conferenceSeo" sort={confSort} onSort={setConfSort} />
+              <SortLabel label="Name" column="customConferenceName" sort={confSort} onSort={setConfSort} />
             </div>
-            <div className="grid-wrap">
-              <table className="data-grid">
-                <thead>
-                  <tr>
-                    <SortTh label="SEO Name" column="conferenceSeo" sort={confSort} onSort={setConfSort} />
-                    <SortTh label="Custom Name" column="customConferenceName" sort={confSort} onSort={setConfSort} />
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredConferences.map((conference, index) => (
-                    <tr
-                      key={conference.conferenceSeo ?? String(index)}
-                      className={selectedConference === index ? "selected" : undefined}
-                      onClick={() => setSelectedConference(index)}
-                    >
-                      <EditableCell value={conference.conferenceSeo ?? ""} readOnly onCommit={() => undefined} />
-                      <EditableCell
-                        value={conference.customConferenceName ?? ""}
-                        onCommit={(value) => {
-                          if (conference.conferenceSeo)
-                            void saveConference(
-                              conference.conferenceSeo,
-                              value,
-                              conference.customConferenceName
-                            );
-                        }}
-                      />
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="min-h-0 flex-1 overflow-auto">
+              {filteredConferences.length === 0 ? (
+                <EmptyState title="No conferences match." />
+              ) : (
+                <ul role="list" aria-label="Conferences" className="m-0 list-none p-0">
+                  {filteredConferences.map((conference, index) => {
+                    const id = conference.conferenceSeo ?? String(index);
+                    return (
+                      <li
+                        key={id}
+                        className={cn(
+                          CONFERENCE_GRID,
+                          "min-h-9 border-b border-border py-1 last:border-b-0 hover:bg-muted/40",
+                        )}
+                      >
+                        <span className="min-w-0 truncate text-xs text-muted-foreground">
+                          {conference.conferenceSeo ?? ""}
+                        </span>
+                        <GhostInput
+                          key={`${id}-${conferenceInputKeys[id] ?? 0}`}
+                          value={conference.customConferenceName ?? ""}
+                          aria-label={`Custom name for ${conference.conferenceSeo ?? "conference"}`}
+                          className="min-w-0 w-full"
+                          onCommit={(value) => {
+                            if (conference.conferenceSeo)
+                              void saveConference(
+                                conference.conferenceSeo,
+                                value,
+                                conference.customConferenceName,
+                              );
+                          }}
+                        />
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
-            <p className="caption">Double-click cells to edit custom names. Changes are saved automatically.</p>
-          </div>
+          </>
         )}
       </div>
+
+      <p className="text-xs text-muted-foreground">Changes save automatically.</p>
     </div>
   );
 }
 
-function SortTh({
+function SortLabel({
   label,
   column,
   sort,
@@ -239,21 +270,28 @@ function SortTh({
 }: {
   label: string;
   column: string;
-  sort: { key: string; dir: 1 | -1 } | null;
+  sort: SortState;
   onSort: (next: { key: string; dir: 1 | -1 }) => void;
 }) {
+  const active = sort?.key === column;
+  const Icon = !active ? ChevronsUpDown : sort.dir === 1 ? ChevronUp : ChevronDown;
   return (
-    <th
+    <button
+      type="button"
       onClick={() =>
         onSort({
           key: column,
           dir: sort?.key === column && sort.dir === 1 ? -1 : 1,
         })
       }
+      className={cn(
+        "inline-flex min-w-0 items-center gap-0.5 justify-self-start rounded px-1 py-0.5 text-xs font-medium",
+        active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+      )}
     >
       {label}
-      {sort?.key === column ? (sort.dir === 1 ? " ▲" : " ▼") : ""}
-    </th>
+      <Icon className={cn("size-3", !active && "opacity-50")} />
+    </button>
   );
 }
 

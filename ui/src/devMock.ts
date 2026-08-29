@@ -1,8 +1,10 @@
 import type {
   ConferenceNameSnapshot,
+  GameSnapshot,
   PickPathResult,
   ScoreboardSnapshot,
   SettingsSnapshot,
+  SportScoreboardSnapshot,
   StatusResult,
   TeamNameSnapshot,
 } from "./types";
@@ -71,46 +73,55 @@ const conferences: ConferenceNameSnapshot[] = [
 let running = false;
 let lastUpdate: string | null = null;
 
+export const mockLiveGame: GameSnapshot = {
+  home: "UND",
+  homeScore: 14,
+  away: "South Dakota",
+  awayScore: 7,
+  displayClock: "2nd     8:00",
+};
+
+export const mockFinalGame: GameSnapshot = {
+  home: "NDSU",
+  homeScore: 28,
+  away: "Virginia",
+  awayScore: 21,
+  displayClock: "Final",
+};
+
+export const mockUpcomingGame: GameSnapshot = {
+  home: "Holy Cross",
+  homeScore: null,
+  away: "UVA",
+  awayScore: null,
+  displayClock: "Fri. 5:00 PM",
+};
+
+export const mockEmptySport: SportScoreboardSnapshot = {
+  sportName: "Men's Hockey",
+  gameDisplayMode: "All",
+  confGamesCount: 0,
+  nonConfGamesCount: 0,
+  displayGamesCount: 0,
+  homeGamesCount: 0,
+  games: [],
+};
+
 function sampleBoard(): ScoreboardSnapshot {
-  return {
-    sports: settings.sports
-      .filter((sport) => sport.enabled)
-      .map((sport) => ({
-        sportName: sport.name,
-        gameDisplayMode: sport.gameDisplayMode,
-        confGamesCount: 2,
-        nonConfGamesCount: 1,
-        displayGamesCount: 1,
-        homeGamesCount: 1,
-        games:
-          sport.gameDisplayMode === "Live"
-            ? [
-                {
-                  home: "UND",
-                  homeScore: 14,
-                  away: "South Dakota",
-                  awayScore: 7,
-                  displayClock: "2nd     8:00",
-                },
-              ]
-            : [
-                {
-                  home: "UND",
-                  homeScore: 14,
-                  away: "South Dakota",
-                  awayScore: 7,
-                  displayClock: "2nd     8:00",
-                },
-                {
-                  home: "NDSU",
-                  homeScore: null,
-                  away: "Virginia",
-                  awayScore: null,
-                  displayClock: "Fri. 5:00 PM",
-                },
-              ],
-      })),
-  };
+  const sports: SportScoreboardSnapshot[] = settings.sports
+    .filter((sport) => sport.enabled)
+    .map((sport) => ({
+      sportName: sport.name,
+      gameDisplayMode: sport.gameDisplayMode,
+      confGamesCount: 2,
+      nonConfGamesCount: 1,
+      displayGamesCount: 1,
+      homeGamesCount: 1,
+      games: [mockLiveGame, mockFinalGame, mockUpcomingGame],
+    }));
+
+  sports.push({ ...mockEmptySport });
+  return { sports };
 }
 
 export function mockSend<T>(method: string, params?: unknown): Promise<T> {

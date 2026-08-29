@@ -23,6 +23,7 @@ internal static class TestHelpers
         Settings.SettingsList = null;
         Settings.fileName = "Settings.json";
         Settings.BaseDirectory = AppContext.BaseDirectory;
+        WindowBounds.BaseDirectory = AppContext.BaseDirectory;
         NcaaProcessor.HttpClient = new HttpClient(new ThrowingHttpMessageHandler());
         AppBridge.ResetForTests();
     }
@@ -178,6 +179,7 @@ internal sealed class TempWorkspace : IDisposable
         TestHelpers.ResetStatics();
         Settings.BaseDirectory = DirectoryPath;
         NameConverters.BaseDirectory = DirectoryPath;
+        WindowBounds.BaseDirectory = DirectoryPath;
 
         if (isolateCwd)
         {

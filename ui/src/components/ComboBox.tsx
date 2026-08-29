@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { ChevronDownIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export type ComboOption = {
   display: string;
@@ -28,6 +30,7 @@ export default function ComboBox({
   const [text, setText] = useState(() => displayFor(value, options));
   const [highlight, setHighlight] = useState(0);
   const skipBlur = useRef(false);
+  const listId = useId();
 
   useEffect(() => {
     setText(displayFor(value, options));
@@ -94,14 +97,19 @@ export default function ComboBox({
 
   return (
     <div
-      className="combo"
+      className="relative inline-flex h-8 items-stretch rounded-[6px] border border-input bg-card text-sm shadow-xs focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50"
       style={width ? { width } : undefined}
       onMouseDown={(event) => {
-        if ((event.target as HTMLElement).closest(".combo-menu")) skipBlur.current = true;
+        if ((event.target as HTMLElement).closest("[data-combo-menu]")) skipBlur.current = true;
       }}
     >
       <input
-        className="combo-input"
+        className="h-full min-w-0 flex-1 rounded-l-[6px] border-0 bg-transparent px-2 outline-none"
+        role="combobox"
+        aria-expanded={open}
+        aria-controls={listId}
+        aria-autocomplete={filterOnType ? "list" : "none"}
+        aria-activedescendant={open && visible[highlight] ? `${listId}-${highlight}` : undefined}
         value={text}
         readOnly={!editable}
         onChange={(event) => handleInput(event.target.value)}
@@ -111,7 +119,7 @@ export default function ComboBox({
       />
       <button
         type="button"
-        className="combo-chevron"
+        className="flex w-6 shrink-0 items-center justify-center text-muted-foreground"
         tabIndex={-1}
         aria-label="Open"
         onMouseDown={(event) => {
@@ -119,25 +127,40 @@ export default function ComboBox({
           setOpen((was) => !was);
         }}
       >
-        <svg width="8" height="5" viewBox="0 0 8 5" aria-hidden="true">
-          <path d="M0 0 L4 4 L8 0" fill="none" stroke="currentColor" strokeWidth="2" />
-        </svg>
+        <ChevronDownIcon className="size-4" aria-hidden="true" />
       </button>
       {open && (
-        <ul className="combo-menu">
-          {visible.map((option, index) => (
-            <li
-              key={`${option.value}-${index}`}
-              className={index === highlight ? "combo-item highlight" : "combo-item"}
-              onMouseEnter={() => setHighlight(index)}
-              onMouseDown={(event) => {
-                event.preventDefault();
-                pick(option);
-              }}
-            >
-              {option.display}
+        <ul
+          id={listId}
+          data-combo-menu
+          role="listbox"
+          className="absolute top-[calc(100%+4px)] right-0 left-0 z-20 max-h-60 min-w-full overflow-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md"
+        >
+          {visible.length === 0 ? (
+            <li className="cursor-default px-2 py-1.5 text-sm text-muted-foreground" aria-disabled="true">
+              No matches
             </li>
-          ))}
+          ) : (
+            visible.map((option, index) => (
+              <li
+                id={`${listId}-${index}`}
+                key={`${option.value}-${index}`}
+                role="option"
+                aria-selected={index === highlight}
+                className={cn(
+                  "cursor-pointer rounded-sm px-2 py-1.5 text-sm text-foreground",
+                  index === highlight && "bg-accent/15",
+                )}
+                onMouseEnter={() => setHighlight(index)}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  pick(option);
+                }}
+              >
+                {option.display}
+              </li>
+            ))
+          )}
         </ul>
       )}
     </div>

@@ -30,10 +30,11 @@ Then copy `ui/dist` over `src/NcaaTranslator.Desktop/wwwroot` if you want to com
 Tests:
 
 ```bash
+cd ui && npm test
 dotnet test NcaaTranslator.sln
 ```
 
-A GitHub release zip extracts to `NcaaTranslator.Desktop.exe` (Windows). Config files next to the Desktop exe (`Settings.json`, `NcaaNameConverter.json`) are copied from `config/` at build time.
+A GitHub release zip extracts to `NcaaTranslator.Desktop.exe` (Windows). Config files next to the Desktop exe (`Settings.json`, `NcaaNameConverter.json`) are copied from `config/` at build time. Window size is stored in `Window.json` next to the exe.
 
 Upgrading from the old WPF app (`NcaaTranslator.Wpf.exe`) is a **manual** zip install. The WPF updater looks for `NcaaTranslator.Wpf.exe` and will not pick up a Photino release.
 
@@ -47,7 +48,7 @@ Upgrading from the old WPF app (`NcaaTranslator.Wpf.exe`) is a **manual** zip in
 
 ## Usage
 
-On launch the app starts fetching for every enabled sport. Use Start/Stop on the Main tab. Settings and Name Converters tabs edit config; changes are saved back to the JSON files.
+On launch the app starts fetching for every enabled sport. Use the sidebar to switch between Scoreboard, Settings, and Names. Start/Stop on Scoreboard controls polling. Settings and Names edit config; changes are saved back to the JSON files.
 
 Game display modes (per sport):
 
@@ -81,7 +82,7 @@ Each sport:
 | `Division` | int | NCAA API division. |
 | `Week` | int or null | NCAA API week. If null, the request uses today's date instead of a week. |
 | `SeasonYear` | int or null | Optional NCAA `seasonYear` override. Leave blank/null to use the academic year (August–July). Calendar year is not used — January 2026 is still season 2025. |
-| `GameDisplayMode` | `Live` \| `All` \| `Display` | How the Main tab filters games. Defaults to `Live` if omitted. |
+| `GameDisplayMode` | `Live` \| `All` \| `Display` | How the Scoreboard filters games. Defaults to `Live` if omitted. |
 | `ListsNeeded` | object | Which lists the processor fills: `conferenceGames`, `nonConferenceGames`, `top25Games` (bools). |
 | `OosUpdater` | object | Optional OOS XML template updates. |
 
