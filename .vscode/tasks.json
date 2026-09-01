@@ -14,6 +14,35 @@
             "problemMatcher": "$msCompile"
         },
         {
+            "label": "build-ui",
+            "type": "npm",
+            "script": "build",
+            "path": "ui",
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared",
+                "showReuseMessage": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "build-desktop",
+            "dependsOn": [
+                "build-ui"
+            ],
+            "dependsOrder": "sequence",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/src/NcaaTranslator.Desktop/NcaaTranslator.Desktop.csproj",
+                "-p:SkipUiBuild=false",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary;ForceNoAlign"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
             "label": "publish",
             "command": "dotnet",
             "type": "process",

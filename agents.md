@@ -8,9 +8,9 @@ Photino desktop app that pulls NCAA scoreboards, translates names, and updates O
 | --- | --- | --- |
 | `NameConverters` / `NameConverter` | `NameConverter.cs` | Load/save `NcaaNameConverter.json`; look up and add team/conference display names (6-char team codes). |
 | `NcaaProcessor` | `NcaaProcessor.cs` | Build NCAA API URLs, fetch contests, translate names, categorize games, update OOS XML, convert XML to JSON. `seasonYear` is the academic year (August rollover) unless a sport sets `SeasonYear`. |
-| `NcaaScoreboard` and contest/team models | `NcaaScoreboard.cs` | Scoreboard JSON models, clocks, and game lists (conference, non-conference, home, display, top-25). `HomeTeam` / `AwayTeam` come from `isHome`, not list order. Pre-game clocks include an abbreviated weekday when the game is not on the current local day (e.g. `Fri. 5:00 PM`). |
+| `NcaaScoreboard` and contest/team models | `NcaaScoreboard.cs` | Scoreboard JSON models, clocks, and game lists (conference, non-conference, home, display, top-25). `HomeTeam` / `AwayTeam` come from `isHome`, not list order. Pre-game and final clocks can include a weekday when the game is not on the current local day; pattern/separator/full-name come from `Settings.ClockFormats` (defaults `Fri. 5:00 PM` / `FINAL - Fri`). |
 | OOS XML models | `OutScore.cs` | GFX template XML serialization used by OOS updates. |
-| `Settings` / `Sport` / related | `Settings.cs` | Load/save `Settings.json`; sports, display teams, timer, home team, OOS, XML-to-JSON. |
+| `Settings` / `Sport` / related | `Settings.cs` | Load/save `Settings.json`; sports, display teams, timer, home team, OOS, XML-to-JSON, pre-game/final clock formats. |
 | `TeamSelection` | `TeamSelection.cs` | Combo-box team options persist `name6Char`. |
 | `SingleFlightGate` | `SingleFlightGate.cs` | Skip overlapping polls. |
 | `UpdateManager` | `UpdateManager.cs` | Check GitHub releases, download/install, merge config. Photino host prompts with a native Yes/No dialog after the window is created; does not silent-install. |
@@ -22,7 +22,7 @@ Photino.NET host: serves the React UI over HTTP (`Photino.NET.Server`), JSON mes
 
 ## UI (`ui/`)
 
-Vite + React + TypeScript: Main (start/stop polling, scoreboard), Settings, Names. Built into `src/NcaaTranslator.Desktop/wwwroot`. Solution / test builds skip the Vite pipeline (`SkipUiBuild` defaults to true).
+Vite + React + TypeScript: Main (start/stop polling, scoreboard), Settings, Names. Built into `src/NcaaTranslator.Desktop/wwwroot`. Solution / test builds skip the Vite pipeline (`SkipUiBuild` defaults to true). VS Code `.NET Core Launch (Desktop)` runs `npm run build` in `ui/` then `dotnet build -p:SkipUiBuild=false` so the Photino `wwwroot` matches current UI source.
 
 ## Config
 

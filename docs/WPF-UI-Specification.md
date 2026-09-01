@@ -372,18 +372,25 @@ Order in All/Live is: all conference games (API/contest sort is by `startTimeEpo
 
 | `gameState` | Display |
 |---|---|
-| `"P"` (pregame) | See pregame rules |
-| `"F"` (final) | `finalMessage` with every `"2OT"` replaced by `"SO"` |
+| `"P"` (pregame) | See pregame / weekday rules |
+| `"F"` (final) | `finalMessage` with every `"2OT"` replaced by `"SO"`, then weekday format |
 | anything else (in progress, including `"I"`) | `{currentPeriod with 2OT→SO}` + **five spaces** + `{contestClock}` |
 
-Pregame:
+`displayClockDefault` (OOS) uses the same weekday formatting with the raw `finalMessage` (`2OT` is not replaced).
 
-- If `startTime == "TBA"` or `tba == true` → that TBA string.
-- Else convert `startTimeEpoch` UTC → local.
-- If local date == today → `h:mm tt` (e.g. `5:00 PM`).
-- If another local day → `{ddd without trailing period}. {h:mm tt}` (e.g. `Fri. 5:00 PM`). `ddd` is the current culture’s abbreviated weekday.
+Base text:
 
-Null `finalMessage` / `currentPeriod` / `contestClock` can throw inside the getter; that would fail the binding for that row. Preserve the same formula; do not invent fallbacks unless you are fixing a known crash.
+- Pregame: if `startTime == "TBA"` or `tba == true` → that TBA string (no weekday). Else convert `startTimeEpoch` UTC → local `h:mm tt` (e.g. `5:00 PM`).
+- Final: `finalMessage` (UI also replaces `2OT` → `SO`). Empty/null `finalMessage` stays empty.
+
+Weekday (pre-game and final, from `Settings.ClockFormats`):
+
+- Only when Include weekday is on **and** the local start date is not today.
+- Tokens in Pattern: `{text}`, `{separator}`, `{dayofweek}`. Empty pattern → text only.
+- `{dayofweek}` is `ddd` trimmed of a trailing period, or `dddd` when Full weekday name is on.
+- Defaults: pre-game `{dayofweek}{separator}{text}` with separator `. ` (`Fri. 5:00 PM`); final `{text}{separator}{dayofweek}` with separator ` - ` (`FINAL - Fri`).
+
+Missing `ClockFormats` keys in `Settings.json` must keep these defaults (do not treat absent bools as false).
 
 ### 4.8 Processing loop (what Start actually does)
 
@@ -1130,7 +1137,7 @@ A React build is feature-complete when all of the following pass.
 - [ ] Mode label Live/All/Display, not editable on Main
 - [ ] Games table 5 columns, scores centered, widths as specified
 - [ ] Live / All / Display row filtering matches §4.6
-- [ ] Clock formatting matches `displayClock` including `2OT`→`SO` and weekday prefix
+- [ ] Clock formatting matches `displayClock` including `2OT`→`SO` and settings-driven weekday for off-day pre-game and final clocks
 - [ ] Stop does not reset last update; does not cancel in-flight pass
 - [ ] No empty-state artwork
 

@@ -4,6 +4,44 @@ namespace NcaaTranslator.Library.Tests;
 
 public class ClockTests
 {
+    private static long TodayEpoch(double hours = 19)
+    {
+        var now = DateTimeOffset.Now;
+        return now.Subtract(now.TimeOfDay).AddHours(hours).ToUnixTimeSeconds();
+    }
+
+    private static long DaysFromTodayEpoch(int days, double hours = 17)
+    {
+        var now = DateTimeOffset.Now;
+        return now.Subtract(now.TimeOfDay).AddDays(days).AddHours(hours).ToUnixTimeSeconds();
+    }
+
+    private static string AbbrevDay(long epoch)
+    {
+        return DateTimeOffset.FromUnixTimeSeconds(epoch).ToLocalTime().ToString("ddd").TrimEnd('.');
+    }
+
+    private static string FullDay(long epoch)
+    {
+        return DateTimeOffset.FromUnixTimeSeconds(epoch).ToLocalTime().ToString("dddd");
+    }
+
+    private static IDisposable UseClockFormats(ClockFormats formats)
+    {
+        var previous = Settings.SettingsList;
+        Settings.SettingsList = new Setting { ClockFormats = formats };
+        return new RestoreSettings(previous);
+    }
+
+    private sealed class RestoreSettings : IDisposable
+    {
+        private readonly Setting? _previous;
+
+        public RestoreSettings(Setting? previous) => _previous = previous;
+
+        public void Dispose() => Settings.SettingsList = _previous;
+    }
+
     [Fact]
     public void DisplayClock_Pregame_UsesLocalStartTime()
     {
@@ -51,11 +89,115 @@ public class ClockTests
         var contest = new Contest
         {
             gameState = "F",
-            finalMessage = "FINAL"
+            finalMessage = "FINAL",
+            startTimeEpoch = TodayEpoch()
         };
 
         Assert.Equal("FINAL", contest.displayClock);
         Assert.Equal("FINAL", contest.displayClockDefault);
+    }
+
+    [Fact]
+    public void DisplayClock_Final_IncludesWeekdayWhenNotToday()
+    {
+        var epoch = DaysFromTodayEpoch(-1);
+        var contest = new Contest
+        {
+            gameState = "F",
+            finalMessage = "FINAL",
+            startTimeEpoch = epoch
+        };
+
+        var expected = $"FINAL - {AbbrevDay(epoch)}";
+        Assert.Equal(expected, contest.displayClock);
+        Assert.Equal(expected, contest.displayClockDefault);
+    }
+
+    [Fact]
+    public void DisplayClock_Final_Replaces2OTThenAppendsWeekdayWhenNotToday()
+    {
+        var epoch = DaysFromTodayEpoch(-2);
+        var contest = new Contest
+        {
+            gameState = "F",
+            finalMessage = "2OT",
+            startTimeEpoch = epoch
+        };
+
+        var day = AbbrevDay(epoch);
+        Assert.Equal($"SO - {day}", contest.displayClock);
+        Assert.Equal($"2OT - {day}", contest.displayClockDefault);
+    }
+
+    [Fact]
+    public void DisplayClock_Final_OmitsWeekdayWhenIncludeIsOff()
+    {
+        using var workspace = new TempWorkspace();
+        using var _ = UseClockFormats(new ClockFormats
+        {
+            Final = new ClockFormat { IncludeWeekday = false }
+        });
+
+        var contest = new Contest
+        {
+            gameState = "F",
+            finalMessage = "FINAL",
+            startTimeEpoch = DaysFromTodayEpoch(-1)
+        };
+
+        Assert.Equal("FINAL", contest.displayClock);
+        Assert.Equal("FINAL", contest.displayClockDefault);
+    }
+
+    [Fact]
+    public void DisplayClock_Final_UsesFullWeekdayAndCustomPattern()
+    {
+        using var workspace = new TempWorkspace();
+        using var _ = UseClockFormats(new ClockFormats
+        {
+            Final = new ClockFormat
+            {
+                IncludeWeekday = true,
+                FullWeekday = true,
+                Separator = " | ",
+                Pattern = "{dayofweek}{separator}{text}"
+            }
+        });
+
+        var epoch = DaysFromTodayEpoch(-1);
+        var contest = new Contest
+        {
+            gameState = "F",
+            finalMessage = "FINAL",
+            startTimeEpoch = epoch
+        };
+
+        var expected = $"{FullDay(epoch)} | FINAL";
+        Assert.Equal(expected, contest.displayClock);
+        Assert.Equal(expected, contest.displayClockDefault);
+    }
+
+    [Fact]
+    public void DisplayClock_Final_EmptyPattern_ReturnsTextOnly()
+    {
+        using var workspace = new TempWorkspace();
+        using var _ = UseClockFormats(new ClockFormats
+        {
+            Final = new ClockFormat
+            {
+                IncludeWeekday = true,
+                Pattern = ""
+            }
+        });
+
+        var contest = new Contest
+        {
+            gameState = "F",
+            finalMessage = "FINAL",
+            startTimeEpoch = DaysFromTodayEpoch(-1)
+        };
+
+        Assert.Equal("FINAL", contest.displayClock);
     }
 
     [Fact]
@@ -64,7 +206,8 @@ public class ClockTests
         var contest = new Contest
         {
             gameState = "F",
-            finalMessage = "2OT"
+            finalMessage = "2OT",
+            startTimeEpoch = TodayEpoch()
         };
 
         Assert.Equal("SO", contest.displayClock);
@@ -77,7 +220,8 @@ public class ClockTests
         var contest = new Contest
         {
             gameState = "F",
-            finalMessage = null
+            finalMessage = null,
+            startTimeEpoch = DaysFromTodayEpoch(-1)
         };
 
         var clock = Record.Exception(() => _ = contest.displayClock);

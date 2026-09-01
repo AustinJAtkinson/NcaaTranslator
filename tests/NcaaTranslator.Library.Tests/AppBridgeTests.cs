@@ -30,6 +30,16 @@ public class AppBridgeTests
         var result = Result(doc);
         Assert.Equal(42, result.GetProperty("timer").GetInt32());
         Assert.Equal("UVA", result.GetProperty("homeTeam").GetString());
+        var clocks = result.GetProperty("clockFormats");
+        var preGame = clocks.GetProperty("preGame");
+        Assert.True(preGame.GetProperty("includeWeekday").GetBoolean());
+        Assert.False(preGame.GetProperty("fullWeekday").GetBoolean());
+        Assert.Equal(". ", preGame.GetProperty("separator").GetString());
+        Assert.Equal("{dayofweek}{separator}{text}", preGame.GetProperty("pattern").GetString());
+        var final = clocks.GetProperty("final");
+        Assert.True(final.GetProperty("includeWeekday").GetBoolean());
+        Assert.Equal(" - ", final.GetProperty("separator").GetString());
+        Assert.Equal("{text}{separator}{dayofweek}", final.GetProperty("pattern").GetString());
         Assert.False(doc.RootElement.TryGetProperty("error", out _));
     }
 
@@ -202,6 +212,48 @@ public class AppBridgeTests
         Assert.True(Settings.SettingsList.XmlToJson!.Enabled);
         Assert.Equal("/tmp/a.xml", Settings.SettingsList.XmlToJson.FilePaths![0].Path);
         Assert.Equal("/tmp/b.xml", Settings.SettingsList.XmlToJson.FilePaths[1].Path);
+    }
+
+    [Fact]
+    public void Handle_SaveSettings_PersistsClockFormats()
+    {
+        using var workspace = new TempWorkspace();
+        TestHelpers.WriteDefaultNames(workspace.DirectoryPath);
+        TestHelpers.UseSettings("NO DAK");
+
+        using var doc = Handle("""
+            {"id":"sv","method":"saveSettings","params":{
+              "timer":20,
+              "homeTeam":"NO DAK",
+              "clockFormats":{
+                "preGame":{"includeWeekday":false,"fullWeekday":true,"separator":" / ","pattern":"{text}{separator}{dayofweek}"},
+                "final":{"includeWeekday":true,"fullWeekday":true,"separator":" - ","pattern":"{text}{separator}{dayofweek}"}
+              }
+            }}
+            """);
+
+        Assert.Equal("sv", Id(doc));
+        Assert.False(doc.RootElement.TryGetProperty("error", out _));
+
+        var pre = Settings.SettingsList!.ClockFormats!.PreGame!;
+        Assert.False(pre.IncludeWeekday);
+        Assert.True(pre.FullWeekday);
+        Assert.Equal(" / ", pre.Separator);
+        Assert.Equal("{text}{separator}{dayofweek}", pre.Pattern);
+
+        var final = Settings.SettingsList.ClockFormats.Final!;
+        Assert.True(final.IncludeWeekday);
+        Assert.True(final.FullWeekday);
+
+        var result = Result(doc).GetProperty("clockFormats");
+        Assert.False(result.GetProperty("preGame").GetProperty("includeWeekday").GetBoolean());
+        Assert.True(result.GetProperty("final").GetProperty("fullWeekday").GetBoolean());
+
+        Settings.SettingsList = null;
+        Settings.Load();
+        Assert.False(Settings.SettingsList!.ClockFormats!.PreGame!.IncludeWeekday);
+        Assert.True(Settings.SettingsList.ClockFormats.Final!.FullWeekday);
+        Assert.Equal(" / ", Settings.SettingsList.ClockFormats.PreGame.Separator);
     }
 
     [Fact]

@@ -10,7 +10,7 @@ UI is served over HTTP via `Photino.NET.Server` (not `file://`) so Vite `type="m
 dotnet run --project src/NcaaTranslator.Desktop
 ```
 
-Uses the committed `wwwroot/` copy next to the exe (`AppContext.BaseDirectory`). Solution / test builds skip the Vite pipeline (`SkipUiBuild` defaults to true).
+Uses the committed `wwwroot/` copy next to the exe (`AppContext.BaseDirectory`). Solution / test builds skip the Vite pipeline (`SkipUiBuild` defaults to true). VS Code **Run and Debug** (`.NET Core Launch (Desktop)`) runs `npm run build` first, then builds with `-p:SkipUiBuild=false` so the window is not stuck on a stale shell.
 
 Rebuild the UI into output:
 

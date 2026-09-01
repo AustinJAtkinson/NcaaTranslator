@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { cleanup, fireEvent, renderWithProviders, screen, waitFor, within } from "@/test/render";
 import { resetBridgeMock, sendMessage } from "./test/bridgeMock";
-import SettingsTab from "./SettingsTab";
+import SettingsTab, { FINAL_CLOCK_DEFAULTS, PRE_GAME_CLOCK_DEFAULTS } from "./SettingsTab";
 import type { SettingsSnapshot, SportSnapshot, TeamNameSnapshot } from "./types";
 
 vi.mock("./bridge", () => import("./test/bridgeMock"));
@@ -61,6 +61,10 @@ const baseSettings: SettingsSnapshot = {
   sports: [football, basketball],
   displayTeams: [{ ncaaTeamName: "Duke" }],
   xmlToJson: { enabled: false, filePaths: ["/tmp/games.xml"] },
+  clockFormats: {
+    preGame: { ...PRE_GAME_CLOCK_DEFAULTS },
+    final: { ...FINAL_CLOCK_DEFAULTS },
+  },
 };
 
 function mockBridge(settings: SettingsSnapshot = baseSettings): void {
@@ -147,6 +151,49 @@ describe("SettingsTab", () => {
         expect(savedSettings()).toHaveLength(1);
       });
       expect(savedSettings()[0].timer).toBe(30);
+    });
+
+    it("renders pre-game and final clock groups with token hints", async () => {
+      renderWithProviders(<SettingsTab section="general" />);
+
+      const preGame = await screen.findByRole("group", { name: "Pre-game clock" });
+      expect(preGame.closest(".overflow-auto")).toHaveClass("min-h-0", "flex-1");
+      expect(preGame).toBeInTheDocument();
+      expect(screen.getByRole("group", { name: "Final clock" })).toBeInTheDocument();
+      expect(screen.getAllByText(/Tokens: \{text\}, \{separator\}, \{dayofweek\}/)).toHaveLength(2);
+      expect(screen.getByRole("textbox", { name: "Pre-game clock pattern" })).toHaveAttribute(
+        "placeholder",
+        PRE_GAME_CLOCK_DEFAULTS.pattern
+      );
+      expect(screen.getByRole("textbox", { name: "Final clock pattern" })).toHaveAttribute(
+        "placeholder",
+        FINAL_CLOCK_DEFAULTS.pattern
+      );
+    });
+
+    it("saves final include weekday toggle", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<SettingsTab section="general" />);
+
+      const group = await screen.findByRole("group", { name: "Final clock" });
+      await user.click(within(group).getByRole("switch", { name: "Include weekday" }));
+
+      await waitFor(() => {
+        expect(savedSettings()).toHaveLength(1);
+      });
+      expect(savedSettings()[0].clockFormats.final.includeWeekday).toBe(false);
+    });
+
+    it("saves a custom final pattern", async () => {
+      renderWithProviders(<SettingsTab section="general" />);
+
+      const pattern = await screen.findByRole("textbox", { name: "Final clock pattern" });
+      fireEvent.change(pattern, { target: { value: "{text} / {dayofweek}" } });
+
+      await waitFor(() => {
+        expect(savedSettings()).toHaveLength(1);
+      });
+      expect(savedSettings()[0].clockFormats.final.pattern).toBe("{text} / {dayofweek}");
     });
   });
 

@@ -18,6 +18,7 @@ describe("clockTone", () => {
     expect(clockTone("Final")).toBe("final");
     expect(clockTone("final")).toBe("final");
     expect(clockTone("FINAL/OT")).toBe("final");
+    expect(clockTone("FINAL - Fri")).toBe("final");
   });
 
   it("returns upcoming when the clock contains AM or PM", () => {

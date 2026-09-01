@@ -136,6 +136,7 @@ namespace NcaaTranslator.Library
                 Timer = user.Timer > 0 ? user.Timer : @new.Timer,
                 HomeTeam = user.HomeTeam ?? @new.HomeTeam,
                 XmlToJson = user.XmlToJson ?? @new.XmlToJson,
+                ClockFormats = MergeClockFormats(user.ClockFormats, @new.ClockFormats),
                 DisplayTeams = new List<DisplayTeam>(),
                 Sports = new List<Sport>()
             };
@@ -191,6 +192,20 @@ namespace NcaaTranslator.Library
             }
 
             return merged;
+        }
+
+        private static ClockFormats? MergeClockFormats(ClockFormats? user, ClockFormats? @new)
+        {
+            if (user == null)
+                return @new;
+            if (@new == null)
+                return user;
+
+            return new ClockFormats
+            {
+                PreGame = user.PreGame ?? @new.PreGame,
+                Final = user.Final ?? @new.Final
+            };
         }
 
         public static async Task<string?> DownloadAndInstallUpdateAsync(GitHubRelease release)

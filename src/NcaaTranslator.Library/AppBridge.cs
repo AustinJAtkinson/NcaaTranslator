@@ -33,6 +33,21 @@ namespace NcaaTranslator.Library
         public List<SportSnapshot> Sports { get; set; } = new();
         public List<DisplayTeamSnapshot> DisplayTeams { get; set; } = new();
         public XmlToJsonSnapshot XmlToJson { get; set; } = new();
+        public ClockFormatsSnapshot ClockFormats { get; set; } = new();
+    }
+
+    public class ClockFormatsSnapshot
+    {
+        public ClockFormatSnapshot? PreGame { get; set; }
+        public ClockFormatSnapshot? Final { get; set; }
+    }
+
+    public class ClockFormatSnapshot
+    {
+        public bool IncludeWeekday { get; set; }
+        public bool FullWeekday { get; set; }
+        public string Separator { get; set; } = "";
+        public string Pattern { get; set; } = "";
     }
 
     public class SportSnapshot
@@ -284,7 +299,8 @@ namespace NcaaTranslator.Library
                     FilePaths = settings.XmlToJson?.FilePaths?
                         .Select(f => f.Path ?? "")
                         .ToList() ?? new List<string>()
-                }
+                },
+                ClockFormats = ToClockFormatsSnapshot(settings.ClockFormats)
             };
         }
 
@@ -326,6 +342,12 @@ namespace NcaaTranslator.Library
                     Enabled = xml.Enabled,
                     FilePaths = xml.FilePaths.Select(p => new FilePath { Path = p }).ToList()
                 };
+            }
+
+            if (el.TryGetProperty("clockFormats", out var clockEl) && clockEl.ValueKind == JsonValueKind.Object)
+            {
+                var clocks = clockEl.Deserialize<ClockFormatsSnapshot>(JsonOptions) ?? new ClockFormatsSnapshot();
+                settings.ClockFormats = FromClockFormatsSnapshot(clocks);
             }
 
             Settings.Save();
@@ -391,6 +413,46 @@ namespace NcaaTranslator.Library
                 throw new InvalidDataException($"Conference '{incoming.ConferenceSeo}' was not found after save.");
 
             return ToConferenceSnapshot(saved);
+        }
+
+        private static ClockFormatsSnapshot ToClockFormatsSnapshot(ClockFormats? formats)
+        {
+            return new ClockFormatsSnapshot
+            {
+                PreGame = ToClockFormatSnapshot(ClockFormat.ResolvePreGame(formats?.PreGame)),
+                Final = ToClockFormatSnapshot(ClockFormat.ResolveFinal(formats?.Final))
+            };
+        }
+
+        private static ClockFormatSnapshot ToClockFormatSnapshot(ClockFormat format)
+        {
+            return new ClockFormatSnapshot
+            {
+                IncludeWeekday = format.IncludeWeekday ?? true,
+                FullWeekday = format.FullWeekday ?? false,
+                Separator = format.Separator ?? "",
+                Pattern = format.Pattern ?? ""
+            };
+        }
+
+        private static ClockFormats FromClockFormatsSnapshot(ClockFormatsSnapshot snapshot)
+        {
+            return new ClockFormats
+            {
+                PreGame = FromClockFormatSnapshot(snapshot.PreGame ?? ToClockFormatSnapshot(ClockFormat.PreGameDefaults())),
+                Final = FromClockFormatSnapshot(snapshot.Final ?? ToClockFormatSnapshot(ClockFormat.FinalDefaults()))
+            };
+        }
+
+        private static ClockFormat FromClockFormatSnapshot(ClockFormatSnapshot snapshot)
+        {
+            return new ClockFormat
+            {
+                IncludeWeekday = snapshot.IncludeWeekday,
+                FullWeekday = snapshot.FullWeekday,
+                Separator = snapshot.Separator,
+                Pattern = snapshot.Pattern
+            };
         }
 
         private static SportSnapshot ToSportSnapshot(Sport sport)

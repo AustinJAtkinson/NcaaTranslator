@@ -39,6 +39,20 @@ function mockBridge(): void {
           sports: [],
           displayTeams: [],
           xmlToJson: { enabled: false, filePaths: [] },
+          clockFormats: {
+            preGame: {
+              includeWeekday: true,
+              fullWeekday: false,
+              separator: ". ",
+              pattern: "{dayofweek}{separator}{text}",
+            },
+            final: {
+              includeWeekday: true,
+              fullWeekday: false,
+              separator: " - ",
+              pattern: "{text}{separator}{dayofweek}",
+            },
+          },
         };
       case "getTeams":
       case "getConferences":

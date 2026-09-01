@@ -93,8 +93,10 @@ public class OosTests : IDisposable
         homeGame.teams[0].customName = "UND";
         homeGame.teams[1].customName = "South Dakota";
 
+        var now = DateTimeOffset.Now;
         var confGame = TestHelpers.CreateContest(2, "NDSU", "North Dakota St.", "mvc", "SDSU", "South Dakota St.", "mvc", gameState: "F", homeScore: 35, awayScore: 10);
         confGame.finalMessage = "FINAL";
+        confGame.startTimeEpoch = now.Subtract(now.TimeOfDay).AddHours(12).ToUnixTimeSeconds();
         confGame.teams[0].customName = "NDSU";
         confGame.teams[1].customName = "SDSU";
 

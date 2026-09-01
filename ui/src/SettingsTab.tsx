@@ -12,12 +12,27 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { requestScoreboardRefresh } from "./events";
 import type {
+  ClockFormatSnapshot,
   ConferenceNameSnapshot,
   PickPathResult,
   SettingsSnapshot,
   SportSnapshot,
   TeamNameSnapshot,
 } from "./types";
+
+export const PRE_GAME_CLOCK_DEFAULTS: ClockFormatSnapshot = {
+  includeWeekday: true,
+  fullWeekday: false,
+  separator: ". ",
+  pattern: "{dayofweek}{separator}{text}",
+};
+
+export const FINAL_CLOCK_DEFAULTS: ClockFormatSnapshot = {
+  includeWeekday: true,
+  fullWeekday: false,
+  separator: " - ",
+  pattern: "{text}{separator}{dayofweek}",
+};
 
 const TIMER_OPTIONS = [5, 10, 15, 20, 30, 60, 120, 300];
 const DISPLAY_MODES: ComboOption[] = [
@@ -34,6 +49,10 @@ const emptySettings: SettingsSnapshot = {
   sports: [],
   displayTeams: [],
   xmlToJson: { enabled: false, filePaths: [] },
+  clockFormats: {
+    preGame: { ...PRE_GAME_CLOCK_DEFAULTS },
+    final: { ...FINAL_CLOCK_DEFAULTS },
+  },
 };
 
 function emptyOos() {
@@ -327,7 +346,7 @@ export default function SettingsTab({ section = "general" }: { section?: Setting
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {activeSection === "general" && (
-          <div className="overflow-auto p-4">
+          <div className="min-h-0 flex-1 overflow-auto p-4">
             <div className="max-w-xl rounded-lg border border-border p-4">
               <div className="flex flex-col gap-4">
                 <label className="flex flex-col gap-1">
@@ -357,6 +376,40 @@ export default function SettingsTab({ section = "general" }: { section?: Setting
                   />
                 </label>
               </div>
+            </div>
+            <div className="mt-4 max-w-xl">
+              <ClockFormatFields
+                title="Pre-game clock"
+                format={settings.clockFormats.preGame}
+                defaultPattern={PRE_GAME_CLOCK_DEFAULTS.pattern}
+                sampleText="5:00 PM"
+                onChange={(preGame) =>
+                  void persist(
+                    {
+                      ...settingsRef.current,
+                      clockFormats: { ...settingsRef.current.clockFormats, preGame },
+                    },
+                    true
+                  )
+                }
+              />
+            </div>
+            <div className="mt-4 max-w-xl">
+              <ClockFormatFields
+                title="Final clock"
+                format={settings.clockFormats.final}
+                defaultPattern={FINAL_CLOCK_DEFAULTS.pattern}
+                sampleText="FINAL"
+                onChange={(final) =>
+                  void persist(
+                    {
+                      ...settingsRef.current,
+                      clockFormats: { ...settingsRef.current.clockFormats, final },
+                    },
+                    true
+                  )
+                }
+              />
             </div>
           </div>
         )}
@@ -426,7 +479,7 @@ export default function SettingsTab({ section = "general" }: { section?: Setting
         )}
 
         {activeSection === "xml" && (
-          <div className="overflow-auto p-4">
+          <div className="min-h-0 flex-1 overflow-auto p-4">
             <div className="max-w-xl rounded-lg border border-border p-4">
               <h2 className="mb-4 text-sm font-medium">XML to JSON</h2>
               <div className="mb-4 flex items-center gap-2">
@@ -532,11 +585,116 @@ function sportSortValue(sport: SportSnapshot, key: string): string | number | bo
   }
 }
 
+function normalizeClockFormat(
+  raw: ClockFormatSnapshot | undefined,
+  defaults: ClockFormatSnapshot
+): ClockFormatSnapshot {
+  return {
+    includeWeekday: raw?.includeWeekday ?? defaults.includeWeekday,
+    fullWeekday: raw?.fullWeekday ?? defaults.fullWeekday,
+    separator: raw?.separator ?? defaults.separator,
+    pattern: raw?.pattern ?? defaults.pattern,
+  };
+}
+
 function normalizeSettings(next: SettingsSnapshot): SettingsSnapshot {
   return {
     ...next,
     sports: next.sports ?? [],
     displayTeams: next.displayTeams ?? [],
     xmlToJson: next.xmlToJson ?? { enabled: false, filePaths: [] },
+    clockFormats: {
+      preGame: normalizeClockFormat(next.clockFormats?.preGame, PRE_GAME_CLOCK_DEFAULTS),
+      final: normalizeClockFormat(next.clockFormats?.final, FINAL_CLOCK_DEFAULTS),
+    },
   };
+}
+
+function previewClock(format: ClockFormatSnapshot, text: string): string {
+  if (!format.includeWeekday) return text;
+  const pattern = format.pattern;
+  if (pattern === "") return text;
+
+  const sample = new Date();
+  sample.setDate(sample.getDate() + 1);
+  const day = format.fullWeekday
+    ? sample.toLocaleDateString(undefined, { weekday: "long" })
+    : sample.toLocaleDateString(undefined, { weekday: "short" }).replace(/\.$/, "");
+
+  return pattern
+    .replace(/\{dayofweek\}/gi, day)
+    .replace(/\{separator\}/gi, format.separator)
+    .replace(/\{text\}/gi, text);
+}
+
+function ClockFormatFields({
+  title,
+  format,
+  defaultPattern,
+  sampleText,
+  onChange,
+}: {
+  title: string;
+  format: ClockFormatSnapshot;
+  defaultPattern: string;
+  sampleText: string;
+  onChange: (next: ClockFormatSnapshot) => void;
+}) {
+  const includeId = `${title.replace(/\s+/g, "-").toLowerCase()}-include-weekday`;
+  const fullId = `${title.replace(/\s+/g, "-").toLowerCase()}-full-weekday`;
+  const preview = previewClock(format, sampleText);
+
+  return (
+    <fieldset className="rounded-lg border border-border p-4">
+      <legend className="px-1 text-sm font-medium">{title}</legend>
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-2">
+          <Switch
+            id={includeId}
+            checked={format.includeWeekday}
+            onCheckedChange={(checked) => onChange({ ...format, includeWeekday: checked })}
+          />
+          <label htmlFor={includeId} className="text-sm">
+            Include weekday
+          </label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch
+            id={fullId}
+            checked={format.fullWeekday}
+            disabled={!format.includeWeekday}
+            onCheckedChange={(checked) => onChange({ ...format, fullWeekday: checked })}
+          />
+          <label htmlFor={fullId} className={`text-sm ${format.includeWeekday ? "" : "text-muted-foreground"}`}>
+            Full weekday name
+          </label>
+        </div>
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">Separator</span>
+          <Input
+            value={format.separator}
+            aria-label={`${title} separator`}
+            disabled={!format.includeWeekday}
+            onChange={(event) => onChange({ ...format, separator: event.target.value })}
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">Pattern</span>
+          <Input
+            value={format.pattern}
+            placeholder={defaultPattern}
+            aria-label={`${title} pattern`}
+            disabled={!format.includeWeekday}
+            onChange={(event) => onChange({ ...format, pattern: event.target.value })}
+          />
+          <span className="text-xs text-muted-foreground">
+            Tokens: {"{text}"}, {"{separator}"}, {"{dayofweek}"}. Example: {defaultPattern}
+          </span>
+        </label>
+        <p className="text-xs text-muted-foreground">
+          Preview (not today): <span className="font-medium text-foreground">{preview}</span>
+        </p>
+      </div>
+    </fieldset>
+  );
 }

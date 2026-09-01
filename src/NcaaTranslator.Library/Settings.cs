@@ -150,6 +150,77 @@ namespace NcaaTranslator.Library
         public event PropertyChangedEventHandler? PropertyChanged;
     }
 
+    public class ClockFormat
+    {
+        public const string PreGamePattern = "{dayofweek}{separator}{text}";
+        public const string PreGameSeparator = ". ";
+        public const string FinalPattern = "{text}{separator}{dayofweek}";
+        public const string FinalSeparator = " - ";
+
+        public bool? IncludeWeekday { get; set; }
+        public bool? FullWeekday { get; set; }
+        public string? Separator { get; set; }
+        public string? Pattern { get; set; }
+
+        public static ClockFormat PreGameDefaults() => new()
+        {
+            IncludeWeekday = true,
+            FullWeekday = false,
+            Separator = PreGameSeparator,
+            Pattern = PreGamePattern
+        };
+
+        public static ClockFormat FinalDefaults() => new()
+        {
+            IncludeWeekday = true,
+            FullWeekday = false,
+            Separator = FinalSeparator,
+            Pattern = FinalPattern
+        };
+
+        public static ClockFormat ResolvePreGame(ClockFormat? raw) => Resolve(raw, PreGameDefaults());
+
+        public static ClockFormat ResolveFinal(ClockFormat? raw) => Resolve(raw, FinalDefaults());
+
+        public string Apply(string text, DateTimeOffset localStart)
+        {
+            if (string.IsNullOrEmpty(text))
+                return text;
+
+            if (IncludeWeekday != true)
+                return text;
+
+            if (localStart.Date == DateTime.Today)
+                return text;
+
+            if (string.IsNullOrEmpty(Pattern))
+                return text;
+
+            var day = FullWeekday == true
+                ? localStart.ToString("dddd")
+                : localStart.ToString("ddd").TrimEnd('.');
+
+            return Pattern
+                .Replace("{dayofweek}", day, StringComparison.OrdinalIgnoreCase)
+                .Replace("{separator}", Separator ?? "", StringComparison.OrdinalIgnoreCase)
+                .Replace("{text}", text, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static ClockFormat Resolve(ClockFormat? raw, ClockFormat defaults) => new()
+        {
+            IncludeWeekday = raw?.IncludeWeekday ?? defaults.IncludeWeekday,
+            FullWeekday = raw?.FullWeekday ?? defaults.FullWeekday,
+            Separator = raw?.Separator ?? defaults.Separator,
+            Pattern = raw?.Pattern ?? defaults.Pattern
+        };
+    }
+
+    public class ClockFormats
+    {
+        public ClockFormat? PreGame { get; set; }
+        public ClockFormat? Final { get; set; }
+    }
+
     public class Setting
     {
         public int Timer { get; set; }
@@ -158,6 +229,7 @@ namespace NcaaTranslator.Library
         public List<DisplayTeam>? DisplayTeams { get; set; }
 
         public XmlToJson? XmlToJson{ get; set; }
+        public ClockFormats? ClockFormats { get; set; }
     }
 
     public class Sport : INotifyPropertyChanged

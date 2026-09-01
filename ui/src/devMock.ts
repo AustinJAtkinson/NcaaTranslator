@@ -54,6 +54,20 @@ const settings: SettingsSnapshot = {
   ],
   displayTeams: [{ ncaaTeamName: "UVA" }, { ncaaTeamName: "Holy Cross" }],
   xmlToJson: { enabled: false, filePaths: ["D:\\1.xml"] },
+  clockFormats: {
+    preGame: {
+      includeWeekday: true,
+      fullWeekday: false,
+      separator: "-",
+      pattern: "{dayofweek} {separator} {text}",
+    },
+    final: {
+      includeWeekday: true,
+      fullWeekday: false,
+      separator: "-",
+      pattern: "{text} {separator} {dayofweek}",
+    },
+  },
 };
 
 const teams: TeamNameSnapshot[] = [

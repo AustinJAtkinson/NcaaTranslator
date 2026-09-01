@@ -51,12 +51,25 @@ export type XmlToJsonSnapshot = {
   filePaths: string[];
 };
 
+export type ClockFormatSnapshot = {
+  includeWeekday: boolean;
+  fullWeekday: boolean;
+  separator: string;
+  pattern: string;
+};
+
+export type ClockFormatsSnapshot = {
+  preGame: ClockFormatSnapshot;
+  final: ClockFormatSnapshot;
+};
+
 export type SettingsSnapshot = {
   timer: number;
   homeTeam: string | null;
   sports: SportSnapshot[];
   displayTeams: DisplayTeamSnapshot[];
   xmlToJson: XmlToJsonSnapshot;
+  clockFormats: ClockFormatsSnapshot;
 };
 
 export type TeamNameSnapshot = {

@@ -67,7 +67,7 @@ class Program
                 if (response != null)
                     photino.SendWebMessage(response);
             })
-            .Load($"{baseUrl}/index.html");
+            .Load($"{baseUrl}/index.html{IndexCacheBust(appDir)}");
 
         RegisterWindowBoundsHandlers(window, bounds);
 
@@ -79,6 +79,15 @@ class Program
         });
 
         window.WaitForClose();
+    }
+
+    private static string IndexCacheBust(string appDir)
+    {
+        var indexPath = Path.Combine(appDir, "wwwroot", "index.html");
+        if (!File.Exists(indexPath))
+            return "";
+
+        return "?v=" + new FileInfo(indexPath).LastWriteTimeUtc.Ticks;
     }
 
     private static void RegisterWindowBoundsHandlers(PhotinoWindow window, WindowBounds bounds)

@@ -91,11 +91,11 @@ namespace NcaaTranslator.Library
             {
                 if (gameState == "P")
                 {
-                    return GetPreGameDisplayClock();
+                    return FormatClock(ctStateTime, isFinal: false);
                 }
                 if (gameState == "F")
                 {
-                    return (finalMessage ?? "").Replace("2OT", "SO");
+                    return FormatClock((finalMessage ?? "").Replace("2OT", "SO"), isFinal: true);
                 }
 
                 return string.Format("{0}     {1}", (currentPeriod ?? "").Replace("2OT", "SO"), contestClock ?? "");
@@ -107,37 +107,36 @@ namespace NcaaTranslator.Library
             {
                 if (gameState == "P")
                 {
-                    return GetPreGameDisplayClock();
+                    return FormatClock(ctStateTime, isFinal: false);
                 }
                 if (gameState == "F")
                 {
-                    return finalMessage ?? "";
+                    return FormatClock(finalMessage ?? "", isFinal: true);
                 }
 
                 return string.Format("{0}     {1}", currentPeriod ?? "", contestClock ?? "");
             }
         }
 
-        private string GetPreGameDisplayClock()
+        private string FormatClock(string text, bool isFinal)
         {
-            var time = ctStateTime;
+            if (string.IsNullOrEmpty(text))
+                return text;
+
             if (startTime == "TBA" || tba)
-                return time;
+                return text;
 
             try
             {
-                DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
-                dateTime = dateTime.AddSeconds(startTimeEpoch).ToLocalTime();
-
-                if (dateTime.Date == DateTime.Today)
-                    return time;
-
-                var day = dateTime.ToString("ddd").TrimEnd('.');
-                return $"{day}. {time}";
+                var local = DateTimeOffset.FromUnixTimeSeconds(startTimeEpoch).ToLocalTime();
+                var format = isFinal
+                    ? ClockFormat.ResolveFinal(Settings.SettingsList?.ClockFormats?.Final)
+                    : ClockFormat.ResolvePreGame(Settings.SettingsList?.ClockFormats?.PreGame);
+                return format.Apply(text, local);
             }
             catch
             {
-                return time;
+                return text;
             }
         }
 
