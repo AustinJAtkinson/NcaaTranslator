@@ -14,18 +14,18 @@ cd NcaaTranslator
 
 dotnet restore
 dotnet build NcaaTranslator.sln
-dotnet run --project src/NcaaTranslator.Desktop
+dotnet run --project src/NcaaTranslator.Desktop -p:SkipUiBuild=false
 ```
 
-Rebuild the React UI when you change `ui/`:
+`SkipUiBuild=false` runs `npm ci` / `npm run build` in `ui/` when Node.js is available and copies `ui/dist` next to the exe. Solution / test builds skip that pipeline (`SkipUiBuild` defaults to true). VS Code **Run and Debug** (`.NET Core Launch (Desktop)`) already rebuilds the UI first.
+
+Rebuild the React UI by hand:
 
 ```bash
 cd ui
 npm ci
 npm run build
 ```
-
-Then copy `ui/dist` over `src/NcaaTranslator.Desktop/wwwroot` if you want to commit the new shell. `dotnet run --project src/NcaaTranslator.Desktop -p:SkipUiBuild=false` also rebuilds the UI when Node.js is available.
 
 Tests:
 

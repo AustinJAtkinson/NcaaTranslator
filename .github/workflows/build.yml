@@ -59,14 +59,21 @@ jobs:
       id: gitversion
       uses: gittools/actions/gitversion/execute@v0.10.2
 
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: npm
+        cache-dependency-path: ui/package-lock.json
+
     - name: Restore dependencies
       run: dotnet restore NcaaTranslator.sln
 
     - name: Build
-      run: dotnet build NcaaTranslator.sln --configuration Release --no-restore /p:Version=${{ steps.gitversion.outputs.semVer }}
+      run: dotnet build NcaaTranslator.sln --configuration Release --no-restore /p:Version=${{ steps.gitversion.outputs.semVer }} /p:SkipUiBuild=false
 
     - name: Publish
-      run: dotnet publish src/NcaaTranslator.Desktop/NcaaTranslator.Desktop.csproj --configuration Release --output ./artifacts /p:Version=${{ steps.gitversion.outputs.semVer }}
+      run: dotnet publish src/NcaaTranslator.Desktop/NcaaTranslator.Desktop.csproj --configuration Release --output ./artifacts --no-restore /p:Version=${{ steps.gitversion.outputs.semVer }} /p:SkipUiBuild=false
 
     - name: Create ZIP
       run: |

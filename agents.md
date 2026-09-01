@@ -22,7 +22,7 @@ Photino.NET host: serves the React UI over HTTP (`Photino.NET.Server`), JSON mes
 
 ## UI (`ui/`)
 
-Vite + React + TypeScript: Main (start/stop polling, scoreboard), Settings, Names. Built into `src/NcaaTranslator.Desktop/wwwroot`. Solution / test builds skip the Vite pipeline (`SkipUiBuild` defaults to true). VS Code `.NET Core Launch (Desktop)` runs `npm run build` in `ui/` then `dotnet build -p:SkipUiBuild=false` so the Photino `wwwroot` matches current UI source.
+Vite + React + TypeScript: Main (start/stop polling, scoreboard), Settings, Names. Vite output is copied to `src/NcaaTranslator.Desktop/wwwroot` (gitignored) and next to the exe. Solution / test builds skip the Vite pipeline (`SkipUiBuild` defaults to true). VS Code `.NET Core Launch (Desktop)` and release publish run `npm run build` then `-p:SkipUiBuild=false`.
 
 ## Config
 

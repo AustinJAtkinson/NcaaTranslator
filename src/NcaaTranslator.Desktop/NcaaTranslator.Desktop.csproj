@@ -50,7 +50,7 @@
     <UiSource Include="$(UiDir)/src/**/*.*" />
   </ItemGroup>
 
-  <!-- Opt-in Vite rebuild. Default SkipUiBuild=true uses committed wwwroot. -->
+  <!-- Opt-in Vite rebuild. Default SkipUiBuild=true skips Node; publish/run with -p:SkipUiBuild=false. -->
   <Target Name="BuildUi"
           BeforeTargets="BeforeBuild"
           Condition="'$(SkipUiBuild)' != 'true'"
@@ -62,7 +62,7 @@
     <PropertyGroup>
       <_HasNode Condition="'$(_NodeExitCode)' == '0'">true</_HasNode>
     </PropertyGroup>
-    <Message Importance="high" Text="Node.js not found; using prebuilt wwwroot." Condition="'$(_HasNode)' != 'true'" />
+    <Message Importance="high" Text="Node.js not found; skipping Vite UI build." Condition="'$(_HasNode)' != 'true'" />
     <Exec Command="npm ci" WorkingDirectory="$(UiDir)" Condition="'$(_HasNode)' == 'true' AND !Exists('$(UiDir)/node_modules')" />
     <Exec Command="npm run build" WorkingDirectory="$(UiDir)" Condition="'$(_HasNode)' == 'true'" />
   </Target>
@@ -91,6 +91,19 @@
     <Copy SourceFiles="@(_UiDist)"
           DestinationFiles="@(_UiDist->'$(OutputPath)wwwroot/%(RecursiveDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- Custom Copy to OutputPath is not in Content, so publish would miss wwwroot without this. -->
+  <Target Name="PublishUiDist"
+          AfterTargets="ComputeFilesToPublish"
+          Condition="'$(SkipUiBuild)' != 'true' AND Exists('$(UiDir)/dist/index.html')">
+    <ItemGroup>
+      <_UiDistPublish Include="$(UiDir)/dist/**/*" />
+      <ResolvedFileToPublish Include="@(_UiDistPublish)">
+        <RelativePath>wwwroot\%(RecursiveDir)%(Filename)%(Extension)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+    </ItemGroup>
   </Target>
 
 </Project>

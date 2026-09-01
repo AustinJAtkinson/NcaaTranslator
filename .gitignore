@@ -32,3 +32,4 @@ packages/
 # Node / Vite
 node_modules/
 ui/dist/
+src/NcaaTranslator.Desktop/wwwroot/
