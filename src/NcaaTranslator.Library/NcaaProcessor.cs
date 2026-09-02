@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Xml.Serialization;
@@ -52,7 +53,12 @@ namespace NcaaTranslator.Library
         {
             int seasonYear = GetSeasonYear(sport);
             int? week = sport.Week;
-            string? contestDate = week.HasValue ? null : DateTime.Now.ToString("MM/dd/yyyy");
+            string? contestDate = week.HasValue ? null : FormatContestDate(DateTime.Now);
+            return GetUrl(sport, week, contestDate, seasonYear);
+        }
+
+        public static string GetUrl(Sport sport, int? week, string? contestDate, int seasonYear)
+        {
             var variables = new
             {
                 sportCode = sport.SportCode,
@@ -73,6 +79,9 @@ namespace NcaaTranslator.Library
             var date = asOf ?? DateTime.Now;
             return date.Month >= 8 ? date.Year : date.Year - 1;
         }
+
+        internal static string FormatContestDate(DateTime date) =>
+            date.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture);
 
         public static async Task<string> NcaaResponse(string url)
         {
@@ -251,41 +260,290 @@ namespace NcaaTranslator.Library
 
         public static async Task<NcaaScoreboard> ConvertNcaaScoreboard(Sport sport)
         {
+            var result = await ConvertNcaaScoreboard(sport, DateTime.Now, fetchExtras: true, cache: null).ConfigureAwait(false);
+            return result.Current;
+        }
+
+        internal static async Task<PeriodConversionResult> ConvertNcaaScoreboard(
+            Sport sport,
+            DateTime asOf,
+            bool fetchExtras = true,
+            ExtraPeriodCache? cache = null)
+        {
+            var result = new PeriodConversionResult();
             if (!sport.Enabled)
-                return new NcaaScoreboard();
+                return result;
 
-            var responseBody = await NcaaResponse(GetUrl(sport));
+            cache ??= new ExtraPeriodCache();
+            var lookBack = Math.Max(0, sport.LookBack);
+            var lookForward = Math.Max(0, sport.LookForward);
+            asOf = asOf.Date;
 
-            if (responseBody == "")
-                return new NcaaScoreboard();
+            if (fetchExtras)
+                cache.RemoveBySport(sport.SportName ?? "");
 
-            NcaaScoreboard ncaaGames = JsonSerializer.Deserialize<NcaaScoreboard>(json: responseBody)!;
-            if (ncaaGames.data?.contests == null)
-                return ncaaGames;
+            if (sport.Week.HasValue)
+                await ConvertWeekSport(sport, asOf, lookBack, lookForward, fetchExtras, cache, result).ConfigureAwait(false);
+            else
+                await ConvertDateSport(sport, asOf, lookBack, lookForward, fetchExtras, cache, result).ConfigureAwait(false);
 
-            ncaaGames.data.contests.Sort((x, y) => x.startTimeEpoch.CompareTo(y.startTimeEpoch));
+            if (sport.OosUpdater.Enabled)
+                UpdateOos(result.Current, sport.OosUpdater);
 
-            CategorizeGames(ncaaGames, sport);
+            return result;
+        }
 
+        internal static string CurrentGamesFileName(Sport sport) => $"{sport.SportName}-Games.json";
+        internal static string PrevGamesFileName(Sport sport) => $"{sport.SportName}-Prev-Games.json";
+        internal static string PostGamesFileName(Sport sport) => $"{sport.SportName}-Post-Games.json";
+
+        internal static async Task<NcaaScoreboard?> FetchScoreboard(Sport sport, int? week, string? contestDate, DateTime seasonAsOf)
+        {
+            var seasonYear = GetSeasonYear(sport, seasonAsOf);
+            var url = GetUrl(sport, week, contestDate, seasonYear);
+            var body = await NcaaResponse(url).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(body))
+                return null;
+            return JsonSerializer.Deserialize<NcaaScoreboard>(body);
+        }
+
+        internal static NcaaScoreboard CategorizeAndExport(IEnumerable<Contest>? contests, Sport sport, string fileName)
+        {
+            var copy = (contests ?? Enumerable.Empty<Contest>()).ToList();
+            copy.Sort((x, y) => x.startTimeEpoch.CompareTo(y.startTimeEpoch));
+            var board = new NcaaScoreboard { data = new Data { contests = copy } };
+            if (copy.Count > 0)
+                CategorizeGames(board, sport);
+            else
+            {
+                board.data.contests = null;
+                board.data.conferenceGames = new List<Contest>();
+                board.data.nonConferenceGames = new List<Contest>();
+                board.data.displayGames = null;
+                board.data.homeGames = new List<Contest>();
+                board.data.top25Games = null;
+            }
+
+            WriteExport(board, sport, fileName);
+            return board;
+        }
+
+        private static void WriteExport(NcaaScoreboard ncaaGames, Sport sport, string fileName)
+        {
+            var data = ncaaGames.data ?? new Data();
             var exportData = new NcaaScoreboard
             {
                 data = new Data
                 {
-                    contests = ncaaGames.data.contests,
-                    nonConferenceGames = sport.ListsNeeded.nonConferenceGames ? ncaaGames.data.nonConferenceGames : null,
-                    conferenceGames = sport.ListsNeeded.conferenceGames ? ncaaGames.data.conferenceGames : null,
-                    displayGames = ncaaGames.data.displayGames,
-                    homeGames = ncaaGames.data.homeGames,
-                    top25Games = ncaaGames.data.top25Games
+                    contests = data.contests,
+                    nonConferenceGames = sport.ListsNeeded.nonConferenceGames ? data.nonConferenceGames : null,
+                    conferenceGames = sport.ListsNeeded.conferenceGames ? data.conferenceGames : null,
+                    displayGames = data.displayGames,
+                    homeGames = data.homeGames,
+                    top25Games = data.top25Games
                 }
             };
+            File.WriteAllText(fileName, JsonSerializer.Serialize(exportData));
+        }
 
-            File.WriteAllText(string.Format("{0}-Games.json", sport.SportName!), JsonSerializer.Serialize<NcaaScoreboard>(exportData));
+        private static async Task ConvertDateSport(
+            Sport sport,
+            DateTime asOf,
+            int lookBack,
+            int lookForward,
+            bool fetchExtras,
+            ExtraPeriodCache cache,
+            PeriodConversionResult result)
+        {
+            var contestDate = FormatContestDate(asOf);
+            var payload = await FetchScoreboard(sport, week: null, contestDate, asOf).ConfigureAwait(false);
+            var currentContests = payload?.data?.contests;
+            if (currentContests != null)
+            {
+                result.Current = CategorizeAndExport(currentContests, sport, CurrentGamesFileName(sport));
+                result.CurrentDateRange = ContestClustering.FormatDateRange(currentContests)
+                    ?? ContestClustering.FormatSingleDate(asOf);
+            }
+            else
+            {
+                result.Current = payload ?? new NcaaScoreboard();
+                result.CurrentDateRange = ContestClustering.FormatSingleDate(asOf);
+            }
 
-            if (sport.OosUpdater.Enabled)
-                UpdateOos(ncaaGames, sport.OosUpdater);
+            var prevContests = new List<Contest>();
+            var prevDates = new List<DateTime>();
+            for (var i = 1; i <= lookBack; i++)
+            {
+                var date = asOf.AddDays(-i);
+                prevDates.Add(date);
+                var dayContests = await GetCachedOrFetchDate(sport, date, fetchExtras, cache).ConfigureAwait(false);
+                prevContests.AddRange(dayContests);
+            }
 
-            return ncaaGames;
+            prevDates.Reverse();
+            result.Prev = CategorizeAndExport(prevContests, sport, PrevGamesFileName(sport));
+            result.PrevDateRange = ContestClustering.FormatDateRange(prevContests)
+                ?? ContestClustering.FormatDateRange(prevDates);
+
+            var postContests = new List<Contest>();
+            var postDates = new List<DateTime>();
+            for (var i = 1; i <= lookForward; i++)
+            {
+                var date = asOf.AddDays(i);
+                postDates.Add(date);
+                var dayContests = await GetCachedOrFetchDate(sport, date, fetchExtras, cache).ConfigureAwait(false);
+                postContests.AddRange(dayContests);
+            }
+
+            result.Post = CategorizeAndExport(postContests, sport, PostGamesFileName(sport));
+            result.PostDateRange = ContestClustering.FormatDateRange(postContests)
+                ?? ContestClustering.FormatDateRange(postDates);
+        }
+
+        private static async Task ConvertWeekSport(
+            Sport sport,
+            DateTime asOf,
+            int lookBack,
+            int lookForward,
+            bool fetchExtras,
+            ExtraPeriodCache cache,
+            PeriodConversionResult result)
+        {
+            var payload = await FetchScoreboard(sport, sport.Week, contestDate: null, asOf).ConfigureAwait(false);
+            var contests = payload?.data?.contests?.ToList();
+            var clusters = ContestClustering.ClusterContests(contests);
+
+            if (contests != null &&
+                contests.Count > 0 &&
+                ContestClustering.ShouldAutoIncrementWeek(clusters, contests, asOf))
+            {
+                sport.Week = sport.Week!.Value + 1;
+                if (Settings.SettingsList != null)
+                    Settings.Save();
+                fetchExtras = true;
+                cache.RemoveBySport(sport.SportName ?? "");
+                payload = await FetchScoreboard(sport, sport.Week, contestDate: null, asOf).ConfigureAwait(false);
+                contests = payload?.data?.contests?.ToList();
+                clusters = ContestClustering.ClusterContests(contests);
+            }
+
+            var currentIndex = ContestClustering.PickCurrentClusterIndex(clusters, asOf);
+            List<Contest> currentContests = currentIndex >= 0
+                ? clusters[currentIndex].ToList()
+                : new List<Contest>();
+
+            if (contests != null)
+            {
+                result.Current = CategorizeAndExport(currentContests, sport, CurrentGamesFileName(sport));
+                result.CurrentDateRange = ContestClustering.FormatDateRange(currentContests);
+            }
+            else
+            {
+                result.Current = payload ?? new NcaaScoreboard();
+            }
+
+            var prevClusters = new List<List<Contest>>();
+            var postClusters = new List<List<Contest>>();
+            var remainingPrev = lookBack;
+            var remainingPost = lookForward;
+
+            if (currentIndex >= 0)
+            {
+                if (lookBack > 0)
+                {
+                    var before = clusters.Take(currentIndex).ToList();
+                    var take = TakeFromEnd(before, remainingPrev);
+                    prevClusters.AddRange(take);
+                    remainingPrev -= take.Count;
+                }
+
+                if (lookForward > 0)
+                {
+                    var after = clusters.Skip(currentIndex + 1).ToList();
+                    var take = TakeFromStart(after, remainingPost);
+                    postClusters.AddRange(take);
+                    remainingPost -= take.Count;
+                }
+            }
+
+            var week = sport.Week!.Value;
+            var prevAttempts = remainingPrev;
+            for (var offset = 1; remainingPrev > 0 && offset <= prevAttempts; offset++)
+            {
+                var extraContests = await GetCachedOrFetchWeek(sport, week - offset, asOf, fetchExtras, cache).ConfigureAwait(false);
+                if (extraContests.Count == 0)
+                    continue;
+
+                var extraClusters = ContestClustering.ClusterContests(extraContests);
+                var take = TakeFromEnd(extraClusters, remainingPrev);
+                prevClusters.InsertRange(0, take);
+                remainingPrev -= take.Count;
+            }
+
+            var postAttempts = remainingPost;
+            for (var offset = 1; remainingPost > 0 && offset <= postAttempts; offset++)
+            {
+                var extraContests = await GetCachedOrFetchWeek(sport, week + offset, asOf, fetchExtras, cache).ConfigureAwait(false);
+                if (extraContests.Count == 0)
+                    continue;
+
+                var extraClusters = ContestClustering.ClusterContests(extraContests);
+                var take = TakeFromStart(extraClusters, remainingPost);
+                postClusters.AddRange(take);
+                remainingPost -= take.Count;
+            }
+
+            var prevContests = prevClusters.SelectMany(c => c).ToList();
+            var postContests = postClusters.SelectMany(c => c).ToList();
+            result.Prev = CategorizeAndExport(prevContests, sport, PrevGamesFileName(sport));
+            result.Post = CategorizeAndExport(postContests, sport, PostGamesFileName(sport));
+            result.PrevDateRange = ContestClustering.FormatDateRange(prevContests);
+            result.PostDateRange = ContestClustering.FormatDateRange(postContests);
+        }
+
+        private static List<List<Contest>> TakeFromEnd(List<List<Contest>> clusters, int count)
+        {
+            if (count <= 0 || clusters.Count == 0)
+                return new List<List<Contest>>();
+            var start = Math.Max(0, clusters.Count - count);
+            return clusters.Skip(start).ToList();
+        }
+
+        private static List<List<Contest>> TakeFromStart(List<List<Contest>> clusters, int count)
+        {
+            if (count <= 0 || clusters.Count == 0)
+                return new List<List<Contest>>();
+            return clusters.Take(count).ToList();
+        }
+
+        private static async Task<List<Contest>> GetCachedOrFetchWeek(
+            Sport sport,
+            int week,
+            DateTime asOf,
+            bool fetchExtras,
+            ExtraPeriodCache cache)
+        {
+            var key = ExtraPeriodCache.WeekKey(sport.SportName ?? "", week);
+            return await cache.GetOrFetch(key, fetchExtras, async () =>
+            {
+                var board = await FetchScoreboard(sport, week, contestDate: null, asOf).ConfigureAwait(false);
+                return board?.data?.contests?.ToList() ?? new List<Contest>();
+            }).ConfigureAwait(false);
+        }
+
+        private static async Task<List<Contest>> GetCachedOrFetchDate(
+            Sport sport,
+            DateTime date,
+            bool fetchExtras,
+            ExtraPeriodCache cache)
+        {
+            var contestDate = FormatContestDate(date);
+            var key = ExtraPeriodCache.DateKey(sport.SportName ?? "", contestDate);
+            return await cache.GetOrFetch(key, fetchExtras, async () =>
+            {
+                var board = await FetchScoreboard(sport, week: null, contestDate, date).ConfigureAwait(false);
+                return board?.data?.contests?.ToList() ?? new List<Contest>();
+            }).ConfigureAwait(false);
         }
 
         public static void ConvertXmlToJson(XmlToJson xmlToJson)
@@ -301,6 +559,46 @@ namespace NcaaTranslator.Library
                 var jsonText = JsonConvert.SerializeXmlNode(doc);
                 File.WriteAllText(Path.ChangeExtension(filePath.Path!, ".json"), jsonText);
             }
+        }
+    }
+
+    internal sealed class PeriodConversionResult
+    {
+        public NcaaScoreboard Current { get; set; } = new();
+        public NcaaScoreboard Prev { get; set; } = new();
+        public NcaaScoreboard Post { get; set; } = new();
+        public string? CurrentDateRange { get; set; }
+        public string? PrevDateRange { get; set; }
+        public string? PostDateRange { get; set; }
+    }
+
+    internal sealed class ExtraPeriodCache
+    {
+        private readonly Dictionary<string, List<Contest>> _items = new(StringComparer.Ordinal);
+
+        public static string WeekKey(string sportName, int week) => $"{sportName}|w|{week}";
+        public static string DateKey(string sportName, string contestDate) => $"{sportName}|d|{contestDate}";
+
+        public void RemoveBySport(string sportName)
+        {
+            var prefix = sportName + "|";
+            var keys = _items.Keys.Where(k => k.StartsWith(prefix, StringComparison.Ordinal)).ToList();
+            foreach (var key in keys)
+                _items.Remove(key);
+        }
+
+        public async Task<List<Contest>> GetOrFetch(string key, bool allowFetch, Func<Task<List<Contest>>> fetch)
+        {
+            if (!allowFetch)
+            {
+                return _items.TryGetValue(key, out var cached)
+                    ? cached.ToList()
+                    : new List<Contest>();
+            }
+
+            var data = await fetch().ConfigureAwait(false) ?? new List<Contest>();
+            _items[key] = data;
+            return data.ToList();
         }
     }
 }

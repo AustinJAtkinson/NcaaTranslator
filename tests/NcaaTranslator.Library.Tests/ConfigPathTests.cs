@@ -84,6 +84,37 @@ public class ConfigPathTests : IDisposable
     }
 
     [Fact]
+    public void Settings_Load_MissingLookBackLookForward_DefaultsToZero()
+    {
+        WriteSettings("""{"Timer":20,"Sports":[{"SportName":"Hockey","SportShortName":"HKY"}]}""");
+
+        Settings.Load();
+
+        var sport = Assert.Single(Settings.SettingsList!.Sports!);
+        Assert.Equal(0, sport.LookBack);
+        Assert.Equal(0, sport.LookForward);
+    }
+
+    [Fact]
+    public void Settings_Save_RoundTripsLookBackLookForward()
+    {
+        WriteSettings("""{"Timer":20,"Sports":[{"SportName":"Hockey","SportShortName":"HKY","LookBack":2,"LookForward":3}]}""");
+
+        Settings.Load();
+        Assert.Equal(2, Settings.SettingsList!.Sports![0].LookBack);
+        Assert.Equal(3, Settings.SettingsList.Sports[0].LookForward);
+
+        Settings.Save();
+        Settings.SettingsList = null;
+        Settings.Load();
+
+        Assert.Equal(2, Settings.SettingsList!.Sports![0].LookBack);
+        Assert.Equal(3, Settings.SettingsList.Sports[0].LookForward);
+        Assert.Contains("\"LookBack\":2", File.ReadAllText(ExpectedPath("Settings.json")));
+        Assert.Contains("\"LookForward\":3", File.ReadAllText(ExpectedPath("Settings.json")));
+    }
+
+    [Fact]
     public void NameConverters_LoadAndReload_UsesBaseDirectory()
     {
         TestHelpers.WriteDefaultNames(_workspace.DirectoryPath);

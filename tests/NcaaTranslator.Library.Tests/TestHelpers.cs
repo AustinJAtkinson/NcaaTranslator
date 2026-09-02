@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using NcaaTranslator.Library;
 
 namespace NcaaTranslator.Library.Tests;
@@ -97,14 +99,17 @@ internal static class TestHelpers
         int? awayRank = null,
         int? homeScore = 0,
         int? awayScore = 0,
-        string gameState = "P")
+        string gameState = "P",
+        string? startDate = null)
     {
+        startDate ??= DateTime.Now.ToString("MM/dd/yyyy");
         return new Contest
         {
             contestId = id,
             gameState = gameState,
             startTimeEpoch = startTimeEpoch,
             startTime = "7:00 PM ET",
+            startDate = startDate,
             teams = new List<ContestTeam>
             {
                 new ContestTeam { isHome = true, name6Char = home6, nameShort = homeShort, seoname = homeShort.ToLowerInvariant().Replace(" ", "-"), conferenceSeo = homeConfSeo, score = homeScore, teamRank = homeRank },
@@ -128,6 +133,52 @@ internal static class TestHelpers
     {
         return System.Text.Json.JsonSerializer.Serialize(CreateScoreboard(contests));
     }
+
+    public static DateTime Sep1 => new(2026, 9, 1, 12, 0, 0);
+
+    public static long EpochOn(string startDate, int hour = 19)
+    {
+        var date = DateTime.ParseExact(startDate, "MM/dd/yyyy", CultureInfo.InvariantCulture);
+        var local = DateTime.SpecifyKind(date.Date.AddHours(hour), DateTimeKind.Local);
+        return new DateTimeOffset(local).ToUnixTimeSeconds();
+    }
+
+    public static Contest CreateDatedContest(
+        long id,
+        string startDate,
+        string gameState = "P",
+        string home6 = "NO DAK",
+        string homeShort = "North Dakota",
+        string homeConfSeo = "mvc",
+        string away6 = "S DAK",
+        string awayShort = "South Dakota",
+        string awayConfSeo = "mvc")
+    {
+        return CreateContest(
+            id,
+            home6,
+            homeShort,
+            homeConfSeo,
+            away6,
+            awayShort,
+            awayConfSeo,
+            startTimeEpoch: EpochOn(startDate),
+            gameState: gameState,
+            startDate: startDate);
+    }
+
+    public static IEnumerable<long> AllContestIds(NcaaScoreboard? board)
+    {
+        var data = board?.data;
+        if (data == null)
+            yield break;
+        foreach (var contest in (data.homeGames ?? new List<Contest>())
+            .Concat(data.conferenceGames ?? new List<Contest>())
+            .Concat(data.nonConferenceGames ?? new List<Contest>()))
+        {
+            yield return contest.contestId;
+        }
+    }
 }
 
 internal sealed class ThrowingHttpMessageHandler : HttpMessageHandler
@@ -140,28 +191,64 @@ internal sealed class ThrowingHttpMessageHandler : HttpMessageHandler
 
 internal sealed class FakeHttpMessageHandler : HttpMessageHandler
 {
+    private static readonly Regex WeekRegex = new("\"week\":(?<w>-?\\d+|null)", RegexOptions.Compiled);
+    private static readonly Regex DateRegex = new("\"contestDate\":(?:\"(?<d>[^\"]*)\"|null)", RegexOptions.Compiled);
+
     public string Response { get; set; } = "";
     public HttpStatusCode StatusCode { get; set; } = HttpStatusCode.OK;
     public Exception? ExceptionToThrow { get; set; }
     public Task? Block { get; set; }
     public Uri? LastRequestUri { get; private set; }
+    public List<Uri> RequestUris { get; } = new();
+    public Dictionary<int, string> WeekResponses { get; } = new();
+    public Dictionary<string, string> DateResponses { get; } = new(StringComparer.Ordinal);
 
     private int _callCount;
     public int CallCount => _callCount;
+
+    public bool CalledWeek(int week) =>
+        RequestUris.Any(u => Regex.IsMatch(u.ToString(), $"\"week\":{week}(?!\\d)"));
+
+    public bool CalledContestDate(string contestDate) =>
+        RequestUris.Any(u => u.ToString().Contains($"\"contestDate\":\"{contestDate}\""));
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         Interlocked.Increment(ref _callCount);
         LastRequestUri = request.RequestUri;
+        if (request.RequestUri != null)
+            RequestUris.Add(request.RequestUri);
         if (Block != null)
             await Block.ConfigureAwait(false);
         if (ExceptionToThrow != null)
             throw ExceptionToThrow;
 
+        var url = request.RequestUri?.ToString() ?? "";
+        var body = ResolveBody(url);
         return new HttpResponseMessage(StatusCode)
         {
-            Content = new StringContent(Response, Encoding.UTF8, "application/json")
+            Content = new StringContent(body, Encoding.UTF8, "application/json")
         };
+    }
+
+    private string ResolveBody(string url)
+    {
+        var weekMatch = WeekRegex.Match(url);
+        if (weekMatch.Success && weekMatch.Groups["w"].Value != "null" &&
+            int.TryParse(weekMatch.Groups["w"].Value, out var week) &&
+            WeekResponses.TryGetValue(week, out var weekBody))
+        {
+            return weekBody;
+        }
+
+        var dateMatch = DateRegex.Match(url);
+        if (dateMatch.Success && dateMatch.Groups["d"].Success &&
+            DateResponses.TryGetValue(dateMatch.Groups["d"].Value, out var dateBody))
+        {
+            return dateBody;
+        }
+
+        return Response;
     }
 }
 

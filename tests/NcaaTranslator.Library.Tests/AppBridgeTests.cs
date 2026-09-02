@@ -115,6 +115,8 @@ public class AppBridgeTests
         Assert.Equal(12, sport.GetProperty("division").GetInt32());
         Assert.Equal(2, sport.GetProperty("week").GetInt32());
         Assert.Equal(2025, sport.GetProperty("seasonYear").GetInt32());
+        Assert.Equal(0, sport.GetProperty("lookBack").GetInt32());
+        Assert.Equal(0, sport.GetProperty("lookForward").GetInt32());
         Assert.Equal("Live", sport.GetProperty("gameDisplayMode").GetString());
         var lists = sport.GetProperty("listsNeeded");
         Assert.True(lists.GetProperty("conferenceGames").GetBoolean());
@@ -164,7 +166,7 @@ public class AppBridgeTests
             {"id":"sv","method":"saveSettings","params":{
               "timer":20,
               "homeTeam":"NO DAK",
-              "sports":[{"name":"Hockey","short":"HKY","code":"MIH","enabled":true,"conferenceName":"NCHC","division":1,"week":null,"seasonYear":2024,"gameDisplayMode":"All"}],
+              "sports":[{"name":"Hockey","short":"HKY","code":"MIH","enabled":true,"conferenceName":"NCHC","division":1,"week":null,"seasonYear":2024,"lookBack":2,"lookForward":1,"gameDisplayMode":"All"}],
               "displayTeams":[{"ncaaTeamName":"UND"}],
               "xmlToJson":{"enabled":true,"filePaths":["/tmp/a.xml","/tmp/b.xml"]}
             }}
@@ -184,6 +186,8 @@ public class AppBridgeTests
         Assert.Equal(1, sport.Division);
         Assert.Null(sport.Week);
         Assert.Equal(2024, sport.SeasonYear);
+        Assert.Equal(2, sport.LookBack);
+        Assert.Equal(1, sport.LookForward);
         Assert.Equal(GameDisplayMode.All, sport.GameDisplayMode);
         Assert.True(sport.ListsNeeded.conferenceGames);
         Assert.True(sport.ListsNeeded.nonConferenceGames);
@@ -205,6 +209,8 @@ public class AppBridgeTests
         Settings.SettingsList = null;
         Settings.Load();
         Assert.Equal("Hockey", Settings.SettingsList!.Sports![0].SportName);
+        Assert.Equal(2, Settings.SettingsList.Sports[0].LookBack);
+        Assert.Equal(1, Settings.SettingsList.Sports[0].LookForward);
         Assert.True(Settings.SettingsList.Sports[0].ListsNeeded.conferenceGames);
         Assert.True(Settings.SettingsList.Sports[0].ListsNeeded.nonConferenceGames);
         Assert.True(Settings.SettingsList.Sports[0].ListsNeeded.top25Games);

@@ -243,6 +243,8 @@ namespace NcaaTranslator.Library
         private int _division;
         private int? _week;
         private int? _seasonYear;
+        private int _lookBack;
+        private int _lookForward;
 
         public required string SportName
         {
@@ -357,6 +359,32 @@ namespace NcaaTranslator.Library
                 {
                     _seasonYear = value;
                     Raise(nameof(SeasonYear));
+                }
+            }
+        }
+
+        public int LookBack
+        {
+            get => _lookBack;
+            set
+            {
+                if (_lookBack != value)
+                {
+                    _lookBack = value;
+                    Raise(nameof(LookBack));
+                }
+            }
+        }
+
+        public int LookForward
+        {
+            get => _lookForward;
+            set
+            {
+                if (_lookForward != value)
+                {
+                    _lookForward = value;
+                    Raise(nameof(LookForward));
                 }
             }
         }

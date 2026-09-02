@@ -10,7 +10,7 @@ import SportsTable from "./components/SportsTable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { requestScoreboardRefresh } from "./events";
+import { requestScoreboardRefresh, SETTINGS_WEEK_REFRESH } from "./events";
 import type {
   ClockFormatSnapshot,
   ConferenceNameSnapshot,
@@ -79,6 +79,8 @@ function newSport(): SportSnapshot {
     division: 1,
     week: 1,
     seasonYear: null,
+    lookBack: 0,
+    lookForward: 0,
     gameDisplayMode: "Live",
     listsNeeded: emptyLists(),
     oosUpdater: emptyOos(),
@@ -152,6 +154,35 @@ export default function SettingsTab({ section = "general" }: { section?: Setting
   }, []);
 
   useEffect(() => {
+    async function patchWeeksFromSettings(): Promise<void> {
+      try {
+        const latest = await sendMessage<SettingsSnapshot>("getSettings");
+        const current = settingsRef.current;
+        let changed = false;
+        const sports = current.sports.map((sport) => {
+          const next = latest.sports.find((item) => item.name === sport.name);
+          if (!next || next.week === sport.week) return sport;
+          changed = true;
+          return { ...sport, week: next.week };
+        });
+        if (!changed) return;
+        const merged = { ...current, sports };
+        settingsRef.current = merged;
+        setSettings(merged);
+      } catch {
+        /* silent */
+      }
+    }
+
+    function onWeekRefresh(): void {
+      void patchWeeksFromSettings();
+    }
+
+    window.addEventListener(SETTINGS_WEEK_REFRESH, onWeekRefresh);
+    return () => window.removeEventListener(SETTINGS_WEEK_REFRESH, onWeekRefresh);
+  }, []);
+
+  useEffect(() => {
     return () => {
       if (xmlDebounceRef.current == null) return;
       window.clearTimeout(xmlDebounceRef.current);
@@ -176,12 +207,23 @@ export default function SettingsTab({ section = "general" }: { section?: Setting
     if (!loaded) return;
     const seq = ++saveSeq.current;
     try {
-      const saved = await sendMessage<SettingsSnapshot>("saveSettings", next);
+      const payload = settingsRef.current;
+      const saved = await sendMessage<SettingsSnapshot>("saveSettings", payload);
       if (seq !== saveSeq.current) return;
-      if (saved.homeTeam !== next.homeTeam) {
-        const merged = { ...settingsRef.current, homeTeam: saved.homeTeam };
+      const current = settingsRef.current;
+      const sports = applySavedWeeks(current.sports, saved.sports, payload.sports);
+      const homeTeam = saved.homeTeam !== payload.homeTeam ? saved.homeTeam : current.homeTeam;
+      const merged =
+        sports !== current.sports || homeTeam !== current.homeTeam
+          ? { ...current, sports, homeTeam }
+          : current;
+      if (merged !== current) {
         settingsRef.current = merged;
         setSettings(merged);
+      }
+      if (weeksDiffer(payload.sports, settingsRef.current.sports)) {
+        await persist(settingsRef.current, refreshScoreboard);
+        return;
       }
       if (refreshScoreboard) requestScoreboardRefresh();
     } catch (err) {
@@ -564,6 +606,10 @@ function sportSortValue(sport: SportSnapshot, key: string): string | number | bo
       return sport.week;
     case "seasonYear":
       return sport.seasonYear;
+    case "lookBack":
+      return sport.lookBack;
+    case "lookForward":
+      return sport.lookForward;
     case "conferenceGames":
       return sport.listsNeeded?.conferenceGames ?? true;
     case "nonConferenceGames":
@@ -597,10 +643,38 @@ function normalizeClockFormat(
   };
 }
 
+function applySavedWeeks(
+  local: SportSnapshot[],
+  savedSports: SportSnapshot[] | undefined,
+  sentSports: SportSnapshot[],
+): SportSnapshot[] {
+  let changed = false;
+  const sports = local.map((sport) => {
+    const sent = sentSports.find((item) => item.name === sport.name);
+    if (sent && sent.week !== sport.week) return sport;
+    const fromSaved = savedSports?.find((item) => item.name === sport.name);
+    if (!fromSaved || fromSaved.week === sport.week) return sport;
+    changed = true;
+    return { ...sport, week: fromSaved.week };
+  });
+  return changed ? sports : local;
+}
+
+function weeksDiffer(left: SportSnapshot[], right: SportSnapshot[]): boolean {
+  return left.some((sport) => {
+    const other = right.find((item) => item.name === sport.name);
+    return other != null && other.week !== sport.week;
+  });
+}
+
 function normalizeSettings(next: SettingsSnapshot): SettingsSnapshot {
   return {
     ...next,
-    sports: next.sports ?? [],
+    sports: (next.sports ?? []).map((sport) => ({
+      ...sport,
+      lookBack: sport.lookBack ?? 0,
+      lookForward: sport.lookForward ?? 0,
+    })),
     displayTeams: next.displayTeams ?? [],
     xmlToJson: next.xmlToJson ?? { enabled: false, filePaths: [] },
     clockFormats: {

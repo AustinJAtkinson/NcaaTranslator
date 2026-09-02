@@ -1,6 +1,7 @@
 import type {
   ConferenceNameSnapshot,
   GameSnapshot,
+  PeriodSnapshot,
   PickPathResult,
   ScoreboardSnapshot,
   SettingsSnapshot,
@@ -22,6 +23,8 @@ const settings: SettingsSnapshot = {
       division: 1,
       week: null,
       seasonYear: null,
+      lookBack: 0,
+      lookForward: 0,
       gameDisplayMode: "Live",
       listsNeeded: { conferenceGames: true, nonConferenceGames: true, top25Games: false },
       oosUpdater: {
@@ -41,6 +44,8 @@ const settings: SettingsSnapshot = {
       division: 12,
       week: 2,
       seasonYear: null,
+      lookBack: 0,
+      lookForward: 0,
       gameDisplayMode: "Live",
       listsNeeded: { conferenceGames: true, nonConferenceGames: true, top25Games: false },
       oosUpdater: {
@@ -111,6 +116,15 @@ export const mockUpcomingGame: GameSnapshot = {
   displayClock: "Fri. 5:00 PM",
 };
 
+const emptyPeriod = (): PeriodSnapshot => ({
+  confGamesCount: 0,
+  nonConfGamesCount: 0,
+  displayGamesCount: 0,
+  homeGamesCount: 0,
+  games: [],
+  dateRange: null,
+});
+
 export const mockEmptySport: SportScoreboardSnapshot = {
   sportName: "Men's Hockey",
   gameDisplayMode: "All",
@@ -119,20 +133,43 @@ export const mockEmptySport: SportScoreboardSnapshot = {
   displayGamesCount: 0,
   homeGamesCount: 0,
   games: [],
+  week: null,
+  lookBack: 0,
+  lookForward: 0,
+  current: emptyPeriod(),
+  prev: null,
+  post: null,
 };
 
 function sampleBoard(): ScoreboardSnapshot {
   const sports: SportScoreboardSnapshot[] = settings.sports
     .filter((sport) => sport.enabled)
-    .map((sport) => ({
-      sportName: sport.name,
-      gameDisplayMode: sport.gameDisplayMode,
-      confGamesCount: 2,
-      nonConfGamesCount: 1,
-      displayGamesCount: 1,
-      homeGamesCount: 1,
-      games: [mockLiveGame, mockFinalGame, mockUpcomingGame],
-    }));
+    .map((sport) => {
+      const games = [mockLiveGame, mockFinalGame, mockUpcomingGame];
+      const current: PeriodSnapshot = {
+        confGamesCount: 2,
+        nonConfGamesCount: 1,
+        displayGamesCount: 1,
+        homeGamesCount: 1,
+        games,
+        dateRange: "Sep 1",
+      };
+      return {
+        sportName: sport.name,
+        gameDisplayMode: sport.gameDisplayMode,
+        confGamesCount: current.confGamesCount,
+        nonConfGamesCount: current.nonConfGamesCount,
+        displayGamesCount: current.displayGamesCount,
+        homeGamesCount: current.homeGamesCount,
+        games,
+        week: sport.week,
+        lookBack: sport.lookBack,
+        lookForward: sport.lookForward,
+        current,
+        prev: sport.lookBack === 0 ? null : emptyPeriod(),
+        post: sport.lookForward === 0 ? null : emptyPeriod(),
+      };
+    });
 
   sports.push({ ...mockEmptySport });
   return { sports };

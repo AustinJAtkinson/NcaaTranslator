@@ -34,7 +34,7 @@ export default function SportsTable({
   onRemove: (index: number, name: string) => void;
 }) {
   return (
-    <table className="w-full min-w-[1100px] border-separate border-spacing-0 text-sm">
+    <table className="w-full min-w-[1240px] border-separate border-spacing-0 text-sm">
       <thead>
         <tr className="border-b border-border">
           <SportHeader label="Name" column="name" sort={sort} onSort={onSort} sticky />
@@ -46,6 +46,8 @@ export default function SportsTable({
           <SportHeader label="Division" column="division" sort={sort} onSort={onSort} />
           <SportHeader label="Week" column="week" sort={sort} onSort={onSort} />
           <SportHeader label="Season Year" column="seasonYear" sort={sort} onSort={onSort} />
+          <SportHeader label="Look Back" column="lookBack" sort={sort} onSort={onSort} />
+          <SportHeader label="Look Forward" column="lookForward" sort={sort} onSort={onSort} />
           <SportHeader label="Conf" column="conferenceGames" sort={sort} onSort={onSort} />
           <SportHeader label="Non-conf" column="nonConferenceGames" sort={sort} onSort={onSort} />
           <SportHeader label="Top 25" column="top25Games" sort={sort} onSort={onSort} />
@@ -56,6 +58,7 @@ export default function SportsTable({
       <tbody>
         {rows.map(({ sport, index }) => {
           const focused = focusedIndex === index;
+          const lookUnit = sport.week == null ? "days" : "weeks";
           return (
             <tr
               key={`${sport.name}-${index}`}
@@ -167,6 +170,38 @@ export default function SportsTable({
                     const parsed = Number.parseInt(value, 10);
                     if (Number.isNaN(parsed) || parsed === sport.seasonYear) return;
                     onPatchSport(index, { seasonYear: parsed });
+                  }}
+                />
+              </td>
+              <td className="min-w-[5.5rem] px-1">
+                <GhostInput
+                  value={String(sport.lookBack ?? 0)}
+                  aria-label={`Look back (${lookUnit})`}
+                  onCommit={(value) => {
+                    if (value.trim() === "") {
+                      if ((sport.lookBack ?? 0) === 0) return;
+                      onPatchSport(index, { lookBack: 0 });
+                      return;
+                    }
+                    const parsed = Number.parseInt(value, 10);
+                    if (Number.isNaN(parsed) || parsed < 0 || parsed === sport.lookBack) return;
+                    onPatchSport(index, { lookBack: parsed });
+                  }}
+                />
+              </td>
+              <td className="min-w-[6.5rem] px-1">
+                <GhostInput
+                  value={String(sport.lookForward ?? 0)}
+                  aria-label={`Look forward (${lookUnit})`}
+                  onCommit={(value) => {
+                    if (value.trim() === "") {
+                      if ((sport.lookForward ?? 0) === 0) return;
+                      onPatchSport(index, { lookForward: 0 });
+                      return;
+                    }
+                    const parsed = Number.parseInt(value, 10);
+                    if (Number.isNaN(parsed) || parsed < 0 || parsed === sport.lookForward) return;
+                    onPatchSport(index, { lookForward: parsed });
                   }}
                 />
               </td>

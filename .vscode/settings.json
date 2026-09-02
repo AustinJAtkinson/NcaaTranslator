@@ -8,6 +8,14 @@
     "**/obj": true,
     "**/.vs": true
   },
+  "files.watcherExclude": {
+    "**/src/NcaaTranslator.Desktop/wwwroot/**": true,
+    "**/ui/dist/**": true
+  },
+  "search.exclude": {
+    "**/src/NcaaTranslator.Desktop/wwwroot": true,
+    "**/ui/dist": true
+  },
   "csharp.semanticHighlighting.enabled": true,
   "omnisharp.useModernNet": true,
   "dotnet.completion.showCompletionItemsFromUnimportedNamespaces": true

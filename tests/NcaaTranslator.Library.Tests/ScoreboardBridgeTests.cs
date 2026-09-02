@@ -379,6 +379,205 @@ public class ScoreboardBridgeTests
     }
 
     [Fact]
+    public async Task Handle_GetScoreboard_LookBackZero_NullPrevAndPost()
+    {
+        using var workspace = new TempWorkspace();
+        TestHelpers.WriteDefaultNames(workspace.DirectoryPath);
+        TestHelpers.UseSettings();
+        AppBridge.Clock = () => TestHelpers.Sep1;
+        var sport = TestHelpers.CreateSport(mode: GameDisplayMode.All);
+        sport.LookBack = 0;
+        sport.LookForward = 0;
+        Settings.SettingsList!.Sports!.Add(sport);
+        Settings.SettingsList.Timer = 60;
+
+        var handler = new FakeHttpMessageHandler
+        {
+            Response = TestHelpers.ToScoreboardJson(
+                TestHelpers.CreateDatedContest(4, "09/03/2026"),
+                TestHelpers.CreateDatedContest(1, "08/27/2026"))
+        };
+        NcaaProcessor.HttpClient = new HttpClient(handler);
+
+        Handle("""{"id":"s","method":"start"}""");
+        await AppBridge.WaitForPollAsync();
+
+        using var doc = Handle("""{"id":"g","method":"getScoreboard"}""");
+        var sportJson = Result(doc).GetProperty("sports")[0];
+        Assert.Equal(JsonValueKind.Null, sportJson.GetProperty("prev").ValueKind);
+        Assert.Equal(JsonValueKind.Null, sportJson.GetProperty("post").ValueKind);
+        Assert.Equal(0, sportJson.GetProperty("lookBack").GetInt32());
+        Assert.Equal(0, sportJson.GetProperty("lookForward").GetInt32());
+        Assert.Equal(2, sportJson.GetProperty("week").GetInt32());
+        Assert.Equal("Sep 3", sportJson.GetProperty("current").GetProperty("dateRange").GetString());
+        Assert.Equal(
+            sportJson.GetProperty("games").GetArrayLength(),
+            sportJson.GetProperty("current").GetProperty("games").GetArrayLength());
+
+        Handle("""{"id":"x","method":"stop"}""");
+    }
+
+    [Fact]
+    public async Task Handle_GetScoreboard_AppliesDisplayModePerPeriod()
+    {
+        using var workspace = new TempWorkspace();
+        TestHelpers.WriteDefaultNames(workspace.DirectoryPath);
+        TestHelpers.UseSettings();
+        AppBridge.Clock = () => TestHelpers.Sep1;
+        var sport = TestHelpers.CreateSport(mode: GameDisplayMode.Live);
+        sport.LookBack = 1;
+        sport.LookForward = 0;
+        Settings.SettingsList!.Sports!.Add(sport);
+        Settings.SettingsList.Timer = 60;
+
+        var leftoverLive = TestHelpers.CreateDatedContest(1, "08/27/2026", gameState: "I");
+        leftoverLive.currentPeriod = "1st";
+        leftoverLive.contestClock = "1:00";
+        var leftoverPregame = TestHelpers.CreateDatedContest(2, "08/29/2026", gameState: "P",
+            home6: "NDSU", homeShort: "North Dakota St.", away6: "SDSU", awayShort: "South Dakota St.");
+        var currentPregame = TestHelpers.CreateDatedContest(4, "09/03/2026", gameState: "P",
+            home6: "UVA", homeShort: "Virginia", homeConfSeo: "acc", away6: "DUKE", awayShort: "Duke", awayConfSeo: "acc");
+
+        var handler = new FakeHttpMessageHandler
+        {
+            Response = TestHelpers.ToScoreboardJson(leftoverLive, leftoverPregame, currentPregame)
+        };
+        NcaaProcessor.HttpClient = new HttpClient(handler);
+
+        Handle("""{"id":"s","method":"start"}""");
+        await AppBridge.WaitForPollAsync();
+
+        using var liveDoc = Handle("""{"id":"g","method":"getScoreboard"}""");
+        var liveSport = Result(liveDoc).GetProperty("sports")[0];
+        Assert.Equal(0, liveSport.GetProperty("games").GetArrayLength());
+        Assert.Equal(1, liveSport.GetProperty("prev").GetProperty("games").GetArrayLength());
+        Assert.Equal("UND", liveSport.GetProperty("prev").GetProperty("games")[0].GetProperty("home").GetString());
+
+        using var allDoc = Handle("""{"id":"m","method":"setGameDisplayMode","params":{"sportName":"Football FCS","gameDisplayMode":"All"}}""");
+        var allSport = Result(allDoc).GetProperty("sports")[0];
+        Assert.Equal(1, allSport.GetProperty("current").GetProperty("games").GetArrayLength());
+        Assert.Equal(2, allSport.GetProperty("prev").GetProperty("games").GetArrayLength());
+        Assert.Equal(1, allSport.GetProperty("games").GetArrayLength());
+
+        Handle("""{"id":"x","method":"stop"}""");
+    }
+
+    [Fact]
+    public async Task Handle_TimerPoll_DoesNotRefetchExtrasWhenUnchanged()
+    {
+        using var workspace = new TempWorkspace();
+        TestHelpers.WriteDefaultNames(workspace.DirectoryPath);
+        TestHelpers.UseSettings();
+        AppBridge.Clock = () => TestHelpers.Sep1;
+        var sport = TestHelpers.CreateSport(mode: GameDisplayMode.All);
+        sport.LookBack = 2;
+        sport.LookForward = 0;
+        Settings.SettingsList!.Sports!.Add(sport);
+        Settings.SettingsList.Timer = 60;
+
+        var handler = new FakeHttpMessageHandler();
+        handler.WeekResponses[2] = TestHelpers.ToScoreboardJson(
+            TestHelpers.CreateDatedContest(1, "08/27/2026"),
+            TestHelpers.CreateDatedContest(4, "09/03/2026"));
+        handler.WeekResponses[1] = TestHelpers.ToScoreboardJson(
+            TestHelpers.CreateDatedContest(10, "08/20/2026"));
+        NcaaProcessor.HttpClient = new HttpClient(handler);
+
+        Handle("""{"id":"s","method":"start"}""");
+        await AppBridge.WaitForPollAsync();
+        Assert.Equal(2, handler.CallCount);
+        Assert.True(handler.CalledWeek(1));
+
+        await AppBridge.TriggerPollForTests();
+        Assert.Equal(3, handler.CallCount);
+        Assert.Equal(1, handler.RequestUris.Count(u => WeekCount(u, 1)));
+        Assert.Equal(2, handler.RequestUris.Count(u => WeekCount(u, 2)));
+        Assert.Contains(10L, PrevFileIds());
+
+        Handle("""{"id":"x","method":"stop"}""");
+    }
+
+    [Fact]
+    public async Task Handle_StartDuringTimerPoll_KeepsForceExtrasForRerun()
+    {
+        using var workspace = new TempWorkspace();
+        TestHelpers.WriteDefaultNames(workspace.DirectoryPath);
+        TestHelpers.UseSettings();
+        AppBridge.Clock = () => TestHelpers.Sep1;
+        var sport = TestHelpers.CreateSport(mode: GameDisplayMode.All);
+        sport.LookBack = 2;
+        sport.LookForward = 0;
+        Settings.SettingsList!.Sports!.Add(sport);
+        Settings.SettingsList.Timer = 60;
+
+        var handler = new FakeHttpMessageHandler();
+        handler.WeekResponses[2] = TestHelpers.ToScoreboardJson(
+            TestHelpers.CreateDatedContest(1, "08/27/2026"),
+            TestHelpers.CreateDatedContest(4, "09/03/2026"));
+        handler.WeekResponses[1] = TestHelpers.ToScoreboardJson(
+            TestHelpers.CreateDatedContest(10, "08/20/2026"));
+        NcaaProcessor.HttpClient = new HttpClient(handler);
+
+        Handle("""{"id":"s","method":"start"}""");
+        await AppBridge.WaitForPollAsync();
+        Assert.Equal(2, handler.CallCount);
+
+        var block = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        handler.Block = block.Task;
+        var poll = AppBridge.TriggerPollForTests();
+        await WaitUntil(() => handler.CallCount >= 3);
+
+        Handle("""{"id":"s2","method":"start"}""");
+        block.TrySetResult(true);
+        await poll;
+        await AppBridge.WaitForPollAsync();
+
+        Assert.True(handler.RequestUris.Count(u => WeekCount(u, 1)) >= 2);
+
+        Handle("""{"id":"x","method":"stop"}""");
+    }
+
+    [Fact]
+    public async Task Handle_SaveSettings_LookForwardChange_RefetchesExtras()
+    {
+        using var workspace = new TempWorkspace();
+        TestHelpers.WriteDefaultNames(workspace.DirectoryPath);
+        TestHelpers.UseSettings();
+        AppBridge.Clock = () => TestHelpers.Sep1;
+        var sport = TestHelpers.CreateSport(mode: GameDisplayMode.All);
+        sport.LookBack = 1;
+        sport.LookForward = 0;
+        Settings.SettingsList!.Sports!.Add(sport);
+        Settings.SettingsList.Timer = 60;
+
+        var handler = new FakeHttpMessageHandler();
+        handler.WeekResponses[2] = TestHelpers.ToScoreboardJson(
+            TestHelpers.CreateDatedContest(1, "08/27/2026"),
+            TestHelpers.CreateDatedContest(4, "09/03/2026"));
+        handler.WeekResponses[3] = TestHelpers.ToScoreboardJson(
+            TestHelpers.CreateDatedContest(20, "09/10/2026"));
+        NcaaProcessor.HttpClient = new HttpClient(handler);
+
+        Handle("""{"id":"s","method":"start"}""");
+        await AppBridge.WaitForPollAsync();
+        Assert.Equal(1, handler.CallCount);
+
+        using var saved = Handle("""
+            {"id":"sv","method":"saveSettings","params":{
+              "sports":[{"name":"Football FCS","short":"FCS","code":"MFB","enabled":true,"conferenceName":"MVFC","division":12,"week":2,"seasonYear":2025,"lookBack":1,"lookForward":1,"gameDisplayMode":"All"}]
+            }}
+            """);
+        Assert.False(saved.RootElement.TryGetProperty("error", out _));
+        await AppBridge.WaitForPollAsync();
+
+        Assert.True(handler.CallCount >= 2);
+        Assert.True(handler.CalledWeek(3));
+        Assert.Equal(1, Settings.SettingsList.Sports[0].LookForward);
+
+        Handle("""{"id":"x","method":"stop"}""");
+    }
+
+    [Fact]
     public async Task Handle_GetScoreboard_SkipsDisabledSports()
     {
         using var workspace = new TempWorkspace();
@@ -418,6 +617,16 @@ public class ScoreboardBridgeTests
         doc.RootElement.TryGetProperty("id", out var id) ? id.GetString() : null;
 
     private static JsonElement Result(JsonDocument doc) => doc.RootElement.GetProperty("result");
+
+    private static bool WeekCount(Uri uri, int week) =>
+        System.Text.RegularExpressions.Regex.IsMatch(uri.ToString(), $"\"week\":{week}(?!\\d)");
+
+    private static List<long> PrevFileIds()
+    {
+        var json = File.ReadAllText("Football FCS-Prev-Games.json");
+        var board = JsonSerializer.Deserialize<NcaaScoreboard>(json);
+        return TestHelpers.AllContestIds(board).ToList();
+    }
 
     private static async Task WaitUntil(Func<bool> condition, int timeoutMs = 5000)
     {

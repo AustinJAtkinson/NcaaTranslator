@@ -1,10 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import { cleanup, renderWithProviders, screen, waitFor } from "@/test/render";
 import { resetBridgeMock, sendMessage } from "./test/bridgeMock";
+import { SCOREBOARD_REFRESH } from "./events";
 import App from "./App";
 
 vi.mock("./bridge", () => import("./test/bridgeMock"));
+
+vi.mock("sonner", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("sonner")>();
+  return {
+    ...actual,
+    toast: Object.assign(vi.fn(), actual.toast),
+  };
+});
 
 function mockMatchMedia(): void {
   Object.defineProperty(window, "matchMedia", {
@@ -71,6 +81,7 @@ describe("App", () => {
     mockMatchMedia();
     resetBridgeMock();
     mockBridge();
+    vi.mocked(toast).mockClear();
   });
 
   afterEach(() => {
@@ -149,5 +160,73 @@ describe("App", () => {
     expect(screen.queryByRole("button", { name: "General" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Scoreboard" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Expand sidebar" })).toBeInTheDocument();
+  });
+
+  it("toasts when a running sport week increases", async () => {
+    let week = 1;
+    sendMessage.mockImplementation(async (method: string) => {
+      switch (method) {
+        case "start":
+        case "stop":
+        case "status":
+          return { running: true, lastUpdate: "12:00:00.000" };
+        case "getScoreboard":
+          return {
+            sports: [
+              {
+                sportName: "Football FCS",
+                gameDisplayMode: "Live",
+                confGamesCount: 0,
+                nonConfGamesCount: 0,
+                displayGamesCount: 0,
+                homeGamesCount: 0,
+                games: [],
+                week,
+              },
+            ],
+          };
+        case "getSettings":
+          return {
+            timer: 20,
+            homeTeam: null,
+            sports: [],
+            displayTeams: [],
+            xmlToJson: { enabled: false, filePaths: [] },
+            clockFormats: {
+              preGame: {
+                includeWeekday: true,
+                fullWeekday: false,
+                separator: ". ",
+                pattern: "{dayofweek}{separator}{text}",
+              },
+              final: {
+                includeWeekday: true,
+                fullWeekday: false,
+                separator: " - ",
+                pattern: "{text}{separator}{dayofweek}",
+              },
+            },
+          };
+        case "getTeams":
+        case "getConferences":
+          return [];
+        default:
+          return null;
+      }
+    });
+
+    renderWithProviders(<App />);
+
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledWith("getScoreboard");
+    });
+    expect(toast).not.toHaveBeenCalledWith("Football FCS → week 1");
+
+    week = 2;
+    window.dispatchEvent(new Event(SCOREBOARD_REFRESH));
+
+    await waitFor(() => {
+      expect(toast).toHaveBeenCalledWith("Football FCS → week 2");
+    });
   });
 });

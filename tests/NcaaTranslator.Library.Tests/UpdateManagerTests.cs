@@ -38,4 +38,85 @@ public class UpdateManagerTests
         else
             Assert.Equal(assemblyName, fileName);
     }
+
+    [Fact]
+    public void MergeSettings_CopiesUserLookBackAndLookForward()
+    {
+        var user = new Setting
+        {
+            Timer = 20,
+            Sports = new List<Sport>
+            {
+                new Sport
+                {
+                    SportName = "Football FCS",
+                    SportShortName = "FCS",
+                    Week = 3,
+                    LookBack = 2,
+                    LookForward = 4
+                }
+            }
+        };
+        var packaged = new Setting
+        {
+            Timer = 15,
+            Sports = new List<Sport>
+            {
+                new Sport
+                {
+                    SportName = "Football FCS",
+                    SportShortName = "FCS",
+                    Week = 1,
+                    LookBack = 0,
+                    LookForward = 0
+                }
+            }
+        };
+
+        var merged = UpdateManager.MergeSettings(user, packaged);
+
+        var sport = Assert.Single(merged.Sports!);
+        Assert.Equal(3, sport.Week);
+        Assert.Equal(2, sport.LookBack);
+        Assert.Equal(4, sport.LookForward);
+    }
+
+    [Fact]
+    public void MergeSettings_PreservesUserZeroLookBackAndLookForward()
+    {
+        var user = new Setting
+        {
+            Timer = 20,
+            Sports = new List<Sport>
+            {
+                new Sport
+                {
+                    SportName = "Volleyball",
+                    SportShortName = "WVB",
+                    LookBack = 0,
+                    LookForward = 0
+                }
+            }
+        };
+        var packaged = new Setting
+        {
+            Timer = 15,
+            Sports = new List<Sport>
+            {
+                new Sport
+                {
+                    SportName = "Volleyball",
+                    SportShortName = "WVB",
+                    LookBack = 5,
+                    LookForward = 5
+                }
+            }
+        };
+
+        var merged = UpdateManager.MergeSettings(user, packaged);
+
+        var sport = Assert.Single(merged.Sports!);
+        Assert.Equal(0, sport.LookBack);
+        Assert.Equal(0, sport.LookForward);
+    }
 }

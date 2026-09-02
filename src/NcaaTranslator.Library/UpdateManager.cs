@@ -129,7 +129,7 @@ namespace NcaaTranslator.Library
             return merged;
         }
 
-        private static Setting MergeSettings(Setting user, Setting @new)
+        internal static Setting MergeSettings(Setting user, Setting @new)
         {
             var merged = new Setting
             {
@@ -176,6 +176,8 @@ namespace NcaaTranslator.Library
                     sport.ConferenceName = userSport.ConferenceName ?? sport.ConferenceName;
                     sport.Week = userSport.Week ?? sport.Week;
                     sport.SeasonYear = userSport.SeasonYear ?? sport.SeasonYear;
+                    sport.LookBack = userSport.LookBack;
+                    sport.LookForward = userSport.LookForward;
                     sport.OosUpdater = userSport.OosUpdater ?? sport.OosUpdater;
                     sport.ListsNeeded = userSport.ListsNeeded ?? sport.ListsNeeded;
                 }

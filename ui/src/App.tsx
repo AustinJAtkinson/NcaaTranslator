@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { sendMessage } from "./bridge";
 import Sidebar, {
   type NamesSubId,
@@ -7,7 +8,7 @@ import Sidebar, {
   type SettingsSubId,
 } from "./components/Sidebar";
 import { Toaster } from "@/components/ui/sonner";
-import { SCOREBOARD_REFRESH } from "./events";
+import { SCOREBOARD_REFRESH, requestSettingsWeekRefresh } from "./events";
 import MainTab from "./MainTab";
 import NamesTab from "./NamesTab";
 import SettingsTab from "./SettingsTab";
@@ -53,11 +54,30 @@ export default function App() {
   const [board, setBoard] = useState<ScoreboardSnapshot>(emptyBoard);
   const lastUpdateRef = useRef<string | null>(null);
   const runningRef = useRef(false);
+  const boardRef = useRef<ScoreboardSnapshot>(emptyBoard);
 
   const refreshBoard = useCallback(async () => {
     try {
       const nextBoard = await sendMessage<ScoreboardSnapshot>("getScoreboard");
+      const prevWeeks = new Map(boardRef.current.sports.map((sport) => [sport.sportName, sport.week]));
+      boardRef.current = nextBoard;
+      let weekChanged = false;
+      for (const sport of nextBoard.sports) {
+        if (!prevWeeks.has(sport.sportName)) continue;
+        const prevWeek = prevWeeks.get(sport.sportName);
+        if (prevWeek === sport.week) continue;
+        weekChanged = true;
+        if (
+          runningRef.current &&
+          typeof prevWeek === "number" &&
+          typeof sport.week === "number" &&
+          sport.week > prevWeek
+        ) {
+          toast(`${sport.sportName} → week ${sport.week}`);
+        }
+      }
       setBoard(nextBoard);
+      if (weekChanged) requestSettingsWeekRefresh();
     } catch {
       /* HTTP / conversion failures are silent */
     }

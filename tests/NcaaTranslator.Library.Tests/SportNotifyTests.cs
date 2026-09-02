@@ -22,6 +22,8 @@ public class SportNotifyTests
         sport.Division = 11;
         sport.Week = 3;
         sport.SeasonYear = 2026;
+        sport.LookBack = 1;
+        sport.LookForward = 2;
 
         Assert.Equal(new[]
         {
@@ -31,7 +33,9 @@ public class SportNotifyTests
             nameof(Sport.ConferenceName),
             nameof(Sport.Division),
             nameof(Sport.Week),
-            nameof(Sport.SeasonYear)
+            nameof(Sport.SeasonYear),
+            nameof(Sport.LookBack),
+            nameof(Sport.LookForward)
         }, names);
     }
 

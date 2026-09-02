@@ -64,6 +64,8 @@ namespace NcaaTranslator.Library
         public int? Week { get; set; }
         [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
         public int? SeasonYear { get; set; }
+        public int LookBack { get; set; }
+        public int LookForward { get; set; }
         public string GameDisplayMode { get; set; } = "Live";
         public ListsNeededSnapshot? ListsNeeded { get; set; }
         public OosUpdaterSnapshot? OosUpdater { get; set; }
@@ -155,6 +157,17 @@ namespace NcaaTranslator.Library
         public List<SportScoreboardSnapshot> Sports { get; set; } = new();
     }
 
+    public class PeriodSnapshot
+    {
+        public int ConfGamesCount { get; set; }
+        public int NonConfGamesCount { get; set; }
+        public int DisplayGamesCount { get; set; }
+        public int HomeGamesCount { get; set; }
+        public List<GameSnapshot> Games { get; set; } = new();
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public string? DateRange { get; set; }
+    }
+
     public class SportScoreboardSnapshot
     {
         public string SportName { get; set; } = "";
@@ -164,6 +177,15 @@ namespace NcaaTranslator.Library
         public int DisplayGamesCount { get; set; }
         public int HomeGamesCount { get; set; }
         public List<GameSnapshot> Games { get; set; } = new();
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public int? Week { get; set; }
+        public int LookBack { get; set; }
+        public int LookForward { get; set; }
+        public PeriodSnapshot Current { get; set; } = new();
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public PeriodSnapshot? Prev { get; set; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public PeriodSnapshot? Post { get; set; }
     }
 
     public class GameSnapshot
@@ -191,13 +213,19 @@ namespace NcaaTranslator.Library
 
         private static readonly object StateLock = new();
         private static readonly SingleFlightGate ConversionGate = new();
-        private static readonly Dictionary<string, NcaaScoreboard> Scoreboards = new();
+        private static readonly Dictionary<string, PeriodConversionResult> Scoreboards = new();
+        private static ExtraPeriodCache ExtraCache = new();
+        private static readonly Dictionary<string, ExtraFetchFingerprint> ExtraFingerprints = new();
         private static Timer? _timer;
         private static bool _running;
         private static bool _rerunAfter;
         private static bool _pollLoopRunning;
+        private static bool _forceExtras;
+        private static int _forceExtrasVersion;
+        private static DateTime _lastPollLocalDate;
         private static Task _inFlight = Task.CompletedTask;
         private static string? _lastUpdate;
+        internal static Func<DateTime> Clock { get; set; } = () => DateTime.Now;
 
         public static string Handle(string json)
         {
@@ -255,6 +283,12 @@ namespace NcaaTranslator.Library
                 return _inFlight;
         }
 
+        internal static Task TriggerPollForTests()
+        {
+            QueuePoll(force: false);
+            return WaitForPollAsync();
+        }
+
         internal static void ResetForTests()
         {
             Timer? timer;
@@ -265,8 +299,14 @@ namespace NcaaTranslator.Library
                 _running = false;
                 _rerunAfter = false;
                 _pollLoopRunning = false;
+                _forceExtras = false;
+                _forceExtrasVersion = 0;
+                _lastPollLocalDate = default;
                 _lastUpdate = null;
                 Scoreboards.Clear();
+                ExtraCache = new ExtraPeriodCache();
+                ExtraFingerprints.Clear();
+                Clock = () => DateTime.Now;
                 _inFlight = Task.CompletedTask;
             }
 
@@ -313,6 +353,8 @@ namespace NcaaTranslator.Library
             var settings = Settings.SettingsList
                 ?? throw new InvalidDataException("Settings were not loaded.");
 
+            var previousSports = (settings.Sports ?? new List<Sport>()).ToList();
+
             if (el.TryGetProperty("timer", out var timerEl) && timerEl.ValueKind == JsonValueKind.Number)
                 settings.Timer = timerEl.GetInt32();
 
@@ -352,11 +394,20 @@ namespace NcaaTranslator.Library
 
             Settings.Save();
 
+            var extrasChanged = SportsLookOrWeekChanged(previousSports, settings.Sports);
             lock (StateLock)
             {
                 if (_timer != null)
                     _timer.Interval = Math.Max(1, Settings.Timer);
+                if (extrasChanged)
+                {
+                    _forceExtras = true;
+                    _forceExtrasVersion++;
+                }
             }
+
+            if (extrasChanged && IsRunning())
+                QueuePoll(force: true);
 
             return GetSettings();
         }
@@ -469,6 +520,8 @@ namespace NcaaTranslator.Library
                 Division = sport.Division,
                 Week = sport.Week,
                 SeasonYear = sport.SeasonYear,
+                LookBack = sport.LookBack,
+                LookForward = sport.LookForward,
                 GameDisplayMode = sport.GameDisplayMode.ToString(),
                 ListsNeeded = new ListsNeededSnapshot
                 {
@@ -520,6 +573,8 @@ namespace NcaaTranslator.Library
                 Division = snapshot.Division,
                 Week = snapshot.Week,
                 SeasonYear = snapshot.SeasonYear,
+                LookBack = snapshot.LookBack,
+                LookForward = snapshot.LookForward,
                 GameDisplayMode = mode,
                 ListsNeeded = lists,
                 OosUpdater = oos
@@ -583,6 +638,8 @@ namespace NcaaTranslator.Library
             lock (StateLock)
             {
                 _running = true;
+                _forceExtras = true;
+                _forceExtrasVersion++;
                 EnsureTimer();
                 _timer!.Interval = Math.Max(1, Settings.Timer);
                 _timer.Enabled = true;
@@ -636,9 +693,9 @@ namespace NcaaTranslator.Library
         {
             EnsureSettings();
 
-            Dictionary<string, NcaaScoreboard> snapshot;
+            Dictionary<string, PeriodConversionResult> snapshot;
             lock (StateLock)
-                snapshot = new Dictionary<string, NcaaScoreboard>(Scoreboards);
+                snapshot = new Dictionary<string, PeriodConversionResult>(Scoreboards);
 
             var result = new ScoreboardSnapshot();
             var sports = Settings.GetSports() ?? new List<Sport>();
@@ -647,31 +704,53 @@ namespace NcaaTranslator.Library
                 if (!sport.Enabled || string.IsNullOrEmpty(sport.SportName))
                     continue;
 
-                if (!snapshot.TryGetValue(sport.SportName, out var scoreboard) || scoreboard.data == null)
+                if (!snapshot.TryGetValue(sport.SportName, out var boards) || boards.Current.data == null)
                     continue;
 
-                result.Sports.Add(ToSportSnapshot(sport, scoreboard));
+                result.Sports.Add(ToSportSnapshot(sport, boards));
             }
 
             return result;
         }
 
-        private static SportScoreboardSnapshot ToSportSnapshot(Sport sport, NcaaScoreboard? scoreboard)
+        private static SportScoreboardSnapshot ToSportSnapshot(Sport sport, PeriodConversionResult? boards)
+        {
+            var lookBack = Math.Max(0, sport.LookBack);
+            var lookForward = Math.Max(0, sport.LookForward);
+            var current = ToPeriodSnapshot(sport, boards?.Current, boards?.CurrentDateRange);
+            return new SportScoreboardSnapshot
+            {
+                SportName = sport.SportName,
+                GameDisplayMode = sport.GameDisplayMode.ToString(),
+                ConfGamesCount = current.ConfGamesCount,
+                NonConfGamesCount = current.NonConfGamesCount,
+                DisplayGamesCount = current.DisplayGamesCount,
+                HomeGamesCount = current.HomeGamesCount,
+                Games = current.Games,
+                Week = sport.Week,
+                LookBack = lookBack,
+                LookForward = lookForward,
+                Current = current,
+                Prev = lookBack == 0 ? null : ToPeriodSnapshot(sport, boards?.Prev, boards?.PrevDateRange),
+                Post = lookForward == 0 ? null : ToPeriodSnapshot(sport, boards?.Post, boards?.PostDateRange)
+            };
+        }
+
+        private static PeriodSnapshot ToPeriodSnapshot(Sport sport, NcaaScoreboard? scoreboard, string? dateRange)
         {
             var data = scoreboard?.data;
             var games = data == null
                 ? new List<Contest>()
                 : GetGamesToShow(data, sport.GameDisplayMode);
 
-            return new SportScoreboardSnapshot
+            return new PeriodSnapshot
             {
-                SportName = sport.SportName,
-                GameDisplayMode = sport.GameDisplayMode.ToString(),
                 ConfGamesCount = data?.conferenceGames?.Count ?? 0,
                 NonConfGamesCount = data?.nonConferenceGames?.Count ?? 0,
                 DisplayGamesCount = data?.displayGames?.Count ?? 0,
                 HomeGamesCount = data?.homeGames?.Count ?? 0,
-                Games = games.Select(ToGameSnapshot).ToList()
+                Games = games.Select(ToGameSnapshot).ToList(),
+                DateRange = dateRange
             };
         }
 
@@ -793,12 +872,25 @@ namespace NcaaTranslator.Library
             if (!IsRunning())
                 return;
 
+            var asOf = Clock();
+            bool forceExtras;
+            int forceExtrasVersion;
             lock (StateLock)
-                _lastUpdate = DateTime.Now.ToString("HH:mm:ss.fff");
+            {
+                _lastUpdate = asOf.ToString("HH:mm:ss.fff");
+                forceExtrasVersion = _forceExtrasVersion;
+                forceExtras = _forceExtras
+                    || _lastPollLocalDate == default
+                    || _lastPollLocalDate != asOf.Date;
+            }
 
             var sportsList = Settings.GetSports();
             if (sportsList == null)
                 return;
+
+            ExtraPeriodCache extraCache;
+            lock (StateLock)
+                extraCache = ExtraCache;
 
             foreach (var sport in sportsList)
             {
@@ -807,7 +899,9 @@ namespace NcaaTranslator.Library
 
                 try
                 {
-                    var result = await NcaaProcessor.ConvertNcaaScoreboard(sport).ConfigureAwait(false);
+                    var fetchExtras = forceExtras || SportNeedsExtraFetch(sport, asOf);
+                    var result = await NcaaProcessor.ConvertNcaaScoreboard(sport, asOf, fetchExtras, extraCache)
+                        .ConfigureAwait(false);
                     if (!IsRunning())
                         return;
                     if (string.IsNullOrEmpty(sport.SportName))
@@ -818,12 +912,24 @@ namespace NcaaTranslator.Library
                         if (!_running)
                             return;
                         Scoreboards[sport.SportName] = result;
+                        ExtraFingerprints[sport.SportName] = new ExtraFetchFingerprint(
+                            asOf.Date,
+                            sport.Week,
+                            Math.Max(0, sport.LookBack),
+                            Math.Max(0, sport.LookForward));
                     }
                 }
                 catch (Exception ex)
                 {
                     Debug.WriteLine($"Sport '{sport.SportName}' failed: {ex.Message}");
                 }
+            }
+
+            lock (StateLock)
+            {
+                if (_forceExtrasVersion == forceExtrasVersion)
+                    _forceExtras = false;
+                _lastPollLocalDate = asOf.Date;
             }
 
             if (!IsRunning())
@@ -841,6 +947,43 @@ namespace NcaaTranslator.Library
                 }
             }
         }
+
+        private static bool SportNeedsExtraFetch(Sport sport, DateTime asOf)
+        {
+            lock (StateLock)
+            {
+                if (!ExtraFingerprints.TryGetValue(sport.SportName ?? "", out var fingerprint))
+                    return true;
+                return fingerprint.LocalDate != asOf.Date
+                    || fingerprint.Week != sport.Week
+                    || fingerprint.LookBack != Math.Max(0, sport.LookBack)
+                    || fingerprint.LookForward != Math.Max(0, sport.LookForward);
+            }
+        }
+
+        private static bool SportsLookOrWeekChanged(List<Sport> previous, List<Sport>? next)
+        {
+            next ??= new List<Sport>();
+            if (previous.Count != next.Count)
+                return true;
+
+            var previousByName = previous.ToDictionary(s => s.SportName ?? "", StringComparer.OrdinalIgnoreCase);
+            foreach (var sport in next)
+            {
+                if (!previousByName.TryGetValue(sport.SportName ?? "", out var before))
+                    return true;
+                if (before.Week != sport.Week)
+                    return true;
+                if (Math.Max(0, before.LookBack) != Math.Max(0, sport.LookBack))
+                    return true;
+                if (Math.Max(0, before.LookForward) != Math.Max(0, sport.LookForward))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private readonly record struct ExtraFetchFingerprint(DateTime LocalDate, int? Week, int LookBack, int LookForward);
 
         private static string Serialize(BridgeResponse response) =>
             JsonSerializer.Serialize(response, JsonOptions);

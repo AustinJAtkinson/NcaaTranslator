@@ -37,6 +37,8 @@ export type SportSnapshot = {
   division: number;
   week: number | null;
   seasonYear: number | null;
+  lookBack: number;
+  lookForward: number;
   gameDisplayMode: string;
   listsNeeded: ListsNeededSnapshot;
   oosUpdater: OosUpdaterSnapshot;
@@ -101,6 +103,15 @@ export type GameSnapshot = {
   displayClock: string | null;
 };
 
+export type PeriodSnapshot = {
+  confGamesCount: number;
+  nonConfGamesCount: number;
+  displayGamesCount: number;
+  homeGamesCount: number;
+  games: GameSnapshot[];
+  dateRange: string | null;
+};
+
 export type SportScoreboardSnapshot = {
   sportName: string;
   gameDisplayMode: string;
@@ -109,6 +120,12 @@ export type SportScoreboardSnapshot = {
   displayGamesCount: number;
   homeGamesCount: number;
   games: GameSnapshot[];
+  week?: number | null;
+  lookBack?: number;
+  lookForward?: number;
+  current?: PeriodSnapshot;
+  prev?: PeriodSnapshot | null;
+  post?: PeriodSnapshot | null;
 };
 
 export type ScoreboardSnapshot = {

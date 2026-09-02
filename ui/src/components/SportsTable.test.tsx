@@ -13,6 +13,8 @@ const sport: SportSnapshot = {
   division: 1,
   week: 1,
   seasonYear: 2025,
+  lookBack: 0,
+  lookForward: 0,
   gameDisplayMode: "Live",
   listsNeeded: { conferenceGames: true, nonConferenceGames: true, top25Games: true },
   oosUpdater: {
@@ -161,5 +163,114 @@ describe("SportsTable", () => {
 
     expect(screen.queryByText("▲")).not.toBeInTheDocument();
     expect(container.querySelector("svg")).not.toBeNull();
+  });
+
+  it("labels look back and look forward as weeks when week is set", () => {
+    renderWithProviders(
+      <SportsTable
+        rows={[{ sport, index: 0 }]}
+        sort={null}
+        onSort={vi.fn()}
+        focusedIndex={null}
+        onFocus={vi.fn()}
+        conferenceOptions={[]}
+        displayModes={displayModes}
+        onPatchSport={vi.fn()}
+        onPatchLists={vi.fn()}
+        onPatchOos={vi.fn()}
+        onRemove={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Look Back" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Look Forward" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Look back (weeks)" })).toHaveValue("0");
+    expect(screen.getByRole("textbox", { name: "Look forward (weeks)" })).toHaveValue("0");
+  });
+
+  it("labels look back and look forward as days when week is null", () => {
+    renderWithProviders(
+      <SportsTable
+        rows={[{ sport: { ...sport, week: null }, index: 0 }]}
+        sort={null}
+        onSort={vi.fn()}
+        focusedIndex={null}
+        onFocus={vi.fn()}
+        conferenceOptions={[]}
+        displayModes={displayModes}
+        onPatchSport={vi.fn()}
+        onPatchLists={vi.fn()}
+        onPatchOos={vi.fn()}
+        onRemove={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("textbox", { name: "Look back (days)" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Look forward (days)" })).toBeInTheDocument();
+  });
+
+  it("saves look back and look forward integers and treats empty as 0", async () => {
+    const user = userEvent.setup();
+    const onPatchSport = vi.fn();
+    renderWithProviders(
+      <>
+        <SportsTable
+          rows={[{ sport: { ...sport, lookBack: 2, lookForward: 3 }, index: 0 }]}
+          sort={null}
+          onSort={vi.fn()}
+          focusedIndex={null}
+          onFocus={vi.fn()}
+          conferenceOptions={[]}
+          displayModes={displayModes}
+          onPatchSport={onPatchSport}
+          onPatchLists={vi.fn()}
+          onPatchOos={vi.fn()}
+          onRemove={vi.fn()}
+        />
+        <button type="button">outside</button>
+      </>,
+    );
+
+    const lookBack = screen.getByRole("textbox", { name: "Look back (weeks)" });
+    await user.clear(lookBack);
+    await user.type(lookBack, "4{Enter}");
+    expect(onPatchSport).toHaveBeenCalledWith(0, { lookBack: 4 });
+
+    onPatchSport.mockClear();
+    const lookForward = screen.getByRole("textbox", { name: "Look forward (weeks)" });
+    await user.clear(lookForward);
+    await user.type(lookForward, "{Enter}");
+    await user.click(screen.getByRole("button", { name: "outside" }));
+    expect(onPatchSport).toHaveBeenCalledWith(0, { lookForward: 0 });
+  });
+
+  it("rejects negative look back and look forward without saving", async () => {
+    const user = userEvent.setup();
+    const onPatchSport = vi.fn();
+    renderWithProviders(
+      <>
+        <SportsTable
+          rows={[{ sport, index: 0 }]}
+          sort={null}
+          onSort={vi.fn()}
+          focusedIndex={null}
+          onFocus={vi.fn()}
+          conferenceOptions={[]}
+          displayModes={displayModes}
+          onPatchSport={onPatchSport}
+          onPatchLists={vi.fn()}
+          onPatchOos={vi.fn()}
+          onRemove={vi.fn()}
+        />
+        <button type="button">outside</button>
+      </>,
+    );
+
+    const lookBack = screen.getByRole("textbox", { name: "Look back (weeks)" });
+    await user.clear(lookBack);
+    await user.type(lookBack, "-2");
+    await user.click(screen.getByRole("button", { name: "outside" }));
+    expect(onPatchSport).not.toHaveBeenCalled();
+    expect(lookBack).toHaveValue("0");
   });
 });

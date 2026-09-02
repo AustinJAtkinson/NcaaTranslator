@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { cleanup, fireEvent, renderWithProviders, screen, waitFor, within } from "@/test/render";
 import { resetBridgeMock, sendMessage } from "./test/bridgeMock";
+import { SETTINGS_WEEK_REFRESH } from "./events";
 import SettingsTab, { FINAL_CLOCK_DEFAULTS, PRE_GAME_CLOCK_DEFAULTS } from "./SettingsTab";
 import type { SettingsSnapshot, SportSnapshot, TeamNameSnapshot } from "./types";
 
@@ -19,6 +20,8 @@ const football: SportSnapshot = {
   division: 1,
   week: 1,
   seasonYear: 2025,
+  lookBack: 0,
+  lookForward: 0,
   gameDisplayMode: "Live",
   listsNeeded: { conferenceGames: true, nonConferenceGames: true, top25Games: true },
   oosUpdater: {
@@ -39,6 +42,8 @@ const basketball: SportSnapshot = {
   division: 1,
   week: 2,
   seasonYear: null,
+  lookBack: 0,
+  lookForward: 0,
   gameDisplayMode: "All",
   listsNeeded: { conferenceGames: true, nonConferenceGames: false, top25Games: true },
   oosUpdater: {
@@ -198,6 +203,136 @@ describe("SettingsTab", () => {
   });
 
   describe("sports", () => {
+    it("does not save an older week if week refreshes mid-persist", async () => {
+      const user = userEvent.setup();
+      let latest: SettingsSnapshot = {
+        ...baseSettings,
+        sports: [{ ...football, week: 1 }, { ...basketball }],
+      };
+      let releaseSave: (() => void) | undefined;
+      const saveCalls: SettingsSnapshot[] = [];
+      sendMessage.mockImplementation(async (method: string, params?: unknown) => {
+        switch (method) {
+          case "getSettings":
+            return latest;
+          case "saveSettings": {
+            const body = params as SettingsSnapshot;
+            saveCalls.push(body);
+            if (saveCalls.length === 1) {
+              await new Promise<void>((resolve) => {
+                releaseSave = resolve;
+              });
+            }
+            return body;
+          }
+          case "getTeams":
+            return teams;
+          case "getConferences":
+            return [
+              { conferenceSeo: "sec", customConferenceName: "SEC" },
+              { conferenceSeo: "acc", customConferenceName: "ACC" },
+            ];
+          default:
+            return null;
+        }
+      });
+
+      renderWithProviders(<SettingsTab section="sports" />);
+      const enabled = await screen.findAllByRole("checkbox", { name: "Enabled" });
+      await user.click(enabled[0]);
+
+      await waitFor(() => {
+        expect(saveCalls).toHaveLength(1);
+      });
+      expect(saveCalls[0]?.sports[0]?.week).toBe(1);
+
+      latest = {
+        ...latest,
+        sports: [{ ...football, week: 3 }, { ...basketball }],
+      };
+      await act(async () => {
+        window.dispatchEvent(new Event(SETTINGS_WEEK_REFRESH));
+      });
+      await waitFor(() => {
+        expect(screen.getAllByRole("textbox", { name: "Week" })[0]).toHaveValue("3");
+      });
+
+      await act(async () => {
+        releaseSave?.();
+      });
+
+      await waitFor(() => {
+        expect(saveCalls.some((call) => call.sports[0]?.week === 3)).toBe(true);
+      });
+      const lastSave = saveCalls[saveCalls.length - 1];
+      expect(lastSave?.sports[0]?.week).toBe(3);
+      expect(lastSave?.sports[0]?.week).not.toBe(1);
+    });
+
+    it("normalizes missing lookBack and lookForward to 0", async () => {
+      const user = userEvent.setup();
+      const { lookBack: _lookBack, lookForward: _lookForward, ...withoutLook } = football;
+      mockBridge({ ...baseSettings, sports: [withoutLook as SportSnapshot, basketball] });
+
+      renderWithProviders(<SettingsTab section="sports" />);
+      const enabled = await screen.findAllByRole("checkbox", { name: "Enabled" });
+      await user.click(enabled[0]);
+
+      await waitFor(() => {
+        expect(savedSettings()).toHaveLength(1);
+      });
+      expect(savedSettings()[0].sports[0].lookBack).toBe(0);
+      expect(savedSettings()[0].sports[0].lookForward).toBe(0);
+    });
+
+    it("patches sport week from a settings week refresh without saving", async () => {
+      const user = userEvent.setup();
+      let latest: SettingsSnapshot = {
+        ...baseSettings,
+        sports: [{ ...football, week: 1 }, { ...basketball }],
+      };
+      sendMessage.mockImplementation(async (method: string, params?: unknown) => {
+        switch (method) {
+          case "getSettings":
+            return latest;
+          case "saveSettings":
+            return params;
+          case "getTeams":
+            return teams;
+          case "getConferences":
+            return [
+              { conferenceSeo: "sec", customConferenceName: "SEC" },
+              { conferenceSeo: "acc", customConferenceName: "ACC" },
+            ];
+          default:
+            return null;
+        }
+      });
+
+      renderWithProviders(<SettingsTab section="sports" />);
+
+      const weeks = await screen.findAllByRole("textbox", { name: "Week" });
+      expect(weeks[0]).toHaveValue("1");
+
+      const name = screen.getByDisplayValue("Football");
+      await user.type(name, " Updated");
+      expect(name).toHaveValue("Football Updated");
+
+      latest = {
+        ...latest,
+        sports: [{ ...football, week: 3 }, { ...basketball }],
+      };
+      await act(async () => {
+        window.dispatchEvent(new Event(SETTINGS_WEEK_REFRESH));
+      });
+
+      await waitFor(() => {
+        expect(screen.getAllByRole("textbox", { name: "Week" })[0]).toHaveValue("3");
+      });
+      expect(screen.getByDisplayValue("Football Updated")).toBeInTheDocument();
+      expect(savedSettings()).toHaveLength(0);
+    });
+
     it("appends a sport when Add Sport is clicked", async () => {
       const user = userEvent.setup();
       renderWithProviders(<SettingsTab section="sports" />);
@@ -210,6 +345,9 @@ describe("SettingsTab", () => {
       });
       expect(savedSettings()[0].sports).toHaveLength(3);
       expect(savedSettings()[0].sports[2]?.name).toBe("New Sport");
+      expect(savedSettings()[0].sports[2]?.week).toBe(1);
+      expect(savedSettings()[0].sports[2]?.lookBack).toBe(0);
+      expect(savedSettings()[0].sports[2]?.lookForward).toBe(0);
     });
 
     it("saves when the Enabled checkbox is toggled", async () => {
