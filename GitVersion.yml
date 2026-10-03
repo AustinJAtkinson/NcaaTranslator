@@ -1,0 +1,9 @@
+# Stable versions on main. GitVersion 6's default labels those commits as prereleases,
+# and GitHub does not offer a prerelease as the latest update.
+mode: ContinuousDeployment
+branches:
+  main:
+    mode: ContinuousDeployment
+    label: ''
+    increment: Patch
+    regex: ^master$|^main$
