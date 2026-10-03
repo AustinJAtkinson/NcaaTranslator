@@ -125,8 +125,9 @@ export default function SportsTable({
                   width={100}
                   onSelect={(value) => onPatchSport(index, { gameDisplayMode: value }, true)}
                   onBlurText={(text) => {
-                    if (!text || text === sport.gameDisplayMode) return;
-                    onPatchSport(index, { gameDisplayMode: text }, true);
+                    const match = displayModes.find((mode) => mode.value === text || mode.display === text);
+                    if (!match || match.value === sport.gameDisplayMode) return;
+                    onPatchSport(index, { gameDisplayMode: match.value }, true);
                   }}
                 />
               </td>

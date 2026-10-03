@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace NcaaTranslator.Library
 {
@@ -21,7 +20,6 @@ namespace NcaaTranslator.Library
     public class UpdateCheckResult
     {
         public bool Available { get; set; }
-        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
         public string? Version { get; set; }
         public string CurrentVersion { get; set; } = "";
     }
@@ -30,7 +28,6 @@ namespace NcaaTranslator.Library
     {
         public string Version { get; set; } = "";
         public string Directory { get; set; } = "";
-        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
         public string? ExePath { get; set; }
     }
 
@@ -39,6 +36,7 @@ namespace NcaaTranslator.Library
         private const string GitHubRepo = "AustinJAtkinson/NcaaTranslator";
         private const string ApiUrl = $"https://api.github.com/repos/{GitHubRepo}/releases/latest";
         private static readonly HttpClient _httpClient = new HttpClient();
+        private static readonly SingleFlightGate InstallGate = new();
 
         internal static GitHubRelease? PendingRelease { get; set; }
         internal static Func<Version>? VersionOverride { get; set; }
@@ -61,6 +59,18 @@ namespace NcaaTranslator.Library
         public static bool ShouldUpdate(Version current, Version latest)
         {
             return latest > current;
+        }
+
+        internal static string? ResolveInstalledExe(string versionDir)
+        {
+            foreach (var name in new[] { "NcaaTranslator.Desktop.exe", "NcaaTranslator.Wpf.exe" })
+            {
+                var path = Path.Combine(versionDir, name);
+                if (File.Exists(path))
+                    return path;
+            }
+
+            return null;
         }
 
         public static async Task<GitHubRelease?> GetAvailableUpdateAsync()
@@ -103,6 +113,16 @@ namespace NcaaTranslator.Library
             return OperatingSystem.IsWindows() ? name + ".exe" : name;
         }
 
+        private static string? FindLaunchExe(string versionDir)
+        {
+            var preferred = ResolveInstalledExe(versionDir);
+            if (preferred != null)
+                return preferred;
+
+            var fallback = Path.Combine(versionDir, GetInstalledExeFileName());
+            return File.Exists(fallback) ? fallback : null;
+        }
+
         private static async Task<GitHubRelease?> GetLatestReleaseAsync()
         {
             if (FetchOverride != null)
@@ -115,53 +135,56 @@ namespace NcaaTranslator.Library
             return JsonSerializer.Deserialize<GitHubRelease>(json);
         }
 
+        private static Dictionary<string, T> ToLastWins<T>(IEnumerable<T>? items, Func<T, string?> keySelector)
+        {
+            var dict = new Dictionary<string, T>(StringComparer.Ordinal);
+            if (items == null)
+                return dict;
+
+            foreach (var item in items)
+            {
+                var key = keySelector(item);
+                if (string.IsNullOrEmpty(key))
+                    continue;
+                dict[key] = item;
+            }
+
+            return dict;
+        }
+
         private static NameConverter MergeNameConverters(NameConverter user, NameConverter @new)
         {
             var merged = new NameConverter();
-
-            // Merge teams
-            var userTeams = user.teams.ToDictionary(t => t.name6Char, t => t);
-            var newTeams = @new.teams.ToDictionary(t => t.name6Char, t => t);
+            var userTeams = ToLastWins(user.teams, team => team.name6Char);
+            var newTeams = ToLastWins(@new.teams, team => team.name6Char);
 
             foreach (var kvp in newTeams)
             {
                 if (userTeams.TryGetValue(kvp.Key, out var userTeam))
-                {
-                    // Use user custom name if different
                     kvp.Value.customName = userTeam.customName ?? kvp.Value.customName;
-                }
                 merged.teams.Add(kvp.Value);
             }
 
-            // Add user teams not in new
             foreach (var kvp in userTeams)
             {
                 if (!newTeams.ContainsKey(kvp.Key))
-                {
                     merged.teams.Add(kvp.Value);
-                }
             }
 
-            // Merge conferences
-            var userConfs = user.conferences.ToDictionary(c => c.conferenceSeo, c => c);
-            var newConfs = @new.conferences.ToDictionary(c => c.conferenceSeo, c => c);
+            var userConfs = ToLastWins(user.conferences, conference => conference.conferenceSeo);
+            var newConfs = ToLastWins(@new.conferences, conference => conference.conferenceSeo);
 
             foreach (var kvp in newConfs)
             {
                 if (userConfs.TryGetValue(kvp.Key, out var userConf))
-                {
                     kvp.Value.customConferenceName = userConf.customConferenceName ?? kvp.Value.customConferenceName;
-                }
                 merged.conferences.Add(kvp.Value);
             }
 
-            // Add user conferences not in new
             foreach (var kvp in userConfs)
             {
                 if (!newConfs.ContainsKey(kvp.Key))
-                {
                     merged.conferences.Add(kvp.Value);
-                }
             }
 
             return merged;
@@ -179,36 +202,28 @@ namespace NcaaTranslator.Library
                 Sports = new List<Sport>()
             };
 
-            // Merge display teams
-            var userDisplayTeams = user.DisplayTeams?.ToDictionary(dt => dt.NcaaTeamName, dt => dt) ?? new Dictionary<string?, DisplayTeam>();
             if (@new.DisplayTeams != null)
             {
                 foreach (var dt in @new.DisplayTeams)
-                {
                     merged.DisplayTeams.Add(dt);
-                }
             }
             if (user.DisplayTeams != null)
             {
                 foreach (var dt in user.DisplayTeams)
                 {
                     if (!merged.DisplayTeams.Any(mdt => mdt.NcaaTeamName == dt.NcaaTeamName))
-                    {
                         merged.DisplayTeams.Add(dt);
-                    }
                 }
             }
 
-            // Merge sports
-            var userSports = user.Sports?.ToDictionary(s => s.SportShortName, s => s) ?? new Dictionary<string, Sport>();
-            var newSports = @new.Sports?.ToDictionary(s => s.SportShortName, s => s) ?? new Dictionary<string, Sport>();
+            var userSports = ToLastWins(user.Sports, sport => sport.SportShortName);
+            var newSports = ToLastWins(@new.Sports, sport => sport.SportShortName);
 
             foreach (var kvp in newSports)
             {
                 var sport = kvp.Value;
                 if (userSports.TryGetValue(kvp.Key, out var userSport))
                 {
-                    // Merge user settings
                     sport.Enabled = userSport.Enabled;
                     sport.GameDisplayMode = userSport.GameDisplayMode;
                     sport.ConferenceName = userSport.ConferenceName ?? sport.ConferenceName;
@@ -222,13 +237,10 @@ namespace NcaaTranslator.Library
                 merged.Sports.Add(sport);
             }
 
-            // Add user sports not in new
             foreach (var kvp in userSports)
             {
                 if (!newSports.ContainsKey(kvp.Key))
-                {
                     merged.Sports.Add(kvp.Value);
-                }
             }
 
             return merged;
@@ -248,22 +260,23 @@ namespace NcaaTranslator.Library
             };
         }
 
-        public static Task<UpdateInstallResult?> DownloadAndInstallUpdateAsync(GitHubRelease release)
+        public static async Task<UpdateInstallResult?> DownloadAndInstallUpdateAsync(GitHubRelease release)
         {
             if (InstallOverride != null)
-                return InstallOverride(release);
+                return await InstallOverride(release).ConfigureAwait(false);
 
-            return DownloadAndInstallCoreAsync(release);
+            UpdateInstallResult? result = null;
+            var ran = await InstallGate.RunAsync(async () =>
+            {
+                result = await DownloadAndInstallCoreAsync(release).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+            return ran ? result : null;
         }
 
         private static async Task<UpdateInstallResult?> DownloadAndInstallCoreAsync(GitHubRelease release)
         {
-            if (release.assets == null || !release.assets.Any())
-                return null;
-
-            // Assume the first asset is the zip
-            var asset = release.assets.FirstOrDefault(a => a.name?.EndsWith(".zip") == true);
-            if (asset?.browser_download_url == null)
+            var asset = release.assets?.FirstOrDefault(item => item.name?.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) == true);
+            if (string.IsNullOrWhiteSpace(asset?.name) || asset.browser_download_url == null)
                 return null;
 
             var currentAppDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
@@ -271,39 +284,38 @@ namespace NcaaTranslator.Library
             Directory.CreateDirectory(tempDir);
 
             var tempPath = Path.Combine(tempDir, asset.name);
-            var extractPath = Path.Combine(tempDir, Path.GetFileNameWithoutExtension(asset.name));
+            var extractPath = Path.Combine(tempDir, "extract-" + Guid.NewGuid().ToString("N"));
 
             try
             {
-                // Download
                 using var response = await _httpClient.GetAsync(asset.browser_download_url);
                 response.EnsureSuccessStatusCode();
-                await using var fs = new FileStream(tempPath, FileMode.Create);
-                await response.Content.CopyToAsync(fs);
+                await using (var fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                    await response.Content.CopyToAsync(fs);
 
-                // Unblock the downloaded file (remove restricted attributes from internet download)
                 File.SetAttributes(tempPath, FileAttributes.Normal);
 
-                // Wait for antivirus scanning to complete
+                // Antivirus scanners lock a file that was just downloaded from the internet.
                 await Task.Delay(2000);
 
-                // Copy to a new file to avoid any locks on the original
+                // Extract a copy so a lock on the download itself does not fail the unzip.
                 var extractZipPath = Path.Combine(tempDir, Path.GetFileNameWithoutExtension(asset.name) + "_extract.zip");
                 File.Copy(tempPath, extractZipPath, true);
 
-                // Extract with retry to handle file lock issues
                 const int maxRetries = 5;
-                for (int i = 0; i < maxRetries; i++)
+                for (var i = 0; i < maxRetries; i++)
                 {
                     try
                     {
+                        if (Directory.Exists(extractPath))
+                            Directory.Delete(extractPath, true);
+                        Directory.CreateDirectory(extractPath);
                         System.IO.Compression.ZipFile.ExtractToDirectory(extractZipPath, extractPath);
-                        break; // Success, exit loop
+                        break;
                     }
                     catch (IOException) when (i < maxRetries - 1)
                     {
-                        int delayMs = (int)Math.Pow(2, i) * 1000; // Exponential backoff: 1s, 2s, 4s, 8s
-                        await Task.Delay(delayMs);
+                        await Task.Delay((int)Math.Pow(2, i) * 1000);
                     }
                 }
 
@@ -316,8 +328,8 @@ namespace NcaaTranslator.Library
             }
             finally
             {
-                // Cleanup
-                if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
+                if (Directory.Exists(tempDir))
+                    Directory.Delete(tempDir, true);
             }
         }
 
@@ -331,23 +343,48 @@ namespace NcaaTranslator.Library
                 return null;
 
             var newVersionDir = Path.Combine(parentDir, $"NcaaTranslator-{latestVersion}");
+            var stagingDir = Path.Combine(parentDir, $"NcaaTranslator-{latestVersion}.staging-{Guid.NewGuid():N}");
 
-            // Create new version directory
-            Directory.CreateDirectory(newVersionDir);
-
-            // Copy all files from extract to new version dir
-            foreach (var file in Directory.GetFiles(extractPath, "*", SearchOption.AllDirectories))
+            try
             {
-                var relativePath = Path.GetRelativePath(extractPath, file);
-                var targetPath = Path.Combine(newVersionDir, relativePath);
+                CopyDirectory(extractPath, stagingDir);
+                if (!TryMergeConfig(currentAppDir, stagingDir))
+                {
+                    DeleteDirectory(stagingDir);
+                    return null;
+                }
 
-                // Ensure directory exists
-                Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
+                var currentWindowPath = Path.Combine(currentAppDir, WindowBounds.FileName);
+                if (File.Exists(currentWindowPath))
+                    File.Copy(currentWindowPath, Path.Combine(stagingDir, WindowBounds.FileName), true);
 
-                File.Copy(file, targetPath, true);
+                var stagedExe = FindLaunchExe(stagingDir);
+                if (stagedExe == null)
+                {
+                    DeleteDirectory(stagingDir);
+                    return null;
+                }
+
+                PromoteDirectory(stagingDir, newVersionDir);
+                var exeName = Path.GetFileName(stagedExe);
+                var finalExe = Path.Combine(newVersionDir, exeName);
+                return new UpdateInstallResult
+                {
+                    Version = latestVersion.ToString(),
+                    Directory = newVersionDir,
+                    ExePath = File.Exists(finalExe) ? finalExe : null
+                };
             }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Update installation failed: {ex.Message}");
+                DeleteDirectory(stagingDir);
+                return null;
+            }
+        }
 
-            // Merge config files
+        private static bool TryMergeConfig(string currentAppDir, string newVersionDir)
+        {
             try
             {
                 var currentSettingsPath = Path.Combine(currentAppDir, "Settings.json");
@@ -376,25 +413,55 @@ namespace NcaaTranslator.Library
                         File.WriteAllText(newNameConverterPath, JsonSerializer.Serialize(merged, new JsonSerializerOptions { WriteIndented = true }));
                     }
                 }
+
+                return true;
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Config merge failed: {ex.Message}");
-                // If merge fails, keep the new files
+                return false;
             }
-
-            var currentWindowPath = Path.Combine(currentAppDir, WindowBounds.FileName);
-            if (File.Exists(currentWindowPath))
-                File.Copy(currentWindowPath, Path.Combine(newVersionDir, WindowBounds.FileName), true);
-
-            var newExePath = Path.Combine(newVersionDir, GetInstalledExeFileName());
-            return new UpdateInstallResult
-            {
-                Version = latestVersion.ToString(),
-                Directory = newVersionDir,
-                ExePath = File.Exists(newExePath) ? newExePath : null
-            };
         }
 
+        private static void CopyDirectory(string source, string destination)
+        {
+            Directory.CreateDirectory(destination);
+            foreach (var file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
+            {
+                var relativePath = Path.GetRelativePath(source, file);
+                var targetPath = Path.Combine(destination, relativePath);
+                var targetDir = Path.GetDirectoryName(targetPath);
+                if (!string.IsNullOrEmpty(targetDir))
+                    Directory.CreateDirectory(targetDir);
+                File.Copy(file, targetPath, true);
+            }
+        }
+
+        private static void PromoteDirectory(string stagingDir, string finalDir)
+        {
+            var backup = finalDir + ".replacing";
+            DeleteDirectory(backup);
+            if (Directory.Exists(finalDir))
+                Directory.Move(finalDir, backup);
+
+            try
+            {
+                Directory.Move(stagingDir, finalDir);
+            }
+            catch
+            {
+                if (!Directory.Exists(finalDir) && Directory.Exists(backup))
+                    Directory.Move(backup, finalDir);
+                throw;
+            }
+
+            DeleteDirectory(backup);
+        }
+
+        private static void DeleteDirectory(string path)
+        {
+            if (Directory.Exists(path))
+                Directory.Delete(path, true);
+        }
     }
 }

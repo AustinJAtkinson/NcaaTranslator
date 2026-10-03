@@ -9,11 +9,13 @@ export default function MainTab({
   board,
   onStart,
   onStop,
+  onCycleDisplayMode,
 }: {
   status: StatusResult;
   board: ScoreboardSnapshot;
   onStart: () => void;
   onStop: () => void;
+  onCycleDisplayMode?: (sportName: string) => void;
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -58,7 +60,9 @@ export default function MainTab({
         {board.sports.length === 0 ? (
           <EmptyState title="No sports enabled. Turn them on in Settings." />
         ) : (
-          board.sports.map((sport) => <SportSection key={sport.sportName} sport={sport} />)
+          board.sports.map((sport) => (
+            <SportSection key={sport.sportName} sport={sport} onCycleDisplayMode={onCycleDisplayMode} />
+          ))
         )}
       </div>
     </div>

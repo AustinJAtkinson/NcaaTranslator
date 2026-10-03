@@ -130,6 +130,54 @@ describe("NamesTab", () => {
     expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
   });
 
+  it("saves a blank code team by seoname and lists each name once", async () => {
+    const blankTeams: TeamNameSnapshot[] = [
+      { name6Char: "", customName: "Ark. Baptist", seoname: "ark-baptist", nameShort: "Ark. Baptist" },
+      { name6Char: "", customName: "Windsor (CAN)", seoname: "windsor", nameShort: "Windsor (CAN)" },
+    ];
+    sendMessage.mockImplementation(async (method: string, params?: unknown) => {
+      if (method === "getTeams") return blankTeams.map((team) => ({ ...team }));
+      if (method === "getConferences") return conferences.map((conference) => ({ ...conference }));
+      if (method === "saveTeamCustomName") {
+        const body = params as { seoname?: string; customName: string };
+        const team = blankTeams.find((item) => item.seoname === body.seoname);
+        return { ...team, customName: body.customName };
+      }
+      return null;
+    });
+    const user = userEvent.setup();
+    const view = renderWithProviders(<NamesTab />);
+
+    const teams = await screen.findByRole("list", { name: "Teams" });
+    const rows = within(teams).getAllByRole("listitem");
+    expect(rows).toHaveLength(2);
+    expect(within(rows[0]).getByRole("textbox")).toHaveAccessibleName("Display name for ark-baptist");
+    expect(within(rows[0]).getByRole("textbox")).toHaveValue("Ark. Baptist");
+    expect(within(rows[1]).getByRole("textbox")).toHaveValue("Windsor (CAN)");
+    expect(rows[0]).toHaveTextContent("ark-baptist");
+    expect(within(rows[0]).getAllByText("Ark. Baptist")).toHaveLength(1);
+
+    const input = within(rows[0]).getByRole("textbox");
+    await user.click(input);
+    await user.clear(input);
+    await user.type(input, "Baptist{Enter}");
+
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledWith("saveTeamCustomName", {
+        seoname: "ark-baptist",
+        customName: "Baptist",
+      });
+    });
+    expect(within(rows[0]).getByRole("textbox")).toHaveValue("Baptist");
+
+    view.rerender(<NamesTab section="conferences" />);
+    const conferenceList = await screen.findByRole("list", { name: "Conferences" });
+    expect(within(conferenceList).getAllByRole("listitem")).toHaveLength(2);
+    expect(screen.queryByText("ark-baptist")).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue("Ark. Baptist")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Custom name for aaa-conf")).toBeInTheDocument();
+  });
+
   it("commits a GhostInput display name via saveTeamCustomName", async () => {
     const user = userEvent.setup();
     renderWithProviders(<NamesTab />);
@@ -162,6 +210,28 @@ describe("NamesTab", () => {
         customConferenceName: "Atlantic",
       });
     });
+  });
+
+  it("toasts when a team name save fails and keeps the previous name", async () => {
+    const user = userEvent.setup();
+    sendMessage.mockImplementation(async (method: string) => {
+      if (method === "getTeams") return teams.map((team) => ({ ...team }));
+      if (method === "getConferences") return conferences.map((conference) => ({ ...conference }));
+      if (method === "saveTeamCustomName") throw new Error("disk full");
+      return null;
+    });
+    renderWithProviders(<NamesTab />);
+
+    const input = await screen.findByLabelText("Display name for AAA");
+    await user.click(input);
+    await user.clear(input);
+    await user.type(input, "Alpha Two");
+    await user.tab();
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("disk full");
+    });
+    expect(await screen.findByLabelText("Display name for AAA")).toHaveValue("Alpha");
   });
 
   it("toasts and reverts an empty display name without window.alert", async () => {

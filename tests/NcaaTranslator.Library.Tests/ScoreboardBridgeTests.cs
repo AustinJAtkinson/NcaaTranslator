@@ -263,7 +263,8 @@ public class ScoreboardBridgeTests
         using var displayDoc = Handle("""{"id":"d","method":"setGameDisplayMode","params":{"sportName":"Football FCS","gameDisplayMode":"Display"}}""");
         var displaySport = Result(displayDoc).GetProperty("sports")[0];
         Assert.Equal("Display", displaySport.GetProperty("gameDisplayMode").GetString());
-        Assert.Equal(0, displaySport.GetProperty("games").GetArrayLength());
+        Assert.Equal(1, displaySport.GetProperty("games").GetArrayLength());
+        Assert.Equal("NDSU", displaySport.GetProperty("games")[0].GetProperty("home").GetString());
 
         Handle("""{"id":"x","method":"stop"}""");
     }
@@ -510,6 +511,46 @@ public class ScoreboardBridgeTests
         Assert.Equal(1, allSport.GetProperty("current").GetProperty("games").GetArrayLength());
         Assert.Equal(2, allSport.GetProperty("prev").GetProperty("games").GetArrayLength());
         Assert.Equal(1, allSport.GetProperty("games").GetArrayLength());
+
+        Handle("""{"id":"x","method":"stop"}""");
+    }
+
+    [Fact]
+    public async Task Handle_TimerPoll_RetriesMissingExtraAfterFailedLookback()
+    {
+        using var workspace = new TempWorkspace();
+        TestHelpers.WriteDefaultNames(workspace.DirectoryPath);
+        TestHelpers.UseSettings();
+        AppBridge.Clock = () => TestHelpers.Sep1;
+        var sport = TestHelpers.CreateSport(mode: GameDisplayMode.All);
+        sport.LookBack = 2;
+        sport.LookForward = 0;
+        Settings.SettingsList!.Sports!.Add(sport);
+        Settings.SettingsList.Timer = 60;
+
+        var handler = new FakeHttpMessageHandler();
+        handler.WeekResponses[2] = TestHelpers.ToScoreboardJson(
+            TestHelpers.CreateDatedContest(1, "08/27/2026"),
+            TestHelpers.CreateDatedContest(4, "09/03/2026"));
+        handler.WeekResponses[1] = "";
+        NcaaProcessor.HttpClient = new HttpClient(handler);
+
+        Handle("""{"id":"s","method":"start"}""");
+        await AppBridge.WaitForPollAsync();
+        Assert.False(File.Exists("Football FCS-Prev-Games.json"));
+
+        using var failed = Handle("""{"id":"g","method":"getScoreboard"}""");
+        Assert.Equal(0, Result(failed).GetProperty("sports")[0].GetProperty("prev").GetProperty("games").GetArrayLength());
+
+        handler.WeekResponses[1] = TestHelpers.ToScoreboardJson(
+            TestHelpers.CreateDatedContest(10, "08/20/2026"));
+        await AppBridge.TriggerPollForTests();
+
+        Assert.Equal(2, handler.RequestUris.Count(u => WeekCount(u, 1)));
+        Assert.Contains(10L, PrevFileIds());
+        using var recovered = Handle("""{"id":"g2","method":"getScoreboard"}""");
+        var prevGames = Result(recovered).GetProperty("sports")[0].GetProperty("prev").GetProperty("games");
+        Assert.True(prevGames.GetArrayLength() > 0);
 
         Handle("""{"id":"x","method":"stop"}""");
     }

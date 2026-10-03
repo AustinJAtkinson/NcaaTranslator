@@ -317,6 +317,36 @@ public class AppBridgeTests
     }
 
     [Fact]
+    public void Handle_SaveTeamCustomName_BlankCode_SavesBySeoname()
+    {
+        using var workspace = new TempWorkspace();
+        TestHelpers.WriteNameConverter(Path.Combine(workspace.DirectoryPath, "NcaaNameConverter.json"), """
+        {
+          "teams": [
+            { "seoname": "ark-baptist", "nameShort": "Ark. Baptist", "name6Char": "", "customName": "Ark. Baptist" },
+            { "seoname": "windsor", "nameShort": "Windsor (CAN)", "name6Char": "", "customName": "Windsor (CAN)" },
+            { "seoname": "north-dakota", "nameShort": "North Dakota", "name6Char": "NO DAK", "customName": "UND" }
+          ],
+          "conferences": []
+        }
+        """);
+
+        using var save = Handle(
+            """{"id":"1","method":"saveTeamCustomName","params":{"seoname":"ark-baptist","customName":"Arkansas Baptist"}}""");
+
+        Assert.Equal("1", Id(save));
+        Assert.False(save.RootElement.TryGetProperty("error", out _));
+        Assert.Equal("Arkansas Baptist", Result(save).GetProperty("customName").GetString());
+        Assert.Equal("ark-baptist", Result(save).GetProperty("seoname").GetString());
+
+        var teams = NameConverters.GetTeams();
+        Assert.Equal(3, teams.Count);
+        Assert.Equal("Arkansas Baptist", Assert.Single(teams, t => t.seoname == "ark-baptist").customName);
+        Assert.Equal("Windsor (CAN)", Assert.Single(teams, t => t.seoname == "windsor").customName);
+        Assert.Equal("UND", Assert.Single(teams, t => t.name6Char == "NO DAK").customName);
+    }
+
+    [Fact]
     public void Handle_SaveConferenceCustomName_RoundTrips()
     {
         using var workspace = new TempWorkspace();
@@ -343,7 +373,7 @@ public class AppBridgeTests
     }
 
     [Fact]
-    public void Handle_CheckForUpdate_WhenDisabled_DoesNotFetch()
+    public async Task CheckForUpdateAsync_WhenDisabled_DoesNotFetch()
     {
         using var workspace = new TempWorkspace();
         AppBridge.UpdatesEnabled = false;
@@ -354,30 +384,29 @@ public class AppBridgeTests
             return Task.FromResult<GitHubRelease?>(null);
         };
 
-        using var doc = Handle("""{"id":"u","method":"checkForUpdate"}""");
+        var result = await AppBridge.CheckForUpdateAsync();
 
         Assert.False(fetched);
-        Assert.False(Result(doc).GetProperty("available").GetBoolean());
-        Assert.False(string.IsNullOrWhiteSpace(Result(doc).GetProperty("currentVersion").GetString()));
+        Assert.False(result.Available);
+        Assert.False(string.IsNullOrWhiteSpace(result.CurrentVersion));
     }
 
     [Fact]
-    public void Handle_CheckForUpdate_WhenNewerRelease_ReturnsVersion()
+    public async Task CheckForUpdateAsync_WhenNewerRelease_ReturnsVersion()
     {
         using var workspace = new TempWorkspace();
         UpdateManager.VersionOverride = () => new Version(1, 0, 0);
         UpdateManager.FetchOverride = () => Task.FromResult<GitHubRelease?>(new GitHubRelease { tag_name = "v1.2.0" });
 
-        using var doc = Handle("""{"id":"u","method":"checkForUpdate"}""");
+        var result = await AppBridge.CheckForUpdateAsync();
 
-        var result = Result(doc);
-        Assert.True(result.GetProperty("available").GetBoolean());
-        Assert.Equal("1.2.0", result.GetProperty("version").GetString());
-        Assert.Equal("1.0.0", result.GetProperty("currentVersion").GetString());
+        Assert.True(result.Available);
+        Assert.Equal("1.2.0", result.Version);
+        Assert.Equal("1.0.0", result.CurrentVersion);
     }
 
     [Fact]
-    public void Handle_InstallUpdate_ReturnsFolderFromInstaller()
+    public async Task InstallUpdateAsync_ReturnsFolderFromInstaller()
     {
         using var workspace = new TempWorkspace();
         UpdateManager.PendingRelease = new GitHubRelease { tag_name = "v1.2.0" };
@@ -388,12 +417,11 @@ public class AppBridgeTests
             ExePath = null
         });
 
-        using var doc = Handle("""{"id":"u","method":"installUpdate"}""");
+        var result = await AppBridge.InstallUpdateAsync();
 
-        var result = Result(doc);
-        Assert.Equal("1.2.0", result.GetProperty("version").GetString());
-        Assert.Equal(Path.Combine(workspace.DirectoryPath, "NcaaTranslator-1.2.0"), result.GetProperty("directory").GetString());
-        Assert.Equal(JsonValueKind.Null, result.GetProperty("exePath").ValueKind);
+        Assert.Equal("1.2.0", result.Version);
+        Assert.Equal(Path.Combine(workspace.DirectoryPath, "NcaaTranslator-1.2.0"), result.Directory);
+        Assert.Null(result.ExePath);
     }
 
     [Fact]

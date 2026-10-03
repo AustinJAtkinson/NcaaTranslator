@@ -1,5 +1,7 @@
 # NCAA Translator WPF UI Specification
 
+> **Historical.** This document describes the removed WPF window. It is not what ships from `main`. The desktop app is the Photino host in `src/NcaaTranslator.Desktop/` with the React UI in `ui/`. A Release build checks GitHub in that window, copies the new build beside the app, and asks you to quit and run `NcaaTranslator.Desktop.exe`. Debug builds do not check for updates. See `README.md` and `agents.md`.
+
 **Purpose:** Complete 1:1 feature-replacement specification for rewriting `NcaaTranslator.Wpf` in React.
 
 This document describes **what the WPF UI currently is and does**, not a redesigned product. Preserve every behavior listed here unless a separate product decision explicitly changes it. Visual measurements, visibility rules, validation, silent failures, and quirks are all in scope.

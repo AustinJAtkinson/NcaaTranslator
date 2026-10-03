@@ -48,19 +48,19 @@ public class GameBucketingTests : IDisposable
     [Fact]
     public void HomeConferenceGame_IsOnlyInHomeGames_WhenDisplayMode()
     {
-        AssertHomeConferenceOnlyInHome(Bucket(GameDisplayMode.Display, oosEnabled: false), GameDisplayMode.Display, oosEnabled: false);
+        AssertHomeConferenceOnlyInHome(Bucket(GameDisplayMode.Display, oosEnabled: false), expectDisplayList: true);
     }
 
     [Fact]
     public void HomeConferenceGame_IsOnlyInHomeGames_WhenLiveMode()
     {
-        AssertHomeConferenceOnlyInHome(Bucket(GameDisplayMode.Live, oosEnabled: false), GameDisplayMode.Live, oosEnabled: false);
+        AssertHomeConferenceOnlyInHome(Bucket(GameDisplayMode.Live, oosEnabled: false), expectDisplayList: true);
     }
 
     [Fact]
     public void HomeConferenceGame_IsOnlyInHomeGames_WhenOosEnabled()
     {
-        AssertHomeConferenceOnlyInHome(Bucket(GameDisplayMode.Live, oosEnabled: true), GameDisplayMode.Live, oosEnabled: true);
+        AssertHomeConferenceOnlyInHome(Bucket(GameDisplayMode.Live, oosEnabled: true), expectDisplayList: true);
     }
 
     [Fact]
@@ -126,9 +126,9 @@ public class GameBucketingTests : IDisposable
             })
             {
                 var board = NcaaProcessor.CategorizeAndExport(StandardContests(), sport, fileName);
-                AssertHomeConferenceOnlyInHome(board, mode, oos);
+                AssertHomeConferenceOnlyInHome(board, expectDisplayList: true);
                 var exported = JsonSerializer.Deserialize<NcaaScoreboard>(File.ReadAllText(fileName));
-                AssertHomeConferenceOnlyInHome(exported!, mode, oos);
+                AssertHomeConferenceOnlyInHome(exported!, expectDisplayList: oos || mode == GameDisplayMode.Display);
             }
         }
     }
@@ -345,14 +345,14 @@ public class GameBucketingTests : IDisposable
 
         var result = await NcaaProcessor.ConvertNcaaScoreboard(sport);
 
-        AssertHomeConferenceOnlyInHome(result, mode, oosEnabled);
+        AssertHomeConferenceOnlyInHome(result, expectDisplayList: true);
         var exported = JsonSerializer.Deserialize<NcaaScoreboard>(File.ReadAllText(NcaaProcessor.CurrentGamesFileName(sport)));
-        AssertHomeConferenceOnlyInHome(exported!, mode, oosEnabled);
+        AssertHomeConferenceOnlyInHome(exported!, expectDisplayList: oosEnabled || mode == GameDisplayMode.Display);
         Assert.DoesNotContain(1L, ExportIds(NcaaProcessor.PrevGamesFileName(sport), "displayGames"));
         Assert.DoesNotContain(1L, ExportIds(NcaaProcessor.PostGamesFileName(sport), "displayGames"));
     }
 
-    private static void AssertHomeConferenceOnlyInHome(NcaaScoreboard scoreboard, GameDisplayMode mode, bool oosEnabled)
+    private static void AssertHomeConferenceOnlyInHome(NcaaScoreboard scoreboard, bool expectDisplayList)
     {
         var data = scoreboard.data!;
         Assert.Equal(1, data.homeGames.Single().contestId);
@@ -368,14 +368,10 @@ public class GameBucketingTests : IDisposable
         Assert.Contains(nonConference, g => g.contestId == 3);
         Assert.Contains(nonConference, g => g.contestId == 4);
 
-        if (oosEnabled || mode == GameDisplayMode.Display)
-        {
+        if (expectDisplayList)
             Assert.Equal(new long[] { 2, 3, 4 }, display.Select(g => g.contestId).ToArray());
-        }
         else
-        {
             Assert.Empty(display);
-        }
     }
 
     private static List<long> ExportIds(string path, string listName)

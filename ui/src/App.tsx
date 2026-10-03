@@ -8,15 +8,21 @@ import Sidebar, {
   type SettingsSubId,
 } from "./components/Sidebar";
 import { Toaster } from "@/components/ui/sonner";
-import { SCOREBOARD_REFRESH, requestSettingsWeekRefresh } from "./events";
+import { notifyGameDisplayMode, requestSettingsWeekRefresh, SCOREBOARD_REFRESH } from "./events";
 import MainTab from "./MainTab";
 import NamesTab from "./NamesTab";
 import SettingsTab from "./SettingsTab";
-import UpdateDialog, { type UpdateDialogPhase } from "./components/UpdateDialog";
+import UpdateDialog, { type UpdateDialogState } from "./components/UpdateDialog";
 import type { ScoreboardSnapshot, StatusResult, UpdateCheckResult, UpdateInstallResult } from "./types";
 
 const emptyBoard: ScoreboardSnapshot = { sports: [] };
 const idleStatus: StatusResult = { running: true, lastUpdate: null };
+
+function nextDisplayMode(current: string): string {
+  if (current === "Live") return "All";
+  if (current === "All") return "Display";
+  return "Live";
+}
 
 function parseNav(id: NavId): {
   section: SectionId;
@@ -53,40 +59,46 @@ export default function App() {
   const [visitedNames, setVisitedNames] = useState(false);
   const [status, setStatus] = useState<StatusResult>(idleStatus);
   const [board, setBoard] = useState<ScoreboardSnapshot>(emptyBoard);
-  const [updateOffer, setUpdateOffer] = useState<UpdateCheckResult | null>(null);
-  const [updatePhase, setUpdatePhase] = useState<UpdateDialogPhase>("offer");
-  const [updateDirectory, setUpdateDirectory] = useState<string | null>(null);
-  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [update, setUpdate] = useState<UpdateDialogState>({ phase: "closed" });
   const lastUpdateRef = useRef<string | null>(null);
   const runningRef = useRef(false);
   const boardRef = useRef<ScoreboardSnapshot>(emptyBoard);
+  const boardEpoch = useRef(0);
+  const updateRequest = useRef(0);
+  const updateBusy = useRef(false);
+
+  const applyBoard = useCallback((nextBoard: ScoreboardSnapshot, epoch: number) => {
+    if (epoch !== boardEpoch.current) return;
+    const prevWeeks = new Map(boardRef.current.sports.map((sport) => [sport.sportName, sport.week]));
+    boardRef.current = nextBoard;
+    let weekChanged = false;
+    for (const sport of nextBoard.sports) {
+      if (!prevWeeks.has(sport.sportName)) continue;
+      const prevWeek = prevWeeks.get(sport.sportName);
+      if (prevWeek === sport.week) continue;
+      weekChanged = true;
+      if (
+        runningRef.current &&
+        typeof prevWeek === "number" &&
+        typeof sport.week === "number" &&
+        sport.week > prevWeek
+      ) {
+        toast(`${sport.sportName} → week ${sport.week}`);
+      }
+    }
+    setBoard(nextBoard);
+    if (weekChanged) requestSettingsWeekRefresh();
+  }, []);
 
   const refreshBoard = useCallback(async () => {
+    const epoch = boardEpoch.current;
     try {
       const nextBoard = await sendMessage<ScoreboardSnapshot>("getScoreboard");
-      const prevWeeks = new Map(boardRef.current.sports.map((sport) => [sport.sportName, sport.week]));
-      boardRef.current = nextBoard;
-      let weekChanged = false;
-      for (const sport of nextBoard.sports) {
-        if (!prevWeeks.has(sport.sportName)) continue;
-        const prevWeek = prevWeeks.get(sport.sportName);
-        if (prevWeek === sport.week) continue;
-        weekChanged = true;
-        if (
-          runningRef.current &&
-          typeof prevWeek === "number" &&
-          typeof sport.week === "number" &&
-          sport.week > prevWeek
-        ) {
-          toast(`${sport.sportName} → week ${sport.week}`);
-        }
-      }
-      setBoard(nextBoard);
-      if (weekChanged) requestSettingsWeekRefresh();
+      applyBoard(nextBoard, epoch);
     } catch {
       /* HTTP / conversion failures are silent */
     }
-  }, []);
+  }, [applyBoard]);
 
   const refreshStatus = useCallback(async () => {
     try {
@@ -106,10 +118,7 @@ export default function App() {
     void sendMessage<UpdateCheckResult>("checkForUpdate")
       .then((result) => {
         if (cancelled || !result?.available || !result.version) return;
-        setUpdatePhase("offer");
-        setUpdateDirectory(null);
-        setUpdateError(null);
-        setUpdateOffer(result);
+        setUpdate({ phase: "offer", version: result.version });
       })
       .catch(() => {
         /* no release, or the host skipped the check */
@@ -194,24 +203,52 @@ export default function App() {
     }
   }
 
+  async function onCycleDisplayMode(sportName: string): Promise<void> {
+    const current = boardRef.current.sports.find((sport) => sport.sportName === sportName)?.gameDisplayMode ?? "Live";
+    const mode = nextDisplayMode(current);
+    const epoch = ++boardEpoch.current;
+    try {
+      const nextBoard = await sendMessage<ScoreboardSnapshot>("setGameDisplayMode", {
+        sportName,
+        gameDisplayMode: mode,
+      });
+      applyBoard(nextBoard, epoch);
+      if (epoch === boardEpoch.current) notifyGameDisplayMode(sportName, mode);
+    } catch {
+      /* a failed mode change leaves the board that is already on screen */
+    }
+  }
+
   async function onDownloadUpdate(): Promise<void> {
-    setUpdatePhase("downloading");
-    setUpdateError(null);
+    if (update.phase === "closed" || update.phase === "downloading" || updateBusy.current) return;
+    const version = update.version;
+    const requestId = ++updateRequest.current;
+    updateBusy.current = true;
+    setUpdate({ phase: "downloading", version });
     try {
       const installed = await sendMessage<UpdateInstallResult>("installUpdate");
-      setUpdateDirectory(installed.directory);
-      setUpdatePhase("ready");
+      if (requestId !== updateRequest.current) return;
+      const directory = installed.directory?.trim();
+      if (!directory) {
+        setUpdate({ phase: "error", version, message: "The update did not include a folder." });
+        return;
+      }
+      setUpdate({ phase: "ready", version, directory });
     } catch (error) {
-      setUpdateError(error instanceof Error ? error.message : "Update download failed.");
-      setUpdatePhase("error");
+      if (requestId !== updateRequest.current) return;
+      setUpdate({
+        phase: "error",
+        version,
+        message: error instanceof Error ? error.message : "Update download failed.",
+      });
+    } finally {
+      updateBusy.current = false;
     }
   }
 
   function onCloseUpdate(): void {
-    setUpdateOffer(null);
-    setUpdatePhase("offer");
-    setUpdateDirectory(null);
-    setUpdateError(null);
+    updateRequest.current += 1;
+    setUpdate({ phase: "closed" });
   }
 
   async function onStop(): Promise<void> {
@@ -234,7 +271,13 @@ export default function App() {
       />
       <main className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className={tab === "main" ? "flex flex-1 min-h-0 flex-col" : "hidden"}>
-          <MainTab status={status} board={board} onStart={() => void onStart()} onStop={() => void onStop()} />
+          <MainTab
+            status={status}
+            board={board}
+            onStart={() => void onStart()}
+            onStop={() => void onStop()}
+            onCycleDisplayMode={(sportName) => void onCycleDisplayMode(sportName)}
+          />
         </div>
         {visitedSettings && (
           <div className={tab === "settings" ? "flex flex-1 min-h-0 flex-col" : "hidden"}>
@@ -248,15 +291,7 @@ export default function App() {
         )}
       </main>
       <Toaster />
-      <UpdateDialog
-        open={updateOffer != null}
-        phase={updatePhase}
-        version={updateOffer?.version ?? ""}
-        directory={updateDirectory}
-        error={updateError}
-        onDownload={() => void onDownloadUpdate()}
-        onClose={onCloseUpdate}
-      />
+      <UpdateDialog state={update} onDownload={() => void onDownloadUpdate()} onClose={onCloseUpdate} />
     </div>
   );
 }

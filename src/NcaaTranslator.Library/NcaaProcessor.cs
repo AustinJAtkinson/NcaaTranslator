@@ -174,7 +174,6 @@ namespace NcaaTranslator.Library
         internal static void CategorizeGames(NcaaScoreboard ncaaGames, Sport sport)
         {
             var displayList = Settings.GetDisplayTeams();
-            var includeInDisplay = sport.OosUpdater.Enabled || sport.GameDisplayMode == GameDisplayMode.Display;
             ncaaGames.data!.conferenceGames ??= new List<Contest>();
             ncaaGames.data.nonConferenceGames ??= new List<Contest>();
             ncaaGames.data.displayGames ??= new List<Contest>();
@@ -207,15 +206,13 @@ namespace NcaaTranslator.Library
                     else
                     {
                         ncaaGames.data!.conferenceGames.Add(gameData);
-                        if (includeInDisplay)
-                            ncaaGames.data!.displayGames!.Add(gameData);
+                        ncaaGames.data!.displayGames!.Add(gameData);
                     }
                 }
                 else
                 {
                     ncaaGames.data!.nonConferenceGames.Add(gameData);
-                    if (includeInDisplay &&
-                        displayList != null &&
+                    if (displayList != null &&
                         displayList.Any(x => IsDisplayTeam(x, homeTeamObj) || IsDisplayTeam(x, awayTeamObj)))
                     {
                         ncaaGames.data!.displayGames!.Add(gameData);
@@ -337,13 +334,16 @@ namespace NcaaTranslator.Library
                     contests = data.contests,
                     nonConferenceGames = sport.ListsNeeded.nonConferenceGames ? data.nonConferenceGames : null,
                     conferenceGames = sport.ListsNeeded.conferenceGames ? data.conferenceGames : null,
-                    displayGames = data.displayGames,
+                    displayGames = ExportDisplayGames(sport) ? data.displayGames : null,
                     homeGames = data.homeGames,
                     top25Games = data.top25Games
                 }
             };
             File.WriteAllText(fileName, JsonSerializer.Serialize(exportData));
         }
+
+        private static bool ExportDisplayGames(Sport sport) =>
+            sport.OosUpdater.Enabled || sport.GameDisplayMode == GameDisplayMode.Display;
 
         private static async Task ConvertDateSport(
             Sport sport,
@@ -371,32 +371,58 @@ namespace NcaaTranslator.Library
 
             var prevContests = new List<Contest>();
             var prevDates = new List<DateTime>();
-            for (var i = 1; i <= lookBack; i++)
+            var prevFailed = false;
+            for (var i = 1; i <= lookBack && !prevFailed; i++)
             {
                 var date = asOf.AddDays(-i);
                 prevDates.Add(date);
                 var dayContests = await GetCachedOrFetchDate(sport, date, fetchExtras, cache).ConfigureAwait(false);
+                if (dayContests == null)
+                {
+                    prevFailed = true;
+                    break;
+                }
                 prevContests.AddRange(dayContests);
             }
 
-            prevDates.Reverse();
-            result.Prev = CategorizeAndExport(prevContests, sport, PrevGamesFileName(sport));
-            result.PrevDateRange = ContestClustering.FormatDateRange(prevContests)
-                ?? ContestClustering.FormatDateRange(prevDates);
+            if (prevFailed)
+            {
+                result.KeepPreviousPrev = true;
+            }
+            else
+            {
+                prevDates.Reverse();
+                result.Prev = CategorizeAndExport(prevContests, sport, PrevGamesFileName(sport));
+                result.PrevDateRange = ContestClustering.FormatDateRange(prevContests)
+                    ?? ContestClustering.FormatDateRange(prevDates);
+            }
 
             var postContests = new List<Contest>();
             var postDates = new List<DateTime>();
-            for (var i = 1; i <= lookForward; i++)
+            var postFailed = false;
+            for (var i = 1; i <= lookForward && !postFailed; i++)
             {
                 var date = asOf.AddDays(i);
                 postDates.Add(date);
                 var dayContests = await GetCachedOrFetchDate(sport, date, fetchExtras, cache).ConfigureAwait(false);
+                if (dayContests == null)
+                {
+                    postFailed = true;
+                    break;
+                }
                 postContests.AddRange(dayContests);
             }
 
-            result.Post = CategorizeAndExport(postContests, sport, PostGamesFileName(sport));
-            result.PostDateRange = ContestClustering.FormatDateRange(postContests)
-                ?? ContestClustering.FormatDateRange(postDates);
+            if (postFailed)
+            {
+                result.KeepPreviousPost = true;
+            }
+            else
+            {
+                result.Post = CategorizeAndExport(postContests, sport, PostGamesFileName(sport));
+                result.PostDateRange = ContestClustering.FormatDateRange(postContests)
+                    ?? ContestClustering.FormatDateRange(postDates);
+            }
         }
 
         private static async Task ConvertWeekSport(
@@ -467,9 +493,15 @@ namespace NcaaTranslator.Library
 
             var week = sport.Week!.Value;
             var prevAttempts = remainingPrev;
+            var prevFailed = false;
             for (var offset = 1; remainingPrev > 0 && offset <= prevAttempts; offset++)
             {
                 var extraContests = await GetCachedOrFetchWeek(sport, week - offset, asOf, fetchExtras, cache).ConfigureAwait(false);
+                if (extraContests == null)
+                {
+                    prevFailed = true;
+                    break;
+                }
                 if (extraContests.Count == 0)
                     continue;
 
@@ -480,9 +512,15 @@ namespace NcaaTranslator.Library
             }
 
             var postAttempts = remainingPost;
+            var postFailed = false;
             for (var offset = 1; remainingPost > 0 && offset <= postAttempts; offset++)
             {
                 var extraContests = await GetCachedOrFetchWeek(sport, week + offset, asOf, fetchExtras, cache).ConfigureAwait(false);
+                if (extraContests == null)
+                {
+                    postFailed = true;
+                    break;
+                }
                 if (extraContests.Count == 0)
                     continue;
 
@@ -492,12 +530,27 @@ namespace NcaaTranslator.Library
                 remainingPost -= take.Count;
             }
 
-            var prevContests = prevClusters.SelectMany(c => c).ToList();
-            var postContests = postClusters.SelectMany(c => c).ToList();
-            result.Prev = CategorizeAndExport(prevContests, sport, PrevGamesFileName(sport));
-            result.Post = CategorizeAndExport(postContests, sport, PostGamesFileName(sport));
-            result.PrevDateRange = ContestClustering.FormatDateRange(prevContests);
-            result.PostDateRange = ContestClustering.FormatDateRange(postContests);
+            if (prevFailed)
+            {
+                result.KeepPreviousPrev = true;
+            }
+            else
+            {
+                var prevContests = prevClusters.SelectMany(c => c).ToList();
+                result.Prev = CategorizeAndExport(prevContests, sport, PrevGamesFileName(sport));
+                result.PrevDateRange = ContestClustering.FormatDateRange(prevContests);
+            }
+
+            if (postFailed)
+            {
+                result.KeepPreviousPost = true;
+            }
+            else
+            {
+                var postContests = postClusters.SelectMany(c => c).ToList();
+                result.Post = CategorizeAndExport(postContests, sport, PostGamesFileName(sport));
+                result.PostDateRange = ContestClustering.FormatDateRange(postContests);
+            }
         }
 
         private static List<List<Contest>> TakeFromEnd(List<List<Contest>> clusters, int count)
@@ -515,7 +568,7 @@ namespace NcaaTranslator.Library
             return clusters.Take(count).ToList();
         }
 
-        private static async Task<List<Contest>> GetCachedOrFetchWeek(
+        private static async Task<List<Contest>?> GetCachedOrFetchWeek(
             Sport sport,
             int week,
             DateTime asOf,
@@ -526,11 +579,11 @@ namespace NcaaTranslator.Library
             return await cache.GetOrFetch(key, fetchExtras, async () =>
             {
                 var board = await FetchScoreboard(sport, week, contestDate: null, asOf).ConfigureAwait(false);
-                return board?.data?.contests?.ToList() ?? new List<Contest>();
+                return ContestsOrFailure(board);
             }).ConfigureAwait(false);
         }
 
-        private static async Task<List<Contest>> GetCachedOrFetchDate(
+        private static async Task<List<Contest>?> GetCachedOrFetchDate(
             Sport sport,
             DateTime date,
             bool fetchExtras,
@@ -541,8 +594,15 @@ namespace NcaaTranslator.Library
             return await cache.GetOrFetch(key, fetchExtras, async () =>
             {
                 var board = await FetchScoreboard(sport, week: null, contestDate, date).ConfigureAwait(false);
-                return board?.data?.contests?.ToList() ?? new List<Contest>();
+                return ContestsOrFailure(board);
             }).ConfigureAwait(false);
+        }
+
+        private static List<Contest>? ContestsOrFailure(NcaaScoreboard? board)
+        {
+            if (board?.data?.contests == null)
+                return null;
+            return board.data.contests.ToList();
         }
 
         public static void ConvertXmlToJson(XmlToJson xmlToJson)
@@ -556,7 +616,7 @@ namespace NcaaTranslator.Library
                 doc.Load(filePath.Path!);
 
                 var jsonText = JsonConvert.SerializeXmlNode(doc);
-                File.WriteAllText(Path.ChangeExtension(filePath.Path!, ".json"), jsonText);
+                File.WriteAllText(filePath.Path! + ".json", jsonText);
             }
         }
     }
@@ -569,6 +629,8 @@ namespace NcaaTranslator.Library
         public string? CurrentDateRange { get; set; }
         public string? PrevDateRange { get; set; }
         public string? PostDateRange { get; set; }
+        public bool KeepPreviousPrev { get; set; }
+        public bool KeepPreviousPost { get; set; }
     }
 
     internal sealed class ExtraPeriodCache
@@ -586,16 +648,15 @@ namespace NcaaTranslator.Library
                 _items.Remove(key);
         }
 
-        public async Task<List<Contest>> GetOrFetch(string key, bool allowFetch, Func<Task<List<Contest>>> fetch)
+        public async Task<List<Contest>?> GetOrFetch(string key, bool allowFetch, Func<Task<List<Contest>?>> fetch)
         {
-            if (!allowFetch)
-            {
-                return _items.TryGetValue(key, out var cached)
-                    ? cached.ToList()
-                    : new List<Contest>();
-            }
+            if (!allowFetch && _items.TryGetValue(key, out var cached))
+                return cached.ToList();
 
-            var data = await fetch().ConfigureAwait(false) ?? new List<Contest>();
+            var data = await fetch().ConfigureAwait(false);
+            if (data == null)
+                return null;
+
             _items[key] = data;
             return data.ToList();
         }

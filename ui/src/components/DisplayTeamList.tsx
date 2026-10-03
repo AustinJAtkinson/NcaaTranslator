@@ -6,9 +6,11 @@ import type { DisplayTeamSnapshot } from "../types";
 export default function DisplayTeamList({
   teams,
   onRemove,
+  labelFor = (code) => code ?? "",
 }: {
   teams: DisplayTeamSnapshot[];
   onRemove: (index: number) => void;
+  labelFor?: (code: string | null) => string;
 }) {
   if (teams.length === 0) {
     return (
@@ -19,7 +21,7 @@ export default function DisplayTeamList({
   return (
     <ul className="divide-y divide-border rounded-lg border border-border">
       {teams.map((team, index) => {
-        const name = team.ncaaTeamName ?? "";
+        const name = labelFor(team.ncaaTeamName);
         return (
           <li key={`${name}-${index}`} className="flex h-9 items-center justify-between gap-2 px-3">
             <span className="truncate text-sm">{name}</span>

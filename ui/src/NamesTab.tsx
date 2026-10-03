@@ -25,6 +25,21 @@ function containsIgnoreCase(hay: string | null | undefined, needle: string): boo
   return (hay ?? "").toUpperCase().includes(needle.toUpperCase());
 }
 
+function rowKey(value: string | null | undefined): string {
+  return (value ?? "").trim();
+}
+
+function teamIdentity(team: TeamNameSnapshot): string {
+  return rowKey(team.name6Char) || rowKey(team.seoname);
+}
+
+function sameTeam(row: TeamNameSnapshot, target: TeamNameSnapshot): boolean {
+  const code = rowKey(target.name6Char);
+  if (code) return rowKey(row.name6Char) === code;
+  const seo = rowKey(target.seoname);
+  return seo.length > 0 && !rowKey(row.name6Char) && rowKey(row.seoname) === seo;
+}
+
 export default function NamesTab({ section }: { section?: NamesSection } = {}) {
   const active = section ?? "teams";
   const [teams, setTeams] = useState<TeamNameSnapshot[]>([]);
@@ -83,24 +98,34 @@ export default function NamesTab({ section }: { section?: NamesSection } = {}) {
     return [...rows].sort((a, b) => compareConference(a, b, confSort.key) * confSort.dir);
   }, [conferences, conferenceQuery, confSort]);
 
-  async function saveTeam(name6Char: string, customName: string, previous: string | null): Promise<void> {
+  async function saveTeam(team: TeamNameSnapshot, customName: string, previous: string | null): Promise<void> {
+    const id = teamIdentity(team);
     const next = customName.trim();
     if (!next) {
       toast.error("Display name cannot be empty.");
-      setTeamInputKeys((prev) => ({ ...prev, [name6Char]: (prev[name6Char] ?? 0) + 1 }));
+      setTeamInputKeys((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
       setTeams((prev) =>
-        prev.map((team) => (team.name6Char === name6Char ? { ...team, customName: previous } : team)),
+        prev.map((row) => (sameTeam(row, team) ? { ...row, customName: previous } : row)),
       );
       return;
     }
+    if (!id) {
+      toast.error("This team has no code or SEO to save.");
+      setTeamInputKeys((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
+      return;
+    }
     if (next === (previous ?? "").trim()) return;
+    const code = rowKey(team.name6Char);
     try {
-      const saved = await sendMessage<TeamNameSnapshot>("saveTeamCustomName", { name6Char, customName: next });
-      setTeams((prev) =>
-        prev.map((team) => (team.name6Char === name6Char ? { ...team, customName: saved.customName } : team)),
+      const saved = await sendMessage<TeamNameSnapshot>(
+        "saveTeamCustomName",
+        code ? { name6Char: code, customName: next } : { seoname: rowKey(team.seoname), customName: next },
       );
-    } catch {
-      /* converter save failures are silent */
+      setTeams((prev) =>
+        prev.map((row) => (sameTeam(row, team) ? { ...row, customName: saved.customName } : row)),
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save the team name.");
     }
   }
 
@@ -138,8 +163,8 @@ export default function NamesTab({ section }: { section?: NamesSection } = {}) {
             : conference,
         ),
       );
-    } catch {
-      /* silent */
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save the conference name.");
     }
   }
 
@@ -169,7 +194,7 @@ export default function NamesTab({ section }: { section?: NamesSection } = {}) {
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-border bg-card">
         {isTeams ? (
-          <div data-name-scroller className="min-h-0 min-w-0 flex-1 overflow-auto">
+          <div key={active} data-name-scroller className="min-h-0 min-w-0 flex-1 overflow-auto">
             <div
               data-name-grid
               className={cn("grid w-full gap-x-3 px-3", TEAM_COLUMNS)}
@@ -191,21 +216,22 @@ export default function NamesTab({ section }: { section?: NamesSection } = {}) {
                   className="col-span-full m-0 grid list-none grid-cols-subgrid p-0"
                 >
                   {filteredTeams.map((team, index) => {
-                    const id = team.name6Char ?? team.seoname ?? String(index);
+                    const id = teamIdentity(team) || `team-${index}`;
+                    const label = rowKey(team.name6Char) || rowKey(team.seoname) || "team";
                     return (
                       <li key={id} className={NAME_ROW}>
                         <span className="min-w-0 px-1">
                           <span className="inline-flex h-5 max-w-full items-center truncate rounded bg-muted px-1.5 font-mono text-[11px] text-muted-foreground">
-                            {team.name6Char ?? ""}
+                            {rowKey(team.name6Char) ? team.name6Char : "\u00a0"}
                           </span>
                         </span>
                         <GhostInput
                           key={`${id}-${teamInputKeys[id] ?? 0}`}
                           value={team.customName ?? ""}
-                          aria-label={`Display name for ${team.name6Char ?? team.seoname ?? "team"}`}
+                          aria-label={`Display name for ${label}`}
                           className="min-w-0 w-full px-1"
                           onCommit={(value) => {
-                            if (team.name6Char) void saveTeam(team.name6Char, value, team.customName);
+                            void saveTeam(team, value, team.customName);
                           }}
                         />
                         <span className="min-w-0 truncate px-1 text-xs text-muted-foreground">
@@ -222,7 +248,7 @@ export default function NamesTab({ section }: { section?: NamesSection } = {}) {
             </div>
           </div>
         ) : (
-          <div data-name-scroller className="min-h-0 min-w-0 flex-1 overflow-auto">
+          <div key={active} data-name-scroller className="min-h-0 min-w-0 flex-1 overflow-auto">
             <div
               data-name-grid
               className={cn("grid w-full gap-x-3 px-3", CONFERENCE_COLUMNS)}
@@ -242,24 +268,21 @@ export default function NamesTab({ section }: { section?: NamesSection } = {}) {
                   className="col-span-full m-0 grid list-none grid-cols-subgrid p-0"
                 >
                   {filteredConferences.map((conference, index) => {
-                    const id = conference.conferenceSeo ?? String(index);
+                    const seo = rowKey(conference.conferenceSeo);
+                    const id = seo || `conf-${index}`;
                     return (
                       <li key={id} className={NAME_ROW}>
                         <span className="min-w-0 truncate px-1 text-xs text-muted-foreground">
-                          {conference.conferenceSeo ?? ""}
+                          {seo || "\u00a0"}
                         </span>
                         <GhostInput
                           key={`${id}-${conferenceInputKeys[id] ?? 0}`}
                           value={conference.customConferenceName ?? ""}
-                          aria-label={`Custom name for ${conference.conferenceSeo ?? "conference"}`}
+                          aria-label={`Custom name for ${seo || "conference"}`}
                           className="min-w-0 w-full px-1"
                           onCommit={(value) => {
-                            if (conference.conferenceSeo)
-                              void saveConference(
-                                conference.conferenceSeo,
-                                value,
-                                conference.customConferenceName,
-                              );
+                            if (seo)
+                              void saveConference(seo, value, conference.customConferenceName);
                           }}
                         />
                       </li>

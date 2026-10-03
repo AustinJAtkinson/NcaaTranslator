@@ -200,10 +200,93 @@ public class UpdateManagerTests
                 new GitHubRelease { tag_name = "v0.3.0" },
                 current);
 
+            Assert.Null(result);
+            Assert.False(Directory.Exists(Path.Combine(root, "NcaaTranslator-0.3.0")));
+            Assert.Empty(Directory.GetDirectories(root, "NcaaTranslator-0.3.0.staging-*"));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void InstallExtractedUpdate_DuplicateAndBlankKeys_LastWinsAndSkipsBlanks()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "ncaa-install-" + Guid.NewGuid().ToString("N"));
+        var current = Path.Combine(root, "app");
+        var extract = Path.Combine(root, "extract");
+        Directory.CreateDirectory(current);
+        Directory.CreateDirectory(extract);
+
+        try
+        {
+            File.WriteAllText(Path.Combine(current, "Settings.json"), """
+                {"Timer":20,"DisplayTeams":[{"NcaaTeamName":"A"},{"NcaaTeamName":"A"}],"Sports":[{"SportName":"Hockey","SportShortName":"HKY","Week":1,"LookBack":1,"LookForward":1},{"SportName":"Hockey Late","SportShortName":"HKY","Week":9,"LookBack":4,"LookForward":5},{"SportName":"Blank","SportShortName":"","Week":3}]}
+                """);
+            File.WriteAllText(Path.Combine(current, "NcaaNameConverter.json"), """
+                {"teams":[{"name6Char":"NO DAK","customName":"First"},{"name6Char":null,"customName":"Blank"},{"name6Char":"","customName":"Empty"},{"name6Char":"NO DAK","customName":"Second"}],"conferences":[{"conferenceSeo":"summit-league","customConferenceName":"First"},{"conferenceSeo":null,"customConferenceName":"Blank"},{"conferenceSeo":"summit-league","customConferenceName":"Second"}]}
+                """);
+            File.WriteAllText(Path.Combine(extract, "Settings.json"), """
+                {"Timer":15,"DisplayTeams":[{"NcaaTeamName":"A"}],"Sports":[{"SportName":"Hockey","SportShortName":"HKY","Week":0,"LookBack":0,"LookForward":0}]}
+                """);
+            File.WriteAllText(Path.Combine(extract, "NcaaNameConverter.json"), """
+                {"teams":[{"name6Char":"NO DAK","customName":"Theirs"},{"name6Char":"UVA","customName":"Virginia"}],"conferences":[{"conferenceSeo":"summit-league","customConferenceName":"The Summit"}]}
+                """);
+            File.WriteAllText(Path.Combine(extract, UpdateManager.GetInstalledExeFileName()), "exe");
+
+            var result = UpdateManager.InstallExtractedUpdate(
+                extract,
+                new GitHubRelease { tag_name = "v0.4.0" },
+                current);
+
             Assert.NotNull(result);
-            Assert.Equal(Path.Combine(root, "NcaaTranslator-0.3.0"), result.Directory);
-            Assert.Null(result.ExePath);
-            Assert.True(File.Exists(Path.Combine(result.Directory, "readme.txt")));
+            var names = JsonSerializer.Deserialize<NameConverter>(File.ReadAllText(Path.Combine(result.Directory, "NcaaNameConverter.json")));
+            Assert.NotNull(names);
+            Assert.Equal("Second", Assert.Single(names.teams, team => team.name6Char == "NO DAK").customName);
+            Assert.Contains(names.teams, team => team.name6Char == "UVA");
+            Assert.DoesNotContain(names.teams, team => string.IsNullOrEmpty(team.name6Char));
+            Assert.Equal("Second", Assert.Single(names.conferences, conf => conf.conferenceSeo == "summit-league").customConferenceName);
+            Assert.DoesNotContain(names.conferences, conf => string.IsNullOrEmpty(conf.conferenceSeo));
+
+            var settings = JsonSerializer.Deserialize<Setting>(File.ReadAllText(Path.Combine(result.Directory, "Settings.json")));
+            var sport = Assert.Single(settings!.Sports!);
+            Assert.Equal(9, sport.Week);
+            Assert.Equal(4, sport.LookBack);
+            Assert.Equal(5, sport.LookForward);
+            Assert.Single(settings.DisplayTeams!);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void InstallExtractedUpdate_WhenMergeThrows_DoesNotPublish()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "ncaa-install-" + Guid.NewGuid().ToString("N"));
+        var current = Path.Combine(root, "app");
+        var extract = Path.Combine(root, "extract");
+        Directory.CreateDirectory(current);
+        Directory.CreateDirectory(extract);
+
+        try
+        {
+            File.WriteAllText(Path.Combine(current, "Settings.json"), "{not json");
+            File.WriteAllText(Path.Combine(extract, "Settings.json"), """{"Timer":15}""");
+            File.WriteAllText(Path.Combine(extract, UpdateManager.GetInstalledExeFileName()), "exe");
+
+            var result = UpdateManager.InstallExtractedUpdate(
+                extract,
+                new GitHubRelease { tag_name = "v0.5.0" },
+                current);
+
+            Assert.Null(result);
+            Assert.False(Directory.Exists(Path.Combine(root, "NcaaTranslator-0.5.0")));
+            Assert.Empty(Directory.GetDirectories(root, "NcaaTranslator-0.5.0.staging-*"));
         }
         finally
         {

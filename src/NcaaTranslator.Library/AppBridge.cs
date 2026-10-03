@@ -124,6 +124,7 @@ namespace NcaaTranslator.Library
     public class TeamCustomNameParams
     {
         public string? Name6Char { get; set; }
+        public string? Seoname { get; set; }
         public string? CustomName { get; set; }
     }
 
@@ -272,8 +273,6 @@ namespace NcaaTranslator.Library
                     "status" => GetStatus(),
                     "getScoreboard" => GetScoreboard(),
                     "setGameDisplayMode" => SetGameDisplayMode(request.Params),
-                    "checkForUpdate" => CheckForUpdateAsync().GetAwaiter().GetResult(),
-                    "installUpdate" => InstallUpdateAsync().GetAwaiter().GetResult(),
                     _ => throw new InvalidOperationException($"Unknown method '{request.Method}'")
                 };
 
@@ -470,21 +469,47 @@ namespace NcaaTranslator.Library
         {
             EnsureNameConverters();
             var incoming = ReadRequiredParams<TeamCustomNameParams>(paramsElement);
-            if (string.IsNullOrWhiteSpace(incoming.Name6Char))
-                throw new InvalidOperationException("name6Char is required.");
             if (string.IsNullOrWhiteSpace(incoming.CustomName))
                 throw new InvalidOperationException("customName cannot be empty.");
 
-            if (!NameConverters.TeamDict.TryGetValue(incoming.Name6Char, out var team))
-                throw new InvalidOperationException($"Team '{incoming.Name6Char}' was not found.");
+            var customName = incoming.CustomName.Trim();
+            if (!string.IsNullOrWhiteSpace(incoming.Name6Char))
+            {
+                if (!NameConverters.TeamDict.TryGetValue(incoming.Name6Char, out var team))
+                    throw new InvalidOperationException($"Team '{incoming.Name6Char}' was not found.");
 
-            team.customName = incoming.CustomName.Trim();
+                team.customName = customName;
+                NameConverters.Reload();
+
+                if (!NameConverters.TeamDict.TryGetValue(incoming.Name6Char, out var saved))
+                    throw new InvalidDataException($"Team '{incoming.Name6Char}' was not found after save.");
+
+                return ToTeamSnapshot(saved);
+            }
+
+            var seoname = incoming.Seoname?.Trim();
+            if (string.IsNullOrEmpty(seoname))
+                throw new InvalidOperationException("name6Char is required.");
+
+            var match = FindBlankCodeTeam(seoname);
+            if (match == null)
+                throw new InvalidOperationException($"Team '{seoname}' was not found.");
+
+            match.customName = customName;
             NameConverters.Reload();
 
-            if (!NameConverters.TeamDict.TryGetValue(incoming.Name6Char, out var saved))
-                throw new InvalidDataException($"Team '{incoming.Name6Char}' was not found after save.");
+            var savedBlank = FindBlankCodeTeam(seoname);
+            if (savedBlank == null)
+                throw new InvalidDataException($"Team '{seoname}' was not found after save.");
 
-            return ToTeamSnapshot(saved);
+            return ToTeamSnapshot(savedBlank);
+        }
+
+        private static Team? FindBlankCodeTeam(string seoname)
+        {
+            return NameConverters.NameList?.teams.LastOrDefault(team =>
+                string.IsNullOrWhiteSpace(team.name6Char) &&
+                string.Equals(team.seoname?.Trim(), seoname, StringComparison.OrdinalIgnoreCase));
         }
 
         private static List<ConferenceNameSnapshot> GetConferences()
@@ -959,6 +984,19 @@ namespace NcaaTranslator.Library
                     {
                         if (!_running)
                             return;
+                        if (Scoreboards.TryGetValue(sport.SportName, out var previous))
+                        {
+                            if (result.KeepPreviousPrev)
+                            {
+                                result.Prev = previous.Prev;
+                                result.PrevDateRange = previous.PrevDateRange;
+                            }
+                            if (result.KeepPreviousPost)
+                            {
+                                result.Post = previous.Post;
+                                result.PostDateRange = previous.PostDateRange;
+                            }
+                        }
                         Scoreboards[sport.SportName] = result;
                         ExtraFingerprints[sport.SportName] = new ExtraFetchFingerprint(
                             asOf.Date,

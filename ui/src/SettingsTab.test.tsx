@@ -389,6 +389,24 @@ describe("SettingsTab", () => {
       expect(screen.getByText("Showing 1 of 2 sports")).toBeInTheDocument();
     });
 
+    it("removes the confirmed row when two sports share a name", async () => {
+      const user = userEvent.setup();
+      mockBridge({
+        ...baseSettings,
+        sports: [football, { ...basketball, name: "Football" }],
+      });
+      renderWithProviders(<SettingsTab section="sports" />);
+
+      const removeButtons = await screen.findAllByRole("button", { name: "Remove Football" });
+      await user.click(removeButtons[1]);
+      await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Remove" }));
+
+      await waitFor(() => {
+        expect(savedSettings()).toHaveLength(1);
+      });
+      expect(savedSettings()[0].sports.map((sport) => sport.short)).toEqual(["FB"]);
+    });
+
     it("removes a sport after ConfirmDialog confirm", async () => {
       const user = userEvent.setup();
       renderWithProviders(<SettingsTab section="sports" />);
@@ -442,6 +460,24 @@ describe("SettingsTab", () => {
 
       expect(savedSettings()).toHaveLength(0);
       expect(screen.getAllByText("Duke")).toHaveLength(1);
+    });
+
+    it("stores a display team by its 6-character code", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<SettingsTab section="display-teams" />);
+
+      await screen.findByText("Duke");
+      await user.click(screen.getByRole("combobox"));
+      await user.click(screen.getByRole("option", { name: "North Carolina" }));
+      await user.click(screen.getByRole("button", { name: "Add" }));
+
+      await waitFor(() => {
+        expect(savedSettings()).toHaveLength(1);
+      });
+      expect(savedSettings()[0].displayTeams).toEqual([
+        { ncaaTeamName: "DUKE" },
+        { ncaaTeamName: "UNC" },
+      ]);
     });
 
     it("saves when a display team is removed", async () => {
@@ -516,5 +552,6 @@ describe("SettingsTab", () => {
       expect(toast.error).toHaveBeenCalledWith("Error saving settings: disk full");
     });
     expect(alertSpy).not.toHaveBeenCalled();
+    expect(screen.getAllByRole("checkbox", { name: "Enabled" })[0]).toBeChecked();
   });
 });

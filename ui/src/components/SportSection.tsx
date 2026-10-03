@@ -64,7 +64,13 @@ function PeriodButton({
   );
 }
 
-export default function SportSection({ sport }: { sport: SportScoreboardSnapshot }) {
+export default function SportSection({
+  sport,
+  onCycleDisplayMode,
+}: {
+  sport: SportScoreboardSnapshot;
+  onCycleDisplayMode?: (sportName: string) => void;
+}) {
   const [open, setOpen] = useState(true);
   const [period, setPeriod] = useState<PeriodKey>("current");
   const panelId = useId();
@@ -140,12 +146,19 @@ export default function SportSection({ sport }: { sport: SportScoreboardSnapshot
             Home {selected.homeGamesCount}
           </Badge>
         </span>
-        <Badge
+        <Button
+          type="button"
+          size="xs"
           variant="secondary"
           className={cn("ml-auto", live ? "bg-live/15 text-live" : "text-muted-foreground")}
+          aria-label={`Cycle display mode, currently ${sport.gameDisplayMode}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onCycleDisplayMode?.(sport.sportName);
+          }}
         >
           {sport.gameDisplayMode}
-        </Badge>
+        </Button>
       </div>
       <div id={panelId} role="region" hidden={!open} className="game-grid-host">
         {selected.games.length === 0 ? (

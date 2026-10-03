@@ -9,7 +9,7 @@ public class XmlToJsonTests : IDisposable
     public void Dispose() => _workspace.Dispose();
 
     [Fact]
-    public void ConvertXmlToJson_WritesJsonExtension_NotXmlJson()
+    public void ConvertXmlToJson_AppendsJsonSuffix()
     {
         var xmlPath = Path.Combine(_workspace.DirectoryPath, "1.xml");
         File.WriteAllText(xmlPath, "<root><a>1</a></root>");
@@ -20,9 +20,9 @@ public class XmlToJsonTests : IDisposable
             FilePaths = new List<FilePath> { new() { Path = xmlPath } }
         });
 
-        var jsonPath = Path.Combine(_workspace.DirectoryPath, "1.json");
+        var jsonPath = xmlPath + ".json";
         Assert.True(File.Exists(jsonPath));
-        Assert.False(File.Exists(xmlPath + ".json"));
+        Assert.False(File.Exists(Path.Combine(_workspace.DirectoryPath, "1.json")));
         Assert.Contains("\"a\"", File.ReadAllText(jsonPath));
     }
 
@@ -39,6 +39,7 @@ public class XmlToJsonTests : IDisposable
         });
 
         Assert.False(File.Exists(Path.Combine(_workspace.DirectoryPath, "1.json")));
+        Assert.False(File.Exists(xmlPath + ".json"));
     }
 
     [Fact]
@@ -59,12 +60,12 @@ public class XmlToJsonTests : IDisposable
             }
         });
 
-        var jsonPath1 = Path.Combine(_workspace.DirectoryPath, "alpha.json");
-        var jsonPath2 = Path.Combine(_workspace.DirectoryPath, "beta.json");
+        var jsonPath1 = xmlPath1 + ".json";
+        var jsonPath2 = xmlPath2 + ".json";
         Assert.True(File.Exists(jsonPath1));
         Assert.True(File.Exists(jsonPath2));
-        Assert.False(File.Exists(xmlPath1 + ".json"));
-        Assert.False(File.Exists(xmlPath2 + ".json"));
+        Assert.False(File.Exists(Path.Combine(_workspace.DirectoryPath, "alpha.json")));
+        Assert.False(File.Exists(Path.Combine(_workspace.DirectoryPath, "beta.json")));
         Assert.Contains("\"a\"", File.ReadAllText(jsonPath1));
         Assert.Contains("\"b\"", File.ReadAllText(jsonPath2));
     }

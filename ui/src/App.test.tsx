@@ -279,4 +279,103 @@ describe("App", () => {
     expect(sendMessage).toHaveBeenCalledWith("installUpdate");
     expect(screen.getByRole("button", { name: "Start", hidden: true })).toBeInTheDocument();
   });
+
+  it("treats a missing update folder as an error and retries", async () => {
+    const user = userEvent.setup();
+    let installs = 0;
+    sendMessage.mockImplementation(async (method: string) => {
+      if (method === "checkForUpdate") {
+        return { available: true, version: "0.2.0", currentVersion: "0.1.0" };
+      }
+      if (method === "installUpdate") {
+        installs += 1;
+        if (installs === 1) return { version: "0.2.0", directory: "  ", exePath: null };
+        return { version: "0.2.0", directory: "C:\\Apps\\NcaaTranslator-0.2.0", exePath: null };
+      }
+      switch (method) {
+        case "start":
+        case "stop":
+        case "status":
+          return { running: true, lastUpdate: null };
+        case "getScoreboard":
+          return { sports: [] };
+        default:
+          return null;
+      }
+    });
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: "Download" }));
+
+    expect(await screen.findByRole("dialog", { name: "Update failed" })).toBeInTheDocument();
+    expect(screen.getByText("The update did not include a folder.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    expect(await screen.findByRole("dialog", { name: "Update downloaded" })).toBeInTheDocument();
+    expect(screen.getByText("C:\\Apps\\NcaaTranslator-0.2.0")).toBeInTheDocument();
+  });
+
+  it("cycles Live, All, and Display from the scoreboard", async () => {
+    const user = userEvent.setup();
+    const sport = {
+      sportName: "Volleyball",
+      gameDisplayMode: "Live",
+      confGamesCount: 0,
+      nonConfGamesCount: 0,
+      displayGamesCount: 0,
+      homeGamesCount: 0,
+      games: [],
+      week: null,
+      lookBack: 0,
+      lookForward: 0,
+      current: {
+        confGamesCount: 0,
+        nonConfGamesCount: 0,
+        displayGamesCount: 0,
+        homeGamesCount: 0,
+        games: [],
+        dateRange: null,
+      },
+      prev: null,
+      post: null,
+    };
+    let mode = "Live";
+    sendMessage.mockImplementation(async (method: string, params?: unknown) => {
+      if (method === "checkForUpdate") return { available: false, currentVersion: "0.1.0" };
+      if (method === "setGameDisplayMode") {
+        mode = (params as { gameDisplayMode: string }).gameDisplayMode;
+      }
+      switch (method) {
+        case "start":
+        case "stop":
+        case "status":
+          return { running: true, lastUpdate: null };
+        case "getScoreboard":
+        case "setGameDisplayMode":
+          return { sports: [{ ...sport, gameDisplayMode: mode }] };
+        default:
+          return null;
+      }
+    });
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: "Cycle display mode, currently Live" }));
+    expect(sendMessage).toHaveBeenCalledWith("setGameDisplayMode", {
+      sportName: "Volleyball",
+      gameDisplayMode: "All",
+    });
+
+    await user.click(await screen.findByRole("button", { name: "Cycle display mode, currently All" }));
+    expect(sendMessage).toHaveBeenCalledWith("setGameDisplayMode", {
+      sportName: "Volleyball",
+      gameDisplayMode: "Display",
+    });
+
+    await user.click(await screen.findByRole("button", { name: "Cycle display mode, currently Display" }));
+    expect(await screen.findByRole("button", { name: "Cycle display mode, currently Live" })).toBeInTheDocument();
+    expect(sendMessage).toHaveBeenCalledWith("setGameDisplayMode", {
+      sportName: "Volleyball",
+      gameDisplayMode: "Live",
+    });
+  });
 });

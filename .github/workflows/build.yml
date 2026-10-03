@@ -24,6 +24,9 @@ jobs:
       with:
         dotnet-version: 8.0.x
 
+    - name: Test updater
+      run: dotnet test tests/NcaaTranslator.UpdateTests/NcaaTranslator.UpdateTests.csproj --configuration Release
+
     - name: Restore dependencies
       run: dotnet restore NcaaTranslator.sln
 
@@ -66,6 +69,9 @@ jobs:
         cache: npm
         cache-dependency-path: ui/package-lock.json
 
+    - name: Test updater
+      run: dotnet test tests/NcaaTranslator.UpdateTests/NcaaTranslator.UpdateTests.csproj --configuration Release
+
     - name: Restore dependencies
       run: dotnet restore NcaaTranslator.sln
 
@@ -73,7 +79,7 @@ jobs:
       run: dotnet build NcaaTranslator.sln --configuration Release --no-restore /p:Version=${{ steps.gitversion.outputs.semVer }} /p:SkipUiBuild=false
 
     - name: Publish
-      run: dotnet publish src/NcaaTranslator.Desktop/NcaaTranslator.Desktop.csproj --configuration Release --output ./artifacts --no-restore /p:Version=${{ steps.gitversion.outputs.semVer }} /p:SkipUiBuild=false
+      run: dotnet publish src/NcaaTranslator.Desktop/NcaaTranslator.Desktop.csproj --configuration Release --runtime win-x64 --self-contained true --output ./artifacts /p:Version=${{ steps.gitversion.outputs.semVer }} /p:SkipUiBuild=false
 
     - name: Create ZIP
       run: |

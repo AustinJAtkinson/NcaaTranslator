@@ -334,6 +334,60 @@ public class PeriodFillTests : IDisposable
     }
 
     [Fact]
+    public async Task FailedExtraFetch_IsNotCached_AndDoesNotReplacePrevFile()
+    {
+        TestHelpers.WriteDefaultNames(_workspace.DirectoryPath);
+        TestHelpers.UseSettings();
+        var sport = WeekSport(lookBack: 2, lookForward: 0);
+        var cache = new ExtraPeriodCache();
+        var handler = HandlerForWeek(2, Week2Contests());
+        handler.WeekResponses[1] = TestHelpers.ToScoreboardJson(
+            TestHelpers.CreateDatedContest(10, "08/20/2026"));
+        NcaaProcessor.HttpClient = new HttpClient(handler);
+
+        var first = await NcaaProcessor.ConvertNcaaScoreboard(sport, AsOf, fetchExtras: true, cache);
+        Assert.False(first.KeepPreviousPrev);
+        Assert.Contains(10L, FileIds("Football FCS-Prev-Games.json"));
+        var written = File.ReadAllText("Football FCS-Prev-Games.json");
+
+        handler.WeekResponses[1] = "";
+        var failed = await NcaaProcessor.ConvertNcaaScoreboard(sport, AsOf, fetchExtras: true, cache);
+        Assert.True(failed.KeepPreviousPrev);
+        Assert.Equal(written, File.ReadAllText("Football FCS-Prev-Games.json"));
+
+        handler.WeekResponses[1] = TestHelpers.ToScoreboardJson(
+            TestHelpers.CreateDatedContest(10, "08/20/2026"));
+        var retried = await NcaaProcessor.ConvertNcaaScoreboard(sport, AsOf, fetchExtras: false, cache);
+        Assert.False(retried.KeepPreviousPrev);
+        Assert.Contains(10L, FileIds("Football FCS-Prev-Games.json"));
+        Assert.Equal(3, handler.RequestUris.Count(u => RegexWeek(u, 1)));
+    }
+
+    [Fact]
+    public async Task EmptyContestArray_IsCached_NullContestsAreNot()
+    {
+        TestHelpers.WriteDefaultNames(_workspace.DirectoryPath);
+        TestHelpers.UseSettings();
+        var sport = WeekSport(lookBack: 2, lookForward: 0);
+        var cache = new ExtraPeriodCache();
+        var handler = HandlerForWeek(2, Week2Contests());
+        handler.WeekResponses[1] = """{"data":{"contests":[]}}""";
+        NcaaProcessor.HttpClient = new HttpClient(handler);
+
+        await NcaaProcessor.ConvertNcaaScoreboard(sport, AsOf, fetchExtras: true, cache);
+        await NcaaProcessor.ConvertNcaaScoreboard(sport, AsOf, fetchExtras: false, cache);
+        Assert.Equal(1, handler.RequestUris.Count(u => RegexWeek(u, 1)));
+
+        handler.WeekResponses[1] = """{"data":{"contests":null}}""";
+        var cache2 = new ExtraPeriodCache();
+        var failed = await NcaaProcessor.ConvertNcaaScoreboard(sport, AsOf, fetchExtras: true, cache2);
+        Assert.True(failed.KeepPreviousPrev);
+        var afterFailure = handler.RequestUris.Count(u => RegexWeek(u, 1));
+        await NcaaProcessor.ConvertNcaaScoreboard(sport, AsOf, fetchExtras: false, cache2);
+        Assert.Equal(afterFailure + 1, handler.RequestUris.Count(u => RegexWeek(u, 1)));
+    }
+
+    [Fact]
     public async Task CachedExtras_AreReusedWhenFetchExtrasIsFalse()
     {
         TestHelpers.WriteDefaultNames(_workspace.DirectoryPath);

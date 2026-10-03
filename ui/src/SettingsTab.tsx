@@ -10,10 +10,11 @@ import SportsTable from "./components/SportsTable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { requestScoreboardRefresh, SETTINGS_WEEK_REFRESH } from "./events";
+import { GAME_DISPLAY_MODE_CHANGED, requestScoreboardRefresh, SETTINGS_WEEK_REFRESH } from "./events";
 import type {
   ClockFormatSnapshot,
   ConferenceNameSnapshot,
+  DisplayTeamSnapshot,
   PickPathResult,
   SettingsSnapshot,
   SportSnapshot,
@@ -69,9 +70,9 @@ function emptyLists() {
   return { conferenceGames: true, nonConferenceGames: true, top25Games: true };
 }
 
-function newSport(): SportSnapshot {
+function newSport(name: string): SportSnapshot {
   return {
-    name: "New Sport",
+    name,
     short: "NS",
     code: null,
     enabled: true,
@@ -91,8 +92,28 @@ function teamDisplay(team: TeamNameSnapshot): string {
   return team.customName ?? team.nameShort ?? team.name6Char ?? "";
 }
 
-function addTeamValue(team: TeamNameSnapshot): string {
-  return team.nameShort ?? team.name6Char ?? "";
+function nextSportName(sports: SportSnapshot[]): string {
+  const names = new Set(sports.map((sport) => sport.name));
+  if (!names.has("New Sport")) return "New Sport";
+  let suffix = 2;
+  while (names.has(`New Sport ${suffix}`)) suffix += 1;
+  return `New Sport ${suffix}`;
+}
+
+function codeForTeam(raw: string | null, catalog: TeamNameSnapshot[]): string | null {
+  if (!raw) return raw;
+  const match = catalog.find(
+    (team) => team.name6Char === raw || team.nameShort === raw || team.customName === raw,
+  );
+  return match?.name6Char ?? raw;
+}
+
+function normalizeDisplayTeams(list: DisplayTeamSnapshot[], catalog: TeamNameSnapshot[]): DisplayTeamSnapshot[] {
+  return list.map((team) => ({ ncaaTeamName: codeForTeam(team.ncaaTeamName, catalog) }));
+}
+
+function sameDisplayTeams(left: DisplayTeamSnapshot[], right: DisplayTeamSnapshot[]): boolean {
+  return left.length === right.length && left.every((team, index) => team.ncaaTeamName === right[index]?.ncaaTeamName);
 }
 
 function containsIgnoreCase(hay: string | null | undefined, needle: string): boolean {
@@ -115,6 +136,8 @@ export default function SettingsTab({ section = "general" }: { section?: Setting
   const [pendingRemove, setPendingRemove] = useState<{ index: number; name: string } | null>(null);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
+  const teamsRef = useRef(teams);
+  teamsRef.current = teams;
   const saveSeq = useRef(0);
   const xmlDebounceRef = useRef<number | null>(null);
   const activeSection = section;
@@ -129,10 +152,11 @@ export default function SettingsTab({ section = "general" }: { section?: Setting
           sendMessage<ConferenceNameSnapshot[]>("getConferences"),
         ]);
         if (cancelled) return;
-        const normalized = normalizeSettings(nextSettings);
+        const catalog = nextTeams ?? [];
+        const normalized = normalizeSettings(nextSettings, catalog);
         setSettings(normalized);
         settingsRef.current = normalized;
-        setTeams(nextTeams ?? []);
+        setTeams(catalog);
         const names: string[] = [];
         const seen = new Set<string>();
         for (const conference of nextConferences ?? []) {
@@ -159,9 +183,9 @@ export default function SettingsTab({ section = "general" }: { section?: Setting
         const latest = await sendMessage<SettingsSnapshot>("getSettings");
         const current = settingsRef.current;
         let changed = false;
-        const sports = current.sports.map((sport) => {
-          const next = latest.sports.find((item) => item.name === sport.name);
-          if (!next || next.week === sport.week) return sport;
+        const sports = current.sports.map((sport, index) => {
+          const next = latest.sports[index];
+          if (!next || next.name !== sport.name || next.week === sport.week) return sport;
           changed = true;
           return { ...sport, week: next.week };
         });
@@ -178,8 +202,30 @@ export default function SettingsTab({ section = "general" }: { section?: Setting
       void patchWeeksFromSettings();
     }
 
+    function onDisplayMode(event: Event): void {
+      const detail = (event as CustomEvent<{ sportName?: string; gameDisplayMode?: string }>).detail;
+      const sportName = detail?.sportName;
+      const gameDisplayMode = detail?.gameDisplayMode;
+      if (!sportName || !gameDisplayMode) return;
+      const current = settingsRef.current;
+      let changed = false;
+      const sports = current.sports.map((sport) => {
+        if (sport.name !== sportName || sport.gameDisplayMode === gameDisplayMode) return sport;
+        changed = true;
+        return { ...sport, gameDisplayMode };
+      });
+      if (!changed) return;
+      const merged = { ...current, sports };
+      settingsRef.current = merged;
+      setSettings(merged);
+    }
+
     window.addEventListener(SETTINGS_WEEK_REFRESH, onWeekRefresh);
-    return () => window.removeEventListener(SETTINGS_WEEK_REFRESH, onWeekRefresh);
+    window.addEventListener(GAME_DISPLAY_MODE_CHANGED, onDisplayMode);
+    return () => {
+      window.removeEventListener(SETTINGS_WEEK_REFRESH, onWeekRefresh);
+      window.removeEventListener(GAME_DISPLAY_MODE_CHANGED, onDisplayMode);
+    };
   }, []);
 
   useEffect(() => {
@@ -202,6 +248,7 @@ export default function SettingsTab({ section = "general" }: { section?: Setting
 
   async function persist(next: SettingsSnapshot, refreshScoreboard = false): Promise<void> {
     clearXmlDebounce();
+    const previous = settingsRef.current;
     settingsRef.current = next;
     setSettings(next);
     if (!loaded) return;
@@ -213,9 +260,10 @@ export default function SettingsTab({ section = "general" }: { section?: Setting
       const current = settingsRef.current;
       const sports = applySavedWeeks(current.sports, saved.sports, payload.sports);
       const homeTeam = saved.homeTeam !== payload.homeTeam ? saved.homeTeam : current.homeTeam;
+      const displayTeams = normalizeDisplayTeams(saved.displayTeams ?? current.displayTeams, teamsRef.current);
       const merged =
-        sports !== current.sports || homeTeam !== current.homeTeam
-          ? { ...current, sports, homeTeam }
+        sports !== current.sports || homeTeam !== current.homeTeam || !sameDisplayTeams(displayTeams, current.displayTeams)
+          ? { ...current, sports, homeTeam, displayTeams }
           : current;
       if (merged !== current) {
         settingsRef.current = merged;
@@ -227,6 +275,9 @@ export default function SettingsTab({ section = "general" }: { section?: Setting
       }
       if (refreshScoreboard) requestScoreboardRefresh();
     } catch (err) {
+      if (seq !== saveSeq.current) return;
+      settingsRef.current = previous;
+      setSettings(previous);
       toast.error(`Error saving settings: ${saveErrorMessage(err)}`);
     }
   }
@@ -245,7 +296,7 @@ export default function SettingsTab({ section = "general" }: { section?: Setting
       [...teams]
         .filter((team) => team.name6Char)
         .sort((a, b) => teamDisplay(a).localeCompare(teamDisplay(b), undefined, { sensitivity: "base" }))
-        .map((team) => ({ display: teamDisplay(team), value: addTeamValue(team) })),
+        .map((team) => ({ display: teamDisplay(team), value: team.name6Char! })),
     [teams]
   );
 
@@ -284,6 +335,19 @@ export default function SettingsTab({ section = "general" }: { section?: Setting
   }
 
   function patchSport(index: number, partial: Partial<SportSnapshot>, refreshScoreboard = false): void {
+    if (partial.name != null) {
+      const name = partial.name.trim();
+      if (!name) {
+        toast.error("Sport name cannot be empty.");
+        return;
+      }
+      const duplicate = settingsRef.current.sports.some((sport, i) => i !== index && sport.name === name);
+      if (duplicate) {
+        toast.error(`A sport named '${name}' already exists.`);
+        return;
+      }
+      partial = { ...partial, name };
+    }
     const next = {
       ...settingsRef.current,
       sports: settingsRef.current.sports.map((sport, i) => (i === index ? { ...sport, ...partial } : sport)),
@@ -302,7 +366,8 @@ export default function SettingsTab({ section = "general" }: { section?: Setting
   }
 
   function addSport(): void {
-    void persist({ ...settingsRef.current, sports: [...settingsRef.current.sports, newSport()] });
+    const sports = settingsRef.current.sports;
+    void persist({ ...settingsRef.current, sports: [...sports, newSport(nextSportName(sports))] });
   }
 
   function requestRemoveSport(index: number, name: string): void {
@@ -311,9 +376,7 @@ export default function SettingsTab({ section = "general" }: { section?: Setting
 
   function confirmRemoveSport(): void {
     if (!pendingRemove) return;
-    const { index, name } = pendingRemove;
-    const first = settingsRef.current.sports.findIndex((sport) => sport.name === name);
-    const removeAt = first >= 0 ? first : index;
+    const removeAt = pendingRemove.index;
     if (focusedSport === removeAt) setFocusedSport(null);
     void persist({
       ...settingsRef.current,
@@ -414,7 +477,13 @@ export default function SettingsTab({ section = "general" }: { section?: Setting
                     options={homeOptions}
                     width={200}
                     onSelect={(value) => void persist({ ...settingsRef.current, homeTeam: value || null })}
-                    onBlurText={(text) => void persist({ ...settingsRef.current, homeTeam: text })}
+                    onBlurText={(text) => {
+                      const match = homeOptions.find(
+                        (option) => option.value === text.trim() || option.display.localeCompare(text.trim(), undefined, { sensitivity: "base" }) === 0,
+                      );
+                      if (!match || match.value === (settingsRef.current.homeTeam ?? "")) return;
+                      void persist({ ...settingsRef.current, homeTeam: match.value });
+                    }}
                   />
                 </label>
               </div>
@@ -516,7 +585,14 @@ export default function SettingsTab({ section = "general" }: { section?: Setting
                 Add
               </Button>
             </div>
-            <DisplayTeamList teams={settings.displayTeams} onRemove={removeDisplayTeam} />
+            <DisplayTeamList
+              teams={settings.displayTeams}
+              onRemove={removeDisplayTeam}
+              labelFor={(code) => {
+                const team = teams.find((item) => item.name6Char === code);
+                return team ? teamDisplay(team) : (code ?? "");
+              }}
+            />
           </div>
         )}
 
@@ -648,12 +724,15 @@ function applySavedWeeks(
   savedSports: SportSnapshot[] | undefined,
   sentSports: SportSnapshot[],
 ): SportSnapshot[] {
+  if (!savedSports) return local;
   let changed = false;
-  const sports = local.map((sport) => {
-    const sent = sentSports.find((item) => item.name === sport.name);
-    if (sent && sent.week !== sport.week) return sport;
-    const fromSaved = savedSports?.find((item) => item.name === sport.name);
-    if (!fromSaved || fromSaved.week === sport.week) return sport;
+  const sports = local.map((sport, index) => {
+    const sent = sentSports[index];
+    const fromSaved = savedSports[index];
+    if (!sent || !fromSaved) return sport;
+    if (sent.name !== sport.name || fromSaved.name !== sport.name) return sport;
+    if (sent.week !== sport.week) return sport;
+    if (fromSaved.week === sport.week) return sport;
     changed = true;
     return { ...sport, week: fromSaved.week };
   });
@@ -661,21 +740,22 @@ function applySavedWeeks(
 }
 
 function weeksDiffer(left: SportSnapshot[], right: SportSnapshot[]): boolean {
-  return left.some((sport) => {
-    const other = right.find((item) => item.name === sport.name);
-    return other != null && other.week !== sport.week;
+  return left.some((sport, index) => {
+    const other = right[index];
+    return other != null && other.name === sport.name && other.week !== sport.week;
   });
 }
 
-function normalizeSettings(next: SettingsSnapshot): SettingsSnapshot {
+function normalizeSettings(next: SettingsSnapshot, catalog: TeamNameSnapshot[]): SettingsSnapshot {
   return {
     ...next,
+    homeTeam: codeForTeam(next.homeTeam, catalog),
     sports: (next.sports ?? []).map((sport) => ({
       ...sport,
       lookBack: sport.lookBack ?? 0,
       lookForward: sport.lookForward ?? 0,
     })),
-    displayTeams: next.displayTeams ?? [],
+    displayTeams: normalizeDisplayTeams(next.displayTeams ?? [], catalog),
     xmlToJson: next.xmlToJson ?? { enabled: false, filePaths: [] },
     clockFormats: {
       preGame: normalizeClockFormat(next.clockFormats?.preGame, PRE_GAME_CLOCK_DEFAULTS),
