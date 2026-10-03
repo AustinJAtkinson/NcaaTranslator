@@ -29,6 +29,23 @@ namespace NcaaTranslator.Library
             _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("NcaaTranslator", GetCurrentVersion().ToString()));
         }
 
+        public static bool ShouldUpdate(Version current, Version latest)
+        {
+            return latest > current;
+        }
+
+        internal static string? ResolveInstalledExe(string versionDir)
+        {
+            foreach (var name in new[] { "NcaaTranslator.Desktop.exe", "NcaaTranslator.Wpf.exe" })
+            {
+                var path = Path.Combine(versionDir, name);
+                if (File.Exists(path))
+                    return path;
+            }
+
+            return null;
+        }
+
         public static async Task CheckForUpdatesAsync()
         {
 #if DEBUG
@@ -43,7 +60,7 @@ namespace NcaaTranslator.Library
 
                 if (latestRelease?.tag_name != null && Version.TryParse(latestRelease.tag_name.TrimStart('v'), out var latestVersion))
                 {
-                    if (latestVersion != currentVersion)
+                    if (ShouldUpdate(currentVersion, latestVersion))
                     {
                         // Update available
                         var newExePath = await DownloadAndInstallUpdateAsync(latestRelease);
@@ -320,8 +337,7 @@ namespace NcaaTranslator.Library
                 // If merge fails, keep the new files
             }
 
-            var newExePath = Path.Combine(newVersionDir, "NcaaTranslator.Wpf.exe");
-            return File.Exists(newExePath) ? newExePath : null;
+            return ResolveInstalledExe(newVersionDir);
         }
 
     }

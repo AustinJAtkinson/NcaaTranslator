@@ -32,6 +32,9 @@ jobs:
       id: gitversion
       uses: gittools/actions/gitversion/execute@v0.10.2
 
+    - name: Test updater
+      run: dotnet test tests/NcaaTranslator.UpdateTests/NcaaTranslator.UpdateTests.csproj --configuration Release
+
     - name: Restore dependencies
       run: dotnet restore NcaaTranslator.sln
 
