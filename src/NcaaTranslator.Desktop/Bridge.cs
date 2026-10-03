@@ -48,11 +48,32 @@ public static class Bridge
         }
 
         var method = request?.Method?.Trim();
+        if (method is "checkForUpdate" or "installUpdate")
+        {
+            _ = UpdateAsync(window, request!, method);
+            return null;
+        }
+
         if (method is not ("pickFolder" or "pickFile"))
             return AppBridge.Handle(json);
 
         _ = PickAsync(window, request!, method);
         return null;
+    }
+
+    private static async Task UpdateAsync(PhotinoWindow window, BridgeRequest request, string method)
+    {
+        try
+        {
+            object result = method == "checkForUpdate"
+                ? await AppBridge.CheckForUpdateAsync().ConfigureAwait(false)
+                : await AppBridge.InstallUpdateAsync().ConfigureAwait(false);
+            Reply(window, request.Id, result, error: null);
+        }
+        catch (Exception ex)
+        {
+            Reply(window, request.Id, result: null, error: ex.Message);
+        }
     }
 
     private static async Task PickAsync(PhotinoWindow window, BridgeRequest request, string method)

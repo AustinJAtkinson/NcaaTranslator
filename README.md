@@ -34,9 +34,11 @@ cd ui && npm test
 dotnet test NcaaTranslator.sln
 ```
 
-A GitHub release zip extracts to `NcaaTranslator.Desktop.exe` (Windows). Config files next to the Desktop exe (`Settings.json`, `NcaaNameConverter.json`) are copied from `config/` at build time. Window size is stored in `Window.json` next to the exe.
+A GitHub release zip extracts to `NcaaTranslator.Desktop.exe` (Windows). The release tag and the exe version both come from GitVersion in the release workflow. Config files next to the Desktop exe (`Settings.json`, `NcaaNameConverter.json`) are copied from `config/` at build time. Window size is stored in `Window.json` next to the exe.
 
-Upgrading from the old WPF app (`NcaaTranslator.Wpf.exe`) is a **manual** zip install. The WPF updater looks for `NcaaTranslator.Wpf.exe` and will not pick up a Photino release.
+Debug builds do not check for updates. A Release build offers a newer GitHub release in the window, downloads it to a sibling `NcaaTranslator-{version}` folder, and leaves this copy running so you can quit and start the new exe.
+
+Installed WPF copies only move forward after a `main` release whose updater starts `NcaaTranslator.Desktop.exe`. Open that WPF build once before a Desktop-only zip is the latest release. The old shortcut still points at the old folder.
 
 ## Layout
 

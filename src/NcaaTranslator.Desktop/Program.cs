@@ -23,6 +23,11 @@ class Program
 
     static void Run(string[] args)
     {
+#if DEBUG
+        // Local Debug runs (F5, dotnet run) do not check GitHub or download.
+        AppBridge.UpdatesEnabled = false;
+#endif
+
         var appDir = AppContext.BaseDirectory;
         Settings.BaseDirectory = appDir;
         NameConverters.BaseDirectory = appDir;
@@ -75,7 +80,6 @@ class Program
         window.RegisterWindowCreatedHandler((_, _) =>
         {
             RepositionIfOffScreen(window, bounds);
-            _ = CheckForUpdatesAsync(window);
         });
 
         window.WaitForClose();
@@ -220,60 +224,5 @@ class Program
         window.Center();
         if (!bounds.Maximized)
             window.SetSize(bounds.Width, bounds.Height);
-    }
-
-    private static async Task CheckForUpdatesAsync(PhotinoWindow window)
-    {
-        GitHubRelease? release;
-        try
-        {
-            release = await UpdateManager.GetAvailableUpdateAsync();
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"Update check failed: {ex.Message}");
-            return;
-        }
-
-        if (release?.tag_name == null)
-            return;
-
-        var versionText = release.tag_name.TrimStart('v');
-        PhotinoDialogResult result;
-        try
-        {
-            result = window.ShowMessage(
-                "Update Available",
-                $"Update to v{versionText}?",
-                PhotinoDialogButtons.YesNo,
-                PhotinoDialogIcon.Question);
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"Update prompt failed: {ex.Message}");
-            return;
-        }
-
-        if (result != PhotinoDialogResult.Yes)
-            return;
-
-        try
-        {
-            var newExePath = await UpdateManager.DownloadAndInstallUpdateAsync(release);
-            if (string.IsNullOrEmpty(newExePath))
-                return;
-
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = newExePath,
-                UseShellExecute = true
-            });
-            window.Close();
-            Environment.Exit(0);
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"Update install failed: {ex.Message}");
-        }
     }
 }

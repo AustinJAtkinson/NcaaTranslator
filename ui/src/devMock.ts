@@ -4,6 +4,7 @@ import type {
   PeriodSnapshot,
   PickPathResult,
   ScoreboardSnapshot,
+  UpdateCheckResult,
   SettingsSnapshot,
   SportScoreboardSnapshot,
   StatusResult,
@@ -220,6 +221,10 @@ export function mockSend<T>(method: string, params?: unknown): Promise<T> {
     case "pickFolder":
     case "pickFile":
       return resolve({ path: null } as PickPathResult as T);
+    case "checkForUpdate":
+      return resolve({ available: false, version: null, currentVersion: "4.0.0" } as UpdateCheckResult as T);
+    case "installUpdate":
+      return Promise.reject(new Error("No update is available."));
     default:
       return Promise.reject(new Error(`Unknown method '${method}'`));
   }

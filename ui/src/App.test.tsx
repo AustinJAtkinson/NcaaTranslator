@@ -67,6 +67,8 @@ function mockBridge(): void {
       case "getTeams":
       case "getConferences":
         return [];
+      case "checkForUpdate":
+        return { available: false, version: null, currentVersion: "4.0.0" };
       default:
         return null;
     }
@@ -228,5 +230,53 @@ describe("App", () => {
     await waitFor(() => {
       expect(toast).toHaveBeenCalledWith("Football FCS → week 2");
     });
+  });
+
+  it("does not offer an update when none is available", async () => {
+    renderWithProviders(<App />);
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledWith("checkForUpdate");
+    });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("downloads an update into a folder and leaves this app running", async () => {
+    const user = userEvent.setup();
+    sendMessage.mockImplementation(async (method: string) => {
+      if (method === "checkForUpdate") {
+        return { available: true, version: "0.2.0", currentVersion: "0.1.7" };
+      }
+      if (method === "installUpdate") {
+        return {
+          version: "0.2.0",
+          directory: "C:\\Apps\\NcaaTranslator-0.2.0",
+          exePath: null,
+        };
+      }
+      switch (method) {
+        case "start":
+        case "stop":
+        case "status":
+          return { running: true, lastUpdate: null };
+        case "getScoreboard":
+          return { sports: [] };
+        default:
+          return null;
+      }
+    });
+
+    renderWithProviders(<App />);
+
+    expect(await screen.findByRole("dialog", { name: "Update available" })).toBeInTheDocument();
+    expect(screen.getByText(/Version 0.2.0 is available/)).toBeInTheDocument();
+    expect(screen.getByText(/will not restart/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Download" }));
+
+    expect(await screen.findByRole("dialog", { name: "Update downloaded" })).toBeInTheDocument();
+    expect(screen.getByText("C:\\Apps\\NcaaTranslator-0.2.0")).toBeInTheDocument();
+    expect(screen.getByText(/Quit this app and run NcaaTranslator.Desktop.exe/)).toBeInTheDocument();
+    expect(sendMessage).toHaveBeenCalledWith("installUpdate");
+    expect(screen.getByRole("button", { name: "Start", hidden: true })).toBeInTheDocument();
   });
 });

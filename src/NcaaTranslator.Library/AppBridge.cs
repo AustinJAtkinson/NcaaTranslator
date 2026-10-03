@@ -211,6 +211,12 @@ namespace NcaaTranslator.Library
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
 
+        /// <summary>
+        /// Debug hosts set this to false so a local run does not call GitHub.
+        /// Release builds leave it on. Tests leave it on and stub the fetch.
+        /// </summary>
+        public static bool UpdatesEnabled { get; set; } = true;
+
         private static readonly object StateLock = new();
         private static readonly SingleFlightGate ConversionGate = new();
         private static readonly Dictionary<string, PeriodConversionResult> Scoreboards = new();
@@ -266,6 +272,8 @@ namespace NcaaTranslator.Library
                     "status" => GetStatus(),
                     "getScoreboard" => GetScoreboard(),
                     "setGameDisplayMode" => SetGameDisplayMode(request.Params),
+                    "checkForUpdate" => CheckForUpdateAsync().GetAwaiter().GetResult(),
+                    "installUpdate" => InstallUpdateAsync().GetAwaiter().GetResult(),
                     _ => throw new InvalidOperationException($"Unknown method '{request.Method}'")
                 };
 
@@ -275,6 +283,43 @@ namespace NcaaTranslator.Library
             {
                 return Serialize(new BridgeResponse { Id = request.Id, Error = ex.Message });
             }
+        }
+
+        public static async Task<UpdateCheckResult> CheckForUpdateAsync()
+        {
+            var current = UpdateManager.GetCurrentVersion().ToString();
+            if (!UpdatesEnabled)
+            {
+                return new UpdateCheckResult
+                {
+                    Available = false,
+                    CurrentVersion = current
+                };
+            }
+
+            var release = await UpdateManager.GetAvailableUpdateAsync().ConfigureAwait(false);
+            return new UpdateCheckResult
+            {
+                Available = release?.tag_name != null,
+                Version = string.IsNullOrEmpty(release?.tag_name) ? null : release!.tag_name!.TrimStart('v'),
+                CurrentVersion = current
+            };
+        }
+
+        public static async Task<UpdateInstallResult> InstallUpdateAsync()
+        {
+            if (!UpdatesEnabled)
+                throw new InvalidOperationException("Updates are disabled.");
+
+            var release = UpdateManager.PendingRelease ?? await UpdateManager.GetAvailableUpdateAsync().ConfigureAwait(false);
+            if (release == null)
+                throw new InvalidOperationException("No update is available.");
+
+            var installed = await UpdateManager.DownloadAndInstallUpdateAsync(release).ConfigureAwait(false);
+            if (installed == null)
+                throw new InvalidOperationException("Update download failed.");
+
+            return installed;
         }
 
         internal static Task WaitForPollAsync()
@@ -308,7 +353,10 @@ namespace NcaaTranslator.Library
                 ExtraFingerprints.Clear();
                 Clock = () => DateTime.Now;
                 _inFlight = Task.CompletedTask;
+                UpdatesEnabled = true;
             }
+
+            UpdateManager.ResetForTests();
 
             if (timer == null)
                 return;

@@ -12,7 +12,8 @@ import { SCOREBOARD_REFRESH, requestSettingsWeekRefresh } from "./events";
 import MainTab from "./MainTab";
 import NamesTab from "./NamesTab";
 import SettingsTab from "./SettingsTab";
-import type { ScoreboardSnapshot, StatusResult } from "./types";
+import UpdateDialog, { type UpdateDialogPhase } from "./components/UpdateDialog";
+import type { ScoreboardSnapshot, StatusResult, UpdateCheckResult, UpdateInstallResult } from "./types";
 
 const emptyBoard: ScoreboardSnapshot = { sports: [] };
 const idleStatus: StatusResult = { running: true, lastUpdate: null };
@@ -52,6 +53,10 @@ export default function App() {
   const [visitedNames, setVisitedNames] = useState(false);
   const [status, setStatus] = useState<StatusResult>(idleStatus);
   const [board, setBoard] = useState<ScoreboardSnapshot>(emptyBoard);
+  const [updateOffer, setUpdateOffer] = useState<UpdateCheckResult | null>(null);
+  const [updatePhase, setUpdatePhase] = useState<UpdateDialogPhase>("offer");
+  const [updateDirectory, setUpdateDirectory] = useState<string | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
   const lastUpdateRef = useRef<string | null>(null);
   const runningRef = useRef(false);
   const boardRef = useRef<ScoreboardSnapshot>(emptyBoard);
@@ -95,6 +100,24 @@ export default function App() {
       /* silent */
     }
   }, [refreshBoard]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void sendMessage<UpdateCheckResult>("checkForUpdate")
+      .then((result) => {
+        if (cancelled || !result?.available || !result.version) return;
+        setUpdatePhase("offer");
+        setUpdateDirectory(null);
+        setUpdateError(null);
+        setUpdateOffer(result);
+      })
+      .catch(() => {
+        /* no release, or the host skipped the check */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     void sendMessage<StatusResult>("start")
@@ -171,6 +194,26 @@ export default function App() {
     }
   }
 
+  async function onDownloadUpdate(): Promise<void> {
+    setUpdatePhase("downloading");
+    setUpdateError(null);
+    try {
+      const installed = await sendMessage<UpdateInstallResult>("installUpdate");
+      setUpdateDirectory(installed.directory);
+      setUpdatePhase("ready");
+    } catch (error) {
+      setUpdateError(error instanceof Error ? error.message : "Update download failed.");
+      setUpdatePhase("error");
+    }
+  }
+
+  function onCloseUpdate(): void {
+    setUpdateOffer(null);
+    setUpdatePhase("offer");
+    setUpdateDirectory(null);
+    setUpdateError(null);
+  }
+
   async function onStop(): Promise<void> {
     try {
       const next = await sendMessage<StatusResult>("stop");
@@ -205,6 +248,15 @@ export default function App() {
         )}
       </main>
       <Toaster />
+      <UpdateDialog
+        open={updateOffer != null}
+        phase={updatePhase}
+        version={updateOffer?.version ?? ""}
+        directory={updateDirectory}
+        error={updateError}
+        onDownload={() => void onDownloadUpdate()}
+        onClose={onCloseUpdate}
+      />
     </div>
   );
 }

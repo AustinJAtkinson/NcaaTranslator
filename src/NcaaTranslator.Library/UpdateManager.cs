@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace NcaaTranslator.Library
 {
@@ -17,11 +18,40 @@ namespace NcaaTranslator.Library
         public string? browser_download_url { get; set; }
     }
 
+    public class UpdateCheckResult
+    {
+        public bool Available { get; set; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public string? Version { get; set; }
+        public string CurrentVersion { get; set; } = "";
+    }
+
+    public class UpdateInstallResult
+    {
+        public string Version { get; set; } = "";
+        public string Directory { get; set; } = "";
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public string? ExePath { get; set; }
+    }
+
     public static class UpdateManager
     {
         private const string GitHubRepo = "AustinJAtkinson/NcaaTranslator";
         private const string ApiUrl = $"https://api.github.com/repos/{GitHubRepo}/releases/latest";
         private static readonly HttpClient _httpClient = new HttpClient();
+
+        internal static GitHubRelease? PendingRelease { get; set; }
+        internal static Func<Version>? VersionOverride { get; set; }
+        internal static Func<Task<GitHubRelease?>>? FetchOverride { get; set; }
+        internal static Func<GitHubRelease, Task<UpdateInstallResult?>>? InstallOverride { get; set; }
+
+        internal static void ResetForTests()
+        {
+            PendingRelease = null;
+            VersionOverride = null;
+            FetchOverride = null;
+            InstallOverride = null;
+        }
 
         static UpdateManager()
         {
@@ -44,6 +74,7 @@ namespace NcaaTranslator.Library
                     && Version.TryParse(latestRelease.tag_name.TrimStart('v'), out var latestVersion)
                     && ShouldUpdate(currentVersion, latestVersion))
                 {
+                    PendingRelease = latestRelease;
                     return latestRelease;
                 }
             }
@@ -52,11 +83,15 @@ namespace NcaaTranslator.Library
                 Debug.WriteLine($"Update check failed: {ex.Message}");
             }
 
+            PendingRelease = null;
             return null;
         }
 
         public static Version GetCurrentVersion()
         {
+            if (VersionOverride != null)
+                return VersionOverride();
+
             var assembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
             return assembly.GetName().Version ?? new Version(1, 0, 0);
         }
@@ -70,6 +105,9 @@ namespace NcaaTranslator.Library
 
         private static async Task<GitHubRelease?> GetLatestReleaseAsync()
         {
+            if (FetchOverride != null)
+                return await FetchOverride();
+
             var response = await _httpClient.GetAsync(ApiUrl);
             response.EnsureSuccessStatusCode();
 
@@ -210,7 +248,15 @@ namespace NcaaTranslator.Library
             };
         }
 
-        public static async Task<string?> DownloadAndInstallUpdateAsync(GitHubRelease release)
+        public static Task<UpdateInstallResult?> DownloadAndInstallUpdateAsync(GitHubRelease release)
+        {
+            if (InstallOverride != null)
+                return InstallOverride(release);
+
+            return DownloadAndInstallCoreAsync(release);
+        }
+
+        private static async Task<UpdateInstallResult?> DownloadAndInstallCoreAsync(GitHubRelease release)
         {
             if (release.assets == null || !release.assets.Any())
                 return null;
@@ -261,9 +307,7 @@ namespace NcaaTranslator.Library
                     }
                 }
 
-                // Install
-                var newExePath = InstallUpdateAsync(extractPath, release);
-                return newExePath;
+                return InstallExtractedUpdate(extractPath, release, currentAppDir);
             }
             catch (Exception ex)
             {
@@ -277,13 +321,15 @@ namespace NcaaTranslator.Library
             }
         }
 
-        private static string? InstallUpdateAsync(string extractPath, GitHubRelease release)
+        internal static UpdateInstallResult? InstallExtractedUpdate(string extractPath, GitHubRelease release, string currentAppDir)
         {
-            var currentAppDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
+            currentAppDir = currentAppDir.TrimEnd(Path.DirectorySeparatorChar);
             var parentDir = Path.GetDirectoryName(currentAppDir);
-            if (parentDir == null) return null;
+            if (parentDir == null || release.tag_name == null)
+                return null;
+            if (!Version.TryParse(release.tag_name.TrimStart('v'), out var latestVersion))
+                return null;
 
-            var latestVersion = Version.Parse(release.tag_name!.TrimStart('v'));
             var newVersionDir = Path.Combine(parentDir, $"NcaaTranslator-{latestVersion}");
 
             // Create new version directory
@@ -337,8 +383,17 @@ namespace NcaaTranslator.Library
                 // If merge fails, keep the new files
             }
 
+            var currentWindowPath = Path.Combine(currentAppDir, WindowBounds.FileName);
+            if (File.Exists(currentWindowPath))
+                File.Copy(currentWindowPath, Path.Combine(newVersionDir, WindowBounds.FileName), true);
+
             var newExePath = Path.Combine(newVersionDir, GetInstalledExeFileName());
-            return File.Exists(newExePath) ? newExePath : null;
+            return new UpdateInstallResult
+            {
+                Version = latestVersion.ToString(),
+                Directory = newVersionDir,
+                ExePath = File.Exists(newExePath) ? newExePath : null
+            };
         }
 
     }

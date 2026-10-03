@@ -95,6 +95,18 @@ export type StatusResult = {
   lastUpdate: string | null;
 };
 
+export type UpdateCheckResult = {
+  available: boolean;
+  version: string | null;
+  currentVersion: string;
+};
+
+export type UpdateInstallResult = {
+  version: string;
+  directory: string;
+  exePath: string | null;
+};
+
 export type GameSnapshot = {
   home: string | null;
   homeScore: number | null;

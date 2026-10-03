@@ -343,6 +343,60 @@ public class AppBridgeTests
     }
 
     [Fact]
+    public void Handle_CheckForUpdate_WhenDisabled_DoesNotFetch()
+    {
+        using var workspace = new TempWorkspace();
+        AppBridge.UpdatesEnabled = false;
+        var fetched = false;
+        UpdateManager.FetchOverride = () =>
+        {
+            fetched = true;
+            return Task.FromResult<GitHubRelease?>(null);
+        };
+
+        using var doc = Handle("""{"id":"u","method":"checkForUpdate"}""");
+
+        Assert.False(fetched);
+        Assert.False(Result(doc).GetProperty("available").GetBoolean());
+        Assert.False(string.IsNullOrWhiteSpace(Result(doc).GetProperty("currentVersion").GetString()));
+    }
+
+    [Fact]
+    public void Handle_CheckForUpdate_WhenNewerRelease_ReturnsVersion()
+    {
+        using var workspace = new TempWorkspace();
+        UpdateManager.VersionOverride = () => new Version(1, 0, 0);
+        UpdateManager.FetchOverride = () => Task.FromResult<GitHubRelease?>(new GitHubRelease { tag_name = "v1.2.0" });
+
+        using var doc = Handle("""{"id":"u","method":"checkForUpdate"}""");
+
+        var result = Result(doc);
+        Assert.True(result.GetProperty("available").GetBoolean());
+        Assert.Equal("1.2.0", result.GetProperty("version").GetString());
+        Assert.Equal("1.0.0", result.GetProperty("currentVersion").GetString());
+    }
+
+    [Fact]
+    public void Handle_InstallUpdate_ReturnsFolderFromInstaller()
+    {
+        using var workspace = new TempWorkspace();
+        UpdateManager.PendingRelease = new GitHubRelease { tag_name = "v1.2.0" };
+        UpdateManager.InstallOverride = release => Task.FromResult<UpdateInstallResult?>(new UpdateInstallResult
+        {
+            Version = "1.2.0",
+            Directory = Path.Combine(workspace.DirectoryPath, "NcaaTranslator-1.2.0"),
+            ExePath = null
+        });
+
+        using var doc = Handle("""{"id":"u","method":"installUpdate"}""");
+
+        var result = Result(doc);
+        Assert.Equal("1.2.0", result.GetProperty("version").GetString());
+        Assert.Equal(Path.Combine(workspace.DirectoryPath, "NcaaTranslator-1.2.0"), result.GetProperty("directory").GetString());
+        Assert.Equal(JsonValueKind.Null, result.GetProperty("exePath").ValueKind);
+    }
+
+    [Fact]
     public void Handle_UnknownMethod_ReturnsError()
     {
         using var workspace = new TempWorkspace();
