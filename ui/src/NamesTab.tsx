@@ -12,10 +12,14 @@ export type NamesSection = "teams" | "conferences";
 
 type SortState = { key: string; dir: 1 | -1 } | null;
 
-const TEAM_GRID =
-  "grid grid-cols-[6.75rem_minmax(12rem,1.4fr)_minmax(9rem,1fr)_minmax(8rem,1fr)] items-center gap-x-3 px-3";
-const CONFERENCE_GRID =
-  "grid grid-cols-[minmax(10rem,0.9fr)_minmax(12rem,1.2fr)] items-center gap-x-3 px-3";
+const TEAM_COLUMNS =
+  "grid-cols-[6.75rem_minmax(12rem,1.4fr)_minmax(9rem,1fr)_minmax(8rem,1fr)]";
+const CONFERENCE_COLUMNS =
+  "grid-cols-[minmax(10rem,0.9fr)_minmax(12rem,1.2fr)]";
+const NAME_HEADER =
+  "sticky top-0 z-10 col-span-full grid grid-cols-subgrid items-center border-b border-border bg-card py-1.5";
+const NAME_ROW =
+  "col-span-full grid min-h-9 grid-cols-subgrid items-center border-b border-border py-1 last:border-b-0 hover:bg-muted/40";
 
 function containsIgnoreCase(hay: string | null | undefined, needle: string): boolean {
   return (hay ?? "").toUpperCase().includes(needle.toUpperCase());
@@ -145,7 +149,7 @@ export default function NamesTab({ section }: { section?: NamesSection } = {}) {
   const totalCount = isTeams ? teams.length : conferences.length;
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 p-4">
+    <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 p-4">
       <h2 className="text-sm font-semibold tracking-tight">{isTeams ? "Teams" : "Conferences"}</h2>
 
       <div className="flex items-center gap-3">
@@ -163,43 +167,51 @@ export default function NamesTab({ section }: { section?: NamesSection } = {}) {
         ) : null}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-border bg-card">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-border bg-card">
         {isTeams ? (
-          <>
-            <div className={cn(TEAM_GRID, "border-b border-border py-1.5")}>
-              <SortLabel label="Code" column="name6Char" sort={teamSort} onSort={setTeamSort} />
-              <SortLabel label="Display" column="customName" sort={teamSort} onSort={setTeamSort} />
-              <SortLabel label="SEO" column="seoname" sort={teamSort} onSort={setTeamSort} />
-              <SortLabel label="Short" column="nameShort" sort={teamSort} onSort={setTeamSort} />
-            </div>
-            <div className="min-h-0 flex-1 overflow-auto">
+          <div data-name-scroller className="min-h-0 min-w-0 flex-1 overflow-auto">
+            <div
+              data-name-grid
+              className={cn("grid w-full gap-x-3 px-3", TEAM_COLUMNS)}
+            >
+              <div className={NAME_HEADER}>
+                <SortLabel label="Code" column="name6Char" sort={teamSort} onSort={setTeamSort} />
+                <SortLabel label="Display" column="customName" sort={teamSort} onSort={setTeamSort} />
+                <SortLabel label="SEO" column="seoname" sort={teamSort} onSort={setTeamSort} />
+                <SortLabel label="Short" column="nameShort" sort={teamSort} onSort={setTeamSort} />
+              </div>
               {filteredTeams.length === 0 ? (
-                <EmptyState title="No teams match." />
+                <div className="col-span-full">
+                  <EmptyState title="No teams match." />
+                </div>
               ) : (
-                <ul role="list" aria-label="Teams" className="m-0 list-none p-0">
+                <ul
+                  role="list"
+                  aria-label="Teams"
+                  className="col-span-full m-0 grid list-none grid-cols-subgrid p-0"
+                >
                   {filteredTeams.map((team, index) => {
                     const id = team.name6Char ?? team.seoname ?? String(index);
                     return (
-                      <li
-                        key={id}
-                        className={cn(TEAM_GRID, "min-h-9 border-b border-border py-1 last:border-b-0 hover:bg-muted/40")}
-                      >
-                        <span className="inline-flex h-5 max-w-full items-center truncate rounded bg-muted px-1.5 font-mono text-[11px] text-muted-foreground">
-                          {team.name6Char ?? ""}
+                      <li key={id} className={NAME_ROW}>
+                        <span className="min-w-0 px-1">
+                          <span className="inline-flex h-5 max-w-full items-center truncate rounded bg-muted px-1.5 font-mono text-[11px] text-muted-foreground">
+                            {team.name6Char ?? ""}
+                          </span>
                         </span>
                         <GhostInput
                           key={`${id}-${teamInputKeys[id] ?? 0}`}
                           value={team.customName ?? ""}
                           aria-label={`Display name for ${team.name6Char ?? team.seoname ?? "team"}`}
-                          className="min-w-0 w-full"
+                          className="min-w-0 w-full px-1"
                           onCommit={(value) => {
                             if (team.name6Char) void saveTeam(team.name6Char, value, team.customName);
                           }}
                         />
-                        <span className="min-w-0 truncate text-xs text-muted-foreground">
+                        <span className="min-w-0 truncate px-1 text-xs text-muted-foreground">
                           {team.seoname ?? ""}
                         </span>
-                        <span className="min-w-0 truncate text-xs text-muted-foreground">
+                        <span className="min-w-0 truncate px-1 text-xs text-muted-foreground">
                           {team.nameShort ?? ""}
                         </span>
                       </li>
@@ -208,36 +220,39 @@ export default function NamesTab({ section }: { section?: NamesSection } = {}) {
                 </ul>
               )}
             </div>
-          </>
+          </div>
         ) : (
-          <>
-            <div className={cn(CONFERENCE_GRID, "border-b border-border py-1.5")}>
-              <SortLabel label="SEO" column="conferenceSeo" sort={confSort} onSort={setConfSort} />
-              <SortLabel label="Name" column="customConferenceName" sort={confSort} onSort={setConfSort} />
-            </div>
-            <div className="min-h-0 flex-1 overflow-auto">
+          <div data-name-scroller className="min-h-0 min-w-0 flex-1 overflow-auto">
+            <div
+              data-name-grid
+              className={cn("grid w-full gap-x-3 px-3", CONFERENCE_COLUMNS)}
+            >
+              <div className={NAME_HEADER}>
+                <SortLabel label="SEO" column="conferenceSeo" sort={confSort} onSort={setConfSort} />
+                <SortLabel label="Name" column="customConferenceName" sort={confSort} onSort={setConfSort} />
+              </div>
               {filteredConferences.length === 0 ? (
-                <EmptyState title="No conferences match." />
+                <div className="col-span-full">
+                  <EmptyState title="No conferences match." />
+                </div>
               ) : (
-                <ul role="list" aria-label="Conferences" className="m-0 list-none p-0">
+                <ul
+                  role="list"
+                  aria-label="Conferences"
+                  className="col-span-full m-0 grid list-none grid-cols-subgrid p-0"
+                >
                   {filteredConferences.map((conference, index) => {
                     const id = conference.conferenceSeo ?? String(index);
                     return (
-                      <li
-                        key={id}
-                        className={cn(
-                          CONFERENCE_GRID,
-                          "min-h-9 border-b border-border py-1 last:border-b-0 hover:bg-muted/40",
-                        )}
-                      >
-                        <span className="min-w-0 truncate text-xs text-muted-foreground">
+                      <li key={id} className={NAME_ROW}>
+                        <span className="min-w-0 truncate px-1 text-xs text-muted-foreground">
                           {conference.conferenceSeo ?? ""}
                         </span>
                         <GhostInput
                           key={`${id}-${conferenceInputKeys[id] ?? 0}`}
                           value={conference.customConferenceName ?? ""}
                           aria-label={`Custom name for ${conference.conferenceSeo ?? "conference"}`}
-                          className="min-w-0 w-full"
+                          className="min-w-0 w-full px-1"
                           onCommit={(value) => {
                             if (conference.conferenceSeo)
                               void saveConference(
@@ -253,7 +268,7 @@ export default function NamesTab({ section }: { section?: NamesSection } = {}) {
                 </ul>
               )}
             </div>
-          </>
+          </div>
         )}
       </div>
 
@@ -285,7 +300,7 @@ function SortLabel({
         })
       }
       className={cn(
-        "inline-flex min-w-0 items-center gap-0.5 justify-self-start rounded px-1 py-0.5 text-xs font-medium",
+        "inline-flex min-w-0 max-w-full items-center gap-0.5 justify-self-start whitespace-nowrap rounded px-1 py-0.5 text-xs font-medium",
         active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
       )}
     >

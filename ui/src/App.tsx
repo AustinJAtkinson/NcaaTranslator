@@ -199,7 +199,7 @@ export default function App() {
           </div>
         )}
         {visitedNames && (
-          <div className={tab === "names" ? "flex flex-1 min-h-0 flex-col" : "hidden"}>
+          <div className={tab === "names" ? "flex min-h-0 min-w-0 flex-1 flex-col" : "hidden"}>
             <NamesTab section={namesSub} />
           </div>
         )}

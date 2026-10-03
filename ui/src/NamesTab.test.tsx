@@ -76,6 +76,12 @@ describe("NamesTab", () => {
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Teams" })).toBeInTheDocument();
     expect(screen.getByText("Changes save automatically.")).toBeInTheDocument();
+    expect(list).toHaveClass("grid-cols-subgrid");
+    const grid = list.closest("[data-name-grid]");
+    expect(grid).toContainElement(screen.getByRole("button", { name: "Code" }));
+    expect(grid).toContainElement(screen.getByRole("button", { name: "Display" }));
+    expect(grid).toContainElement(screen.getByRole("button", { name: "SEO" }));
+    expect(grid).toContainElement(screen.getByRole("button", { name: "Short" }));
   });
 
   it("shows only the conferences list when section is conferences", async () => {
@@ -83,7 +89,17 @@ describe("NamesTab", () => {
 
     expect(await screen.findByRole("heading", { name: "Conferences" })).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Search conferences…")).toBeInTheDocument();
-    expect(screen.getByRole("list", { name: "Conferences" })).toBeInTheDocument();
+    const list = screen.getByRole("list", { name: "Conferences" });
+    expect(list).toHaveClass("grid-cols-subgrid");
+    const grid = list.closest("[data-name-grid]");
+    const scroller = list.closest("[data-name-scroller]");
+    const seo = screen.getByRole("button", { name: "SEO" });
+    const name = screen.getByRole("button", { name: "Name" });
+    expect(grid).toContainElement(seo);
+    expect(grid).toContainElement(name);
+    expect(scroller).toContainElement(seo);
+    expect(scroller).toContainElement(name);
+    expect(within(list).getAllByRole("listitem")).toHaveLength(2);
     expect(screen.queryByRole("heading", { name: "Teams" })).not.toBeInTheDocument();
     expect(screen.queryByPlaceholderText("Search teams…")).not.toBeInTheDocument();
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();

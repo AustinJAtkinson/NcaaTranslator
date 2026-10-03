@@ -1,3 +1,4 @@
+using System.Text.Json;
 using NcaaTranslator.Library;
 
 namespace NcaaTranslator.Library.Tests;
@@ -14,16 +15,18 @@ public class GameBucketingTests : IDisposable
         TestHelpers.UseSettings();
         var sport = TestHelpers.CreateSport(oosEnabled, mode);
 
-        var scoreboard = TestHelpers.CreateScoreboard(
-            TestHelpers.CreateContest(1, "NO DAK", "North Dakota", "mvc", "S DAK", "South Dakota", "mvc", 100),
-            TestHelpers.CreateContest(2, "NDSU", "North Dakota St.", "mvc", "SDSU", "South Dakota St.", "mvc", 200),
-            TestHelpers.CreateContest(3, "UVA", "Virginia", "acc", "DUKE", "Duke", "acc", 300),
-            TestHelpers.CreateContest(4, "DUKE", "Duke", "acc", "UVA", "Virginia", "acc", 400, homeRank: 3)
-        );
-
+        var scoreboard = TestHelpers.CreateScoreboard(StandardContests());
         NcaaProcessor.CategorizeGames(scoreboard, sport);
         return scoreboard;
     }
+
+    private static Contest[] StandardContests() => new[]
+    {
+        TestHelpers.CreateContest(1, "NO DAK", "North Dakota", "mvc", "S DAK", "South Dakota", "mvc", 100),
+        TestHelpers.CreateContest(2, "NDSU", "North Dakota St.", "mvc", "SDSU", "South Dakota St.", "mvc", 200),
+        TestHelpers.CreateContest(3, "UVA", "Virginia", "acc", "DUKE", "Duke", "acc", 300),
+        TestHelpers.CreateContest(4, "DUKE", "Duke", "acc", "UVA", "Virginia", "acc", 400, homeRank: 3)
+    };
 
     [Fact]
     public void ConferenceVsNonConferenceVsHome()
@@ -43,37 +46,21 @@ public class GameBucketingTests : IDisposable
     }
 
     [Fact]
-    public void HomeGamesAppearInDisplayGames_WhenDisplayMode()
+    public void HomeConferenceGame_IsOnlyInHomeGames_WhenDisplayMode()
     {
-        var scoreboard = Bucket(GameDisplayMode.Display, oosEnabled: false);
-        var display = scoreboard.data!.displayGames!;
-
-        Assert.True(display.Count >= 2);
-        Assert.Equal(1, display[0].contestId);
-        Assert.Contains(display, g => g.contestId == 2);
-        Assert.Contains(display, g => g.contestId == 3 || g.contestId == 4);
+        AssertHomeConferenceOnlyInHome(Bucket(GameDisplayMode.Display, oosEnabled: false), GameDisplayMode.Display, oosEnabled: false);
     }
 
     [Fact]
-    public void HomeGamesAppearInDisplayGames_WhenOosEnabled()
+    public void HomeConferenceGame_IsOnlyInHomeGames_WhenLiveMode()
     {
-        var scoreboard = Bucket(GameDisplayMode.Live, oosEnabled: true);
-        var display = scoreboard.data!.displayGames!;
-
-        Assert.Equal(1, display[0].contestId);
-        Assert.Contains(display, g => g.contestId == 1);
-        Assert.Contains(display, g => g.contestId == 2);
+        AssertHomeConferenceOnlyInHome(Bucket(GameDisplayMode.Live, oosEnabled: false), GameDisplayMode.Live, oosEnabled: false);
     }
 
     [Fact]
-    public void DisplayGamesAreFilled_WhenLiveModeWithoutOos()
+    public void HomeConferenceGame_IsOnlyInHomeGames_WhenOosEnabled()
     {
-        var scoreboard = Bucket(GameDisplayMode.Live, oosEnabled: false);
-        var display = scoreboard.data!.displayGames!;
-
-        Assert.Equal(1, display[0].contestId);
-        Assert.Contains(display, g => g.contestId == 2);
-        Assert.Contains(display, g => g.contestId == 3 || g.contestId == 4);
+        AssertHomeConferenceOnlyInHome(Bucket(GameDisplayMode.Live, oosEnabled: true), GameDisplayMode.Live, oosEnabled: true);
     }
 
     [Fact]
@@ -96,9 +83,71 @@ public class GameBucketingTests : IDisposable
         Assert.NotNull(handler.LastRequestUri);
         Assert.Contains("sdataprod.ncaa.com", handler.LastRequestUri!.Host);
         Assert.Single(result.data!.homeGames);
-        Assert.Single(result.data.displayGames!);
-        Assert.Equal(1, result.data.displayGames![0].contestId);
+        Assert.Equal(1, result.data.homeGames[0].contestId);
+        Assert.Null(result.data.displayGames);
+        Assert.Empty(result.data.conferenceGames!);
+        Assert.DoesNotContain(result.data.nonConferenceGames!, g => g.contestId == 1);
         Assert.True(File.Exists("Football FCS-Games.json"));
+        Assert.DoesNotContain(1L, ExportIds("Football FCS-Games.json", "displayGames"));
+        Assert.Equal(new[] { 1L }, ExportIds("Football FCS-Games.json", "homeGames"));
+    }
+
+    [Fact]
+    public async Task ConvertNcaaScoreboard_HomeConferenceGame_IsOnlyInHomeGames()
+    {
+        TestHelpers.WriteDefaultNames(_workspace.DirectoryPath);
+        TestHelpers.UseSettings();
+
+        await AssertConvertedHomeExport(GameDisplayMode.Display, oosEnabled: false);
+        await AssertConvertedHomeExport(GameDisplayMode.Live, oosEnabled: false);
+        await AssertConvertedHomeExport(GameDisplayMode.Live, oosEnabled: true);
+    }
+
+    [Fact]
+    public void CategorizeAndExport_HomeConferenceGame_IsOnlyInHomeGames_ForEachGamesFile()
+    {
+        TestHelpers.WriteDefaultNames(_workspace.DirectoryPath);
+        TestHelpers.UseSettings();
+        var cases = new (GameDisplayMode Mode, bool Oos)[]
+        {
+            (GameDisplayMode.Display, false),
+            (GameDisplayMode.Live, false),
+            (GameDisplayMode.Live, true)
+        };
+
+        foreach (var (mode, oos) in cases)
+        {
+            var sport = TestHelpers.CreateSport(oos, mode);
+            foreach (var fileName in new[]
+            {
+                NcaaProcessor.CurrentGamesFileName(sport),
+                NcaaProcessor.PrevGamesFileName(sport),
+                NcaaProcessor.PostGamesFileName(sport)
+            })
+            {
+                var board = NcaaProcessor.CategorizeAndExport(StandardContests(), sport, fileName);
+                AssertHomeConferenceOnlyInHome(board, mode, oos);
+                var exported = JsonSerializer.Deserialize<NcaaScoreboard>(File.ReadAllText(fileName));
+                AssertHomeConferenceOnlyInHome(exported!, mode, oos);
+            }
+        }
+    }
+
+    [Fact]
+    public void NonConferenceHomeTeam_IsNotAHomeGame()
+    {
+        TestHelpers.WriteDefaultNames(_workspace.DirectoryPath);
+        TestHelpers.UseSettings(displayTeams: new List<DisplayTeam> { new() { NcaaTeamName = "NO DAK" } });
+        var sport = TestHelpers.CreateSport(oosEnabled: true, GameDisplayMode.Live);
+        var scoreboard = TestHelpers.CreateScoreboard(
+            TestHelpers.CreateContest(8, "NO DAK", "North Dakota", "acc", "DUKE", "Duke", "acc", 100));
+
+        NcaaProcessor.CategorizeGames(scoreboard, sport);
+
+        Assert.Empty(scoreboard.data!.homeGames);
+        Assert.Empty(scoreboard.data.conferenceGames!);
+        Assert.Equal(8, scoreboard.data.nonConferenceGames!.Single().contestId);
+        Assert.Equal(8, scoreboard.data.displayGames!.Single().contestId);
     }
 
     [Fact]
@@ -283,5 +332,59 @@ public class GameBucketingTests : IDisposable
         Assert.Null(result.data!.contests);
         Assert.Empty(result.data.homeGames);
         Assert.Null(result.data.displayGames);
+    }
+
+    private async Task AssertConvertedHomeExport(GameDisplayMode mode, bool oosEnabled)
+    {
+        var handler = new FakeHttpMessageHandler
+        {
+            Response = TestHelpers.ToScoreboardJson(StandardContests())
+        };
+        NcaaProcessor.HttpClient = new HttpClient(handler);
+        var sport = TestHelpers.CreateSport(oosEnabled, mode);
+
+        var result = await NcaaProcessor.ConvertNcaaScoreboard(sport);
+
+        AssertHomeConferenceOnlyInHome(result, mode, oosEnabled);
+        var exported = JsonSerializer.Deserialize<NcaaScoreboard>(File.ReadAllText(NcaaProcessor.CurrentGamesFileName(sport)));
+        AssertHomeConferenceOnlyInHome(exported!, mode, oosEnabled);
+        Assert.DoesNotContain(1L, ExportIds(NcaaProcessor.PrevGamesFileName(sport), "displayGames"));
+        Assert.DoesNotContain(1L, ExportIds(NcaaProcessor.PostGamesFileName(sport), "displayGames"));
+    }
+
+    private static void AssertHomeConferenceOnlyInHome(NcaaScoreboard scoreboard, GameDisplayMode mode, bool oosEnabled)
+    {
+        var data = scoreboard.data!;
+        Assert.Equal(1, data.homeGames.Single().contestId);
+
+        var conference = data.conferenceGames ?? new List<Contest>();
+        var nonConference = data.nonConferenceGames ?? new List<Contest>();
+        var display = data.displayGames ?? new List<Contest>();
+
+        Assert.DoesNotContain(conference, g => g.contestId == 1);
+        Assert.DoesNotContain(nonConference, g => g.contestId == 1);
+        Assert.DoesNotContain(display, g => g.contestId == 1);
+        Assert.Contains(conference, g => g.contestId == 2);
+        Assert.Contains(nonConference, g => g.contestId == 3);
+        Assert.Contains(nonConference, g => g.contestId == 4);
+
+        if (oosEnabled || mode == GameDisplayMode.Display)
+        {
+            Assert.Equal(new long[] { 2, 3, 4 }, display.Select(g => g.contestId).ToArray());
+        }
+        else
+        {
+            Assert.Empty(display);
+        }
+    }
+
+    private static List<long> ExportIds(string path, string listName)
+    {
+        using var doc = JsonDocument.Parse(File.ReadAllText(path));
+        var data = doc.RootElement.GetProperty("data");
+        if (!data.TryGetProperty(listName, out var list) || list.ValueKind != JsonValueKind.Array)
+            return new List<long>();
+
+        return list.EnumerateArray().Select(game => game.GetProperty("contestId").GetInt64()).ToList();
     }
 }

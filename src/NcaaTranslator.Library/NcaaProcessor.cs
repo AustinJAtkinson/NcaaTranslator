@@ -174,8 +174,7 @@ namespace NcaaTranslator.Library
         internal static void CategorizeGames(NcaaScoreboard ncaaGames, Sport sport)
         {
             var displayList = Settings.GetDisplayTeams();
-            // Always fill displayGames so the Main-tab Live/All/Display toggle can
-            // re-filter a cached scoreboard without another NCAA fetch.
+            var includeInDisplay = sport.OosUpdater.Enabled || sport.GameDisplayMode == GameDisplayMode.Display;
             ncaaGames.data!.conferenceGames ??= new List<Contest>();
             ncaaGames.data.nonConferenceGames ??= new List<Contest>();
             ncaaGames.data.displayGames ??= new List<Contest>();
@@ -208,14 +207,19 @@ namespace NcaaTranslator.Library
                     else
                     {
                         ncaaGames.data!.conferenceGames.Add(gameData);
-                        ncaaGames.data!.displayGames!.Add(gameData);
+                        if (includeInDisplay)
+                            ncaaGames.data!.displayGames!.Add(gameData);
                     }
                 }
                 else
                 {
                     ncaaGames.data!.nonConferenceGames.Add(gameData);
-                    if (displayList != null && displayList.Any(x => IsDisplayTeam(x, homeTeamObj) || IsDisplayTeam(x, awayTeamObj)))
+                    if (includeInDisplay &&
+                        displayList != null &&
+                        displayList.Any(x => IsDisplayTeam(x, homeTeamObj) || IsDisplayTeam(x, awayTeamObj)))
+                    {
                         ncaaGames.data!.displayGames!.Add(gameData);
+                    }
                 }
 
                 var homeRank = homeTeamObj?.teamRank;
@@ -230,11 +234,6 @@ namespace NcaaTranslator.Library
                 .OrderBy(g => string.Equals(g.conferenceDisplayName, sport.SportShortName, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
                 .ThenBy(g => g.conferenceDisplayName)
                 .ThenBy(g => g.startTimeEpoch)
-                .ToList();
-
-            ncaaGames.data!.displayGames ??= new List<Contest>();
-            ncaaGames.data.displayGames = ncaaGames.data.homeGames
-                .Concat(ncaaGames.data.displayGames)
                 .ToList();
 
             ncaaGames.data!.contests!.Clear();

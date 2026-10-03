@@ -263,7 +263,7 @@ public class ScoreboardBridgeTests
         using var displayDoc = Handle("""{"id":"d","method":"setGameDisplayMode","params":{"sportName":"Football FCS","gameDisplayMode":"Display"}}""");
         var displaySport = Result(displayDoc).GetProperty("sports")[0];
         Assert.Equal("Display", displaySport.GetProperty("gameDisplayMode").GetString());
-        Assert.True(displaySport.GetProperty("games").GetArrayLength() >= 1);
+        Assert.Equal(0, displaySport.GetProperty("games").GetArrayLength());
 
         Handle("""{"id":"x","method":"stop"}""");
     }
@@ -343,13 +343,65 @@ public class ScoreboardBridgeTests
         Assert.Equal(1, sportJson.GetProperty("homeGamesCount").GetInt32());
         Assert.Equal(1, sportJson.GetProperty("confGamesCount").GetInt32());
         Assert.Equal(2, sportJson.GetProperty("nonConfGamesCount").GetInt32());
-        Assert.Equal(3, sportJson.GetProperty("displayGamesCount").GetInt32());
+        Assert.Equal(2, sportJson.GetProperty("displayGamesCount").GetInt32());
 
         var games = sportJson.GetProperty("games");
-        Assert.Equal(3, games.GetArrayLength());
-        Assert.Equal("UND", games[0].GetProperty("home").GetString());
-        Assert.Equal("NDSU", games[1].GetProperty("home").GetString());
-        Assert.Equal("Virginia", games[2].GetProperty("home").GetString());
+        Assert.Equal(2, games.GetArrayLength());
+        Assert.Equal("NDSU", games[0].GetProperty("home").GetString());
+        Assert.Equal("Virginia", games[1].GetProperty("home").GetString());
+
+        Handle("""{"id":"x","method":"stop"}""");
+    }
+
+    [Fact]
+    public async Task Handle_GetScoreboard_DisplayModeOmitsHomeGame_AllAndLiveStillShowIt()
+    {
+        using var workspace = new TempWorkspace();
+        TestHelpers.WriteDefaultNames(workspace.DirectoryPath);
+        TestHelpers.UseSettings();
+        Settings.SettingsList!.Sports!.Add(TestHelpers.CreateSport(mode: GameDisplayMode.Display));
+        Settings.SettingsList.Timer = 60;
+
+        var home = TestHelpers.CreateContest(1, "NO DAK", "North Dakota", "mvc", "S DAK", "South Dakota", "mvc", 100,
+            homeScore: 14, awayScore: 7, gameState: "I");
+        home.currentPeriod = "2nd";
+        home.contestClock = "5:00";
+        var conference = TestHelpers.CreateContest(2, "NDSU", "North Dakota St.", "mvc", "SDSU", "South Dakota St.", "mvc", 200);
+        var displayTeam = TestHelpers.CreateContest(3, "UVA", "Virginia", "acc", "DUKE", "Duke", "acc", 300);
+
+        var handler = new FakeHttpMessageHandler
+        {
+            Response = TestHelpers.ToScoreboardJson(home, conference, displayTeam)
+        };
+        NcaaProcessor.HttpClient = new HttpClient(handler);
+
+        Handle("""{"id":"s","method":"start"}""");
+        await AppBridge.WaitForPollAsync();
+
+        using (var displayDoc = Handle("""{"id":"d","method":"getScoreboard"}"""))
+            AssertDisplayOmitsHome(displayDoc);
+        Assert.Equal(new long[] { 2, 3 }, ExportIds("Football FCS-Games.json", "displayGames"));
+        Assert.Equal(new long[] { 1L }, ExportIds("Football FCS-Games.json", "homeGames"));
+        Assert.DoesNotContain(1L, ExportIds("Football FCS-Games.json", "conferenceGames"));
+        Assert.DoesNotContain(1L, ExportIds("Football FCS-Prev-Games.json", "displayGames"));
+        Assert.DoesNotContain(1L, ExportIds("Football FCS-Post-Games.json", "displayGames"));
+
+        using (var allDoc = Handle("""{"id":"a","method":"setGameDisplayMode","params":{"sportName":"Football FCS","gameDisplayMode":"All"}}"""))
+            AssertHomeShownOnce(allDoc, expectedGames: 3);
+
+        using (var liveDoc = Handle("""{"id":"l","method":"setGameDisplayMode","params":{"sportName":"Football FCS","gameDisplayMode":"Live"}}"""))
+            AssertHomeShownOnce(liveDoc, expectedGames: 1);
+
+        using (var displayDoc = Handle("""{"id":"d2","method":"setGameDisplayMode","params":{"sportName":"Football FCS","gameDisplayMode":"Display"}}"""))
+            AssertDisplayOmitsHome(displayDoc);
+
+        Assert.Equal(new long[] { 2, 3 }, ExportIds("Football FCS-Games.json", "displayGames"));
+        using (var counts = Handle("""{"id":"c","method":"getScoreboard"}"""))
+        {
+            var sportJson = Result(counts).GetProperty("sports")[0];
+            Assert.Equal(2, sportJson.GetProperty("displayGamesCount").GetInt32());
+            Assert.Equal(1, sportJson.GetProperty("homeGamesCount").GetInt32());
+        }
 
         Handle("""{"id":"x","method":"stop"}""");
     }
@@ -626,6 +678,38 @@ public class ScoreboardBridgeTests
         var json = File.ReadAllText("Football FCS-Prev-Games.json");
         var board = JsonSerializer.Deserialize<NcaaScoreboard>(json);
         return TestHelpers.AllContestIds(board).ToList();
+    }
+
+    private static void AssertDisplayOmitsHome(JsonDocument doc)
+    {
+        var sportJson = Result(doc).GetProperty("sports")[0];
+        var games = sportJson.GetProperty("games");
+        Assert.Equal(2, games.GetArrayLength());
+        Assert.Equal(0, games.EnumerateArray().Count(game => game.GetProperty("home").GetString() == "UND"));
+        Assert.Equal("NDSU", games[0].GetProperty("home").GetString());
+        Assert.Equal("Virginia", games[1].GetProperty("home").GetString());
+        Assert.Equal(1, sportJson.GetProperty("homeGamesCount").GetInt32());
+        Assert.Equal(2, sportJson.GetProperty("displayGamesCount").GetInt32());
+    }
+
+    private static void AssertHomeShownOnce(JsonDocument doc, int expectedGames)
+    {
+        var sportJson = Result(doc).GetProperty("sports")[0];
+        var games = sportJson.GetProperty("games");
+        Assert.Equal(expectedGames, games.GetArrayLength());
+        Assert.Equal(1, games.EnumerateArray().Count(game => game.GetProperty("home").GetString() == "UND"));
+        Assert.Equal(1, sportJson.GetProperty("homeGamesCount").GetInt32());
+        Assert.Equal(2, sportJson.GetProperty("displayGamesCount").GetInt32());
+    }
+
+    private static List<long> ExportIds(string path, string listName)
+    {
+        using var doc = JsonDocument.Parse(File.ReadAllText(path));
+        var data = doc.RootElement.GetProperty("data");
+        if (!data.TryGetProperty(listName, out var list) || list.ValueKind != JsonValueKind.Array)
+            return new List<long>();
+
+        return list.EnumerateArray().Select(game => game.GetProperty("contestId").GetInt64()).ToList();
     }
 
     private static async Task WaitUntil(Func<bool> condition, int timeoutMs = 5000)
